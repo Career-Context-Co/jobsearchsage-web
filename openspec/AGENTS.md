@@ -134,6 +134,11 @@ openspec/
 │   │   ├── proposal.md     # Why, what, impact
 │   │   ├── tasks.md        # Implementation checklist
 │   │   ├── design.md       # Technical decisions (optional; see criteria)
+│   │   ├── deliverables/   # Generated artifacts for review/handoff
+│   │   │   ├── migrations/ # Database migration scripts
+│   │   │   ├── schemas/    # API contracts, OpenAPI specs, ERDs
+│   │   │   ├── mocks/      # Mock data, sample API responses
+│   │   │   └── seeds/      # Sample seed data (optional)
 │   │   └── specs/          # Delta changes
 │   │       └── [capability]/
 │   │           └── spec.md # ADDED/MODIFIED/REMOVED
@@ -157,6 +162,7 @@ New request?
 ### Proposal Structure
 
 1. **Create directory:** `changes/[change-id]/` (kebab-case, verb-led, unique)
+   - For full-stack features needing handoffs, also create `changes/[change-id]/deliverables/` with subdirectories as needed (migrations/, schemas/, mocks/, seeds/)
 
 2. **Write proposal.md:**
 ```markdown
@@ -196,12 +202,20 @@ The system SHALL provide...
 If multiple capabilities are affected, create multiple delta files under `changes/[change-id]/specs/<capability>/spec.md`—one per capability.
 
 4. **Create tasks.md:**
+
+For **full-stack features** involving frontend, backend, and database work, see `openspec/tasks-guide.md` for the complete 5-phase workflow structure (Frontend → Backend → Database → Backend → Frontend).
+
+For **simple frontend-only UI changes** (e.g., adding a page, styling updates), use a simplified structure:
 ```markdown
 ## 1. Implementation
-- [ ] 1.1 Create database schema
-- [ ] 1.2 Implement API endpoint
-- [ ] 1.3 Add frontend component
-- [ ] 1.4 Write tests
+- [ ] 1.1 Create/update UI components
+- [ ] 1.2 Update navigation/routing (if needed)
+- [ ] 1.3 Add placeholder content
+
+## 2. Testing & Verification
+- [ ] 2.1 Verify UI appears correctly
+- [ ] 2.2 Test responsive behavior
+- [ ] 2.3 Run type checking and linter
 ```
 
 5. **Create design.md when needed:**
@@ -327,9 +341,12 @@ openspec list
 
 # 2) Choose change id and scaffold
 CHANGE=add-two-factor-auth
-mkdir -p openspec/changes/$CHANGE/{specs/auth}
+mkdir -p openspec/changes/$CHANGE/{specs/auth,deliverables/{migrations,schemas,mocks,seeds}}
 printf "## Why\n...\n\n## What Changes\n- ...\n\n## Impact\n- ...\n" > openspec/changes/$CHANGE/proposal.md
 printf "## 1. Implementation\n- [ ] 1.1 ...\n" > openspec/changes/$CHANGE/tasks.md
+
+# Note: deliverables/ subdirectories only needed for full-stack features
+# For simple UI-only changes, skip deliverables/ creation
 
 # 3) Add deltas (example)
 cat > openspec/changes/$CHANGE/specs/auth/spec.md << 'EOF'

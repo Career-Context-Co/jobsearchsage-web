@@ -1,31 +1,25 @@
-# Nuxt Dashboard Template
+# JobSearchSage
 
 [![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)
 
-Get started with the Nuxt dashboard template with multiple pages, collapsible sidebar, keyboard shortcuts, light & dark more, command palette and more, powered by [Nuxt UI](https://ui.nuxt.com).
+JobSearchSage transforms job searching into a systematic, learnable skill by enabling professionals to build a structured Career Sage Profile once, then use it across their entire job search.
 
-- [Live demo](https://dashboard-template.nuxt.dev/)
-- [Documentation](https://ui.nuxt.com/docs/getting-started/installation/nuxt)
+## Features
 
-<a href="https://dashboard-template.nuxt.dev/" target="_blank">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://ui.nuxt.com/assets/templates/nuxt/dashboard-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://ui.nuxt.com/assets/templates/nuxt/dashboard-light.png">
-    <img alt="Nuxt Dashboard Template" src="https://ui.nuxt.com/assets/templates/nuxt/dashboard-light.png">
-  </picture>
-</a>
+- **Career Sage Profile**: Build a comprehensive, structured profile once and reuse it everywhere
+- **Dynamic Resume Generation**: Create role-optimized resumes tailored to each application
+- **Application Pipeline Tracking**: Manage and track your job applications systematically
+- **Smart Communication Templates**: Professional templates with intelligent prefills
+- **Sage AI Coaching**: Conversational AI guidance throughout your job search journey
 
-> The dashboard template for Vue is on https://github.com/nuxt-ui-templates/dashboard-vue.
+## Tech Stack
 
-## Quick Start
-
-```bash [Terminal]
-npm create nuxt@latest -- -t github:nuxt-ui-templates/dashboard
-```
-
-## Deploy your own
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-name=dashboard&repository-url=https%3A%2F%2Fgithub.com%2Fnuxt-ui-templates%2Fdashboard&demo-image=https%3A%2F%2Fui.nuxt.com%2Fassets%2Ftemplates%2Fnuxt%2Fdashboard-dark.png&demo-url=https%3A%2F%2Fdashboard-template.nuxt.dev%2F&demo-title=Nuxt%20Dashboard%20Template&demo-description=A%20dashboard%20template%20with%20multi-column%20layout%20for%20building%20sophisticated%20admin%20interfaces.)
+Built with modern web technologies:
+- [Nuxt 4](https://nuxt.com) - Full-stack Vue framework with SSR
+- [Nuxt UI](https://ui.nuxt.com) - Beautiful, accessible component library
+- [TypeScript](https://www.typescriptlang.org/) - Type-safe development
+- [Tailwind CSS](https://tailwindcss.com/) - Utility-first styling
+- [VueUse](https://vueuse.org/) - Vue composition utilities
 
 ## Setup
 
@@ -59,6 +53,40 @@ pnpm preview
 
 Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
 
-## Renovate integration
+## Project Structure
 
-Install [Renovate GitHub app](https://github.com/apps/renovate/installations/select_target) on your repository and you are good to go.
+```
+app/
+├── components/     # Auto-imported Vue components
+├── composables/    # Reusable composition functions
+├── layouts/        # Application layouts
+├── pages/          # File-based routing
+└── utils/          # Utility functions
+
+server/
+└── api/           # Backend API endpoints
+
+openspec/          # OpenSpec-driven development
+├── project.md     # Project conventions and context
+├── specs/         # Current specifications
+└── changes/       # Change proposals and archives
+```
+
+## Development Workflow
+
+This project uses [OpenSpec](https://openspec.dev) for spec-driven development:
+
+- **Creating Changes**: See `openspec/AGENTS.md` for workflow
+- **Active Changes**: Run `openspec list`
+- **View Specs**: Run `openspec list --specs`
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes following project conventions
+4. Submit a pull request
+
+## License
+
+MIT License - see LICENSE file for details
