@@ -103,9 +103,9 @@ function addNewExperience() {
         <div class="text-sm text-muted">
           <p class="font-medium text-foreground mb-1">Tips for adding work experience</p>
           <ul class="list-disc list-inside space-y-1">
-            <li>Include the company name, job title, and dates of employment</li>
-            <li>List any accomplishments or achievements you had in the role</li>
-            <li>Promotions within the company should be entered separately</li>
+            <li>Include the company name, job title, and dates of employment.</li>
+            <li>Use the summary section to list any accomplishments or achievements you had in the role.</li>
+            <li>Promotions within the company should be entered as a new experience.</li>
           </ul>
         </div>
       </div>
@@ -220,10 +220,10 @@ function addNewExperience() {
 
               <!-- Action Buttons -->
               <div class="flex gap-2">
-                <UButton class="cursor-pointer" size="xl" type="submit" @click="saveExperience(index)">
+                <UButton class="cursor-pointer" size="lg" type="submit" @click="saveExperience(index)">
                   Save Experience
                 </UButton>
-                <UButton class="cursor-pointer" size="xl" color="neutral" variant="ghost" @click="cancelEdit(index)">
+                <UButton class="cursor-pointer" size="lg" color="neutral" variant="ghost" @click="cancelEdit(index)">
                   Cancel
                 </UButton>
               </div>
@@ -232,7 +232,7 @@ function addNewExperience() {
         </template>
       </UCollapsible>
 
-      <UButton class="cursor-pointer" icon="i-lucide-plus" color="primary" variant="ghost" size="sm" @click="addNewExperience">
+      <UButton class="cursor-pointer" icon="i-lucide-plus" color="primary" variant="ghost" size="lg" @click="addNewExperience">
         Add Work Experience
       </UButton>
     </div>

@@ -2,9 +2,14 @@
 import type { StepperItem } from '@nuxt/ui'
 
 const stepper = useTemplateRef('stepper')
-const currentStep = ref(0)
+const activeStep = ref('experience')
 
 const steps: StepperItem[] = [
+{ 
+    title: 'Contact', 
+    icon: 'i-lucide-user',
+    value: 'contact'
+  },
   { 
     title: 'Experience', 
     icon: 'i-lucide-briefcase',
@@ -16,31 +21,18 @@ const steps: StepperItem[] = [
     value: 'education'
   },
   { 
-    title: 'Skills', 
-    icon: 'i-lucide-wrench',
-    value: 'skills'
-  },
-  { 
-    title: 'Certifications', 
+    title: 'Additional', 
     icon: 'i-lucide-award',
-    value: 'certifications'
-  },
-  { 
-    title: 'Contact', 
-    icon: 'i-lucide-user',
-    value: 'contact'
+    value: 'additional'
   }
 ]
 
-// Calculate completion progress (placeholder - will be updated when sections are completed)
-const completedSteps = ref(0)
-const progress = computed(() => (completedSteps.value / steps.length) * 100)
 </script>
 
 <template>
   <UDashboardPanel id="profile-onboarding">
     <template #header>
-      <UDashboardNavbar title="Profile">
+      <UDashboardNavbar title="Profile Onboarding">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -51,9 +43,10 @@ const progress = computed(() => (completedSteps.value / steps.length) * 100)
       <div class="flex flex-col gap-6 sm:gap-8 w-full max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
         <!-- Stepper Component-->
         <UStepper
+
           ref="stepper"
-          size="md"
-          v-model="currentStep"
+          size="lg"
+          v-model="activeStep"
           :items="steps"
           orientation="horizontal"
           class="w-full"
@@ -61,17 +54,18 @@ const progress = computed(() => (completedSteps.value / steps.length) * 100)
 
         <!-- Content Area with Dynamic Components -->
         <div class="p-6 sm:p-8">
-          <ProfileExperienceSection v-if="steps[currentStep]?.value === 'experience'" />
-          <ProfileEducationSection v-else-if="steps[currentStep]?.value === 'education'" />
-          <ProfileSkillsSection v-else-if="steps[currentStep]?.value === 'skills'" />
-          <ProfileCertificationsSection v-else-if="steps[currentStep]?.value === 'certifications'" />
-          <ProfileContactSection v-else-if="steps[currentStep]?.value === 'contact'" />
+          <ProfileContactSection v-show="activeStep === 'contact'" />
+          <ProfileExperienceSection v-show="activeStep === 'experience'" />
+          <ProfileEducationSection v-show="activeStep === 'education'" />
+          <ProfileAdditionalSection v-show="activeStep === 'additional'" />   
         </div>
 
         <!-- Navigation Buttons -->
         <div class="flex justify-between items-center gap-4">
           <UButton
             label="Back"
+            class="cursor-pointer"
+            size="xl"
             leading-icon="i-lucide-chevron-left"
             color="neutral"
             variant="subtle"
@@ -82,6 +76,8 @@ const progress = computed(() => (completedSteps.value / steps.length) * 100)
           <div class="flex gap-2">
             <UButton
               v-if="stepper?.hasNext"
+              class="cursor-pointer"
+              size="xl"
               label="Continue"
               trailing-icon="i-lucide-chevron-right"
               color="primary"
@@ -89,6 +85,8 @@ const progress = computed(() => (completedSteps.value / steps.length) * 100)
             />
             <UButton
               v-else
+              class="cursor-pointer"
+              size="xl"
               label="Complete Profile"
               trailing-icon="i-lucide-check"
               color="success"
