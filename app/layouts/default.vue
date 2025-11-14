@@ -10,9 +10,12 @@ const links = [[{
   label: 'Profile',
   icon: 'i-lucide-user',
   to: '/profile',
-  onSelect: () => {
-    open.value = false
-  }
+  type: 'link',
+  children: [{
+    label: 'Onboarding',
+    to: '/profile/onboarding',
+    type: 'link',
+  }]
 }, {
   label: 'Home',
   icon: 'i-lucide-house',
