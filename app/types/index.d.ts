@@ -58,3 +58,71 @@ export interface Range {
   start: Date
   end: Date
 }
+
+// Profile Builder Types
+
+export interface ContactInfo {
+  firstName: string
+  lastName: string
+  jobTitle: string
+  email: string
+  phone: string
+  linkedin: string
+  websites: string[]
+  summary: string
+  city: string
+  stateRegion: string
+  country: string
+  postalCode: string
+  willingToRelocate: boolean
+}
+
+export interface WorkExperience {
+  company: string
+  title: string
+  location?: string
+  url?: string
+  startDate: string
+  endDate?: string
+  currentPosition: boolean
+  summary?: string
+  highlights: string[]
+  isEditing: boolean
+}
+
+export interface Education {
+  degreeType: string
+  areaOfStudy: string
+  institution: string
+  startDate: string
+  endDate: string
+  completed: boolean
+  url?: string
+  creditHours?: number
+  coursework: string[]
+  minors: string[]
+  isEditing: boolean
+}
+
+export interface Certification {
+  name: string
+  issuer: string
+  date: string
+  url?: string
+  isEditing: boolean
+}
+
+export interface SkillCategory {
+  name: string
+  description: string
+  skills: string[]
+  isEditing: boolean
+}
+
+export interface ProfileData {
+  contactInfo: ContactInfo
+  workExperiences: WorkExperience[]
+  education: Education[]
+  certifications: Certification[]
+  skillCategories: SkillCategory[]
+}

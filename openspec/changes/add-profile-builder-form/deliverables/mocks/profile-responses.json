@@ -1,0 +1,370 @@
+{
+  "description": "Mock API response samples for Profile Builder endpoints",
+  "version": "1.0.0",
+  "responses": {
+    "getCompleteProfile": {
+      "endpoint": "GET /api/profile",
+      "status": 200,
+      "response": {
+        "success": true,
+        "data": {
+          "profile": {
+            "id": "profile-uuid-001",
+            "user_id": "user-uuid-001",
+            "created_at": "2025-01-15T10:30:00.000Z",
+            "updated_at": "2025-01-15T14:45:00.000Z",
+            "completion_status": "complete"
+          },
+          "work_experiences": [
+            {
+              "id": "work-exp-001",
+              "profile_id": "profile-uuid-001",
+              "company": "TechCorp Inc.",
+              "title": "Senior Software Engineer",
+              "location": "San Francisco, CA",
+              "url": "https://techcorp.com",
+              "start_date": "2020-06-01",
+              "end_date": null,
+              "current_position": true,
+              "summary": "Leading development of cloud-native applications and microservices architecture.",
+              "highlights": [
+                "Architected and implemented a microservices platform serving 2M+ daily active users",
+                "Reduced API response times by 60% through caching and query optimization"
+              ],
+              "display_order": 0,
+              "created_at": "2025-01-15T10:35:00.000Z",
+              "updated_at": "2025-01-15T11:20:00.000Z"
+            }
+          ],
+          "education": [
+            {
+              "id": "edu-001",
+              "profile_id": "profile-uuid-001",
+              "degree_type": "Bachelor of Science",
+              "area_of_study": "Computer Science",
+              "institution": "Stanford University",
+              "start_date": "2012-09-01",
+              "end_date": "2016-06-15",
+              "completed": true,
+              "url": "https://www.stanford.edu",
+              "credit_hours": 180,
+              "coursework": ["Data Structures and Algorithms", "Machine Learning"],
+              "minors": ["Mathematics"],
+              "display_order": 0,
+              "created_at": "2025-01-15T10:38:00.000Z",
+              "updated_at": "2025-01-15T10:38:00.000Z"
+            }
+          ],
+          "certifications": [
+            {
+              "id": "cert-001",
+              "profile_id": "profile-uuid-001",
+              "name": "AWS Solutions Architect - Professional",
+              "issuer": "Amazon Web Services",
+              "date": "2023-06-15",
+              "url": "https://aws.amazon.com/certification/",
+              "display_order": 0,
+              "created_at": "2025-01-15T10:40:00.000Z",
+              "updated_at": "2025-01-15T10:40:00.000Z"
+            }
+          ],
+          "skill_categories": [
+            {
+              "id": "skill-cat-001",
+              "profile_id": "profile-uuid-001",
+              "name": "Programming Languages",
+              "description": "Languages I use daily in production",
+              "skills": ["TypeScript", "Python", "Go", "JavaScript", "SQL"],
+              "display_order": 0,
+              "created_at": "2025-01-15T10:43:00.000Z",
+              "updated_at": "2025-01-15T10:43:00.000Z"
+            }
+          ],
+          "contact_info": {
+            "id": "contact-001",
+            "profile_id": "profile-uuid-001",
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "job_title": "Senior Software Engineer",
+            "email": "jane.doe@example.com",
+            "phone": "+14155552671",
+            "linkedin": "https://linkedin.com/in/janedoe",
+            "websites": ["https://janedoe.dev", "https://github.com/janedoe"],
+            "summary": "Experienced software engineer with 8+ years building scalable applications.",
+            "city": "San Francisco",
+            "state_region": "California",
+            "country": "United States",
+            "postal_code": "94102",
+            "willing_to_relocate": false,
+            "created_at": "2025-01-15T10:32:00.000Z",
+            "updated_at": "2025-01-15T14:45:00.000Z"
+          }
+        }
+      }
+    },
+    "createProfile": {
+      "endpoint": "POST /api/profile",
+      "status": 201,
+      "request": {
+        "contact_info": {
+          "firstName": "Jane",
+          "lastName": "Doe",
+          "jobTitle": "Software Engineer",
+          "email": "jane.doe@example.com",
+          "phone": "+14155552671",
+          "linkedin": "https://linkedin.com/in/janedoe",
+          "websites": ["https://janedoe.dev"],
+          "summary": "Passionate software engineer",
+          "city": "San Francisco",
+          "stateRegion": "CA",
+          "country": "United States",
+          "postalCode": "94102",
+          "willingToRelocate": false
+        },
+        "work_experiences": [],
+        "education": [],
+        "certifications": [],
+        "skill_categories": []
+      },
+      "response": {
+        "success": true,
+        "message": "Profile created successfully",
+        "data": {
+          "profile": {
+            "id": "profile-uuid-002",
+            "user_id": "user-uuid-001",
+            "created_at": "2025-01-18T10:00:00.000Z",
+            "updated_at": "2025-01-18T10:00:00.000Z",
+            "completion_status": "incomplete"
+          },
+          "work_experiences": [],
+          "education": [],
+          "certifications": [],
+          "skill_categories": [],
+          "contact_info": {
+            "id": "contact-002",
+            "profile_id": "profile-uuid-002",
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "job_title": "Software Engineer",
+            "email": "jane.doe@example.com",
+            "phone": "+14155552671",
+            "linkedin": "https://linkedin.com/in/janedoe",
+            "websites": ["https://janedoe.dev"],
+            "summary": "Passionate software engineer",
+            "city": "San Francisco",
+            "state_region": "CA",
+            "country": "United States",
+            "postal_code": "94102",
+            "willing_to_relocate": false,
+            "created_at": "2025-01-18T10:00:00.000Z",
+            "updated_at": "2025-01-18T10:00:00.000Z"
+          }
+        }
+      }
+    },
+    "getContactInfo": {
+      "endpoint": "GET /api/profile/contact",
+      "status": 200,
+      "response": {
+        "success": true,
+        "data": {
+          "id": "contact-001",
+          "profile_id": "profile-uuid-001",
+          "first_name": "Jane",
+          "last_name": "Doe",
+          "job_title": "Senior Software Engineer",
+          "email": "jane.doe@example.com",
+          "phone": "+14155552671",
+          "linkedin": "https://linkedin.com/in/janedoe",
+          "websites": ["https://janedoe.dev"],
+          "summary": "Experienced software engineer",
+          "city": "San Francisco",
+          "state_region": "California",
+          "country": "United States",
+          "postal_code": "94102",
+          "willing_to_relocate": false,
+          "created_at": "2025-01-15T10:32:00.000Z",
+          "updated_at": "2025-01-15T14:45:00.000Z"
+        }
+      }
+    },
+    "updateContactInfo": {
+      "endpoint": "PUT /api/profile/contact",
+      "status": 200,
+      "request": {
+        "firstName": "Jane",
+        "lastName": "Doe",
+        "jobTitle": "Senior Software Engineer",
+        "email": "jane.doe@example.com",
+        "phone": "+14155552671",
+        "linkedin": "https://linkedin.com/in/janedoe",
+        "websites": ["https://janedoe.dev"],
+        "summary": "Updated summary",
+        "city": "San Francisco",
+        "stateRegion": "California",
+        "country": "United States",
+        "postalCode": "94102",
+        "willingToRelocate": false
+      },
+      "response": {
+        "success": true,
+        "message": "Contact information updated successfully",
+        "data": {
+          "id": "contact-001",
+          "profile_id": "profile-uuid-001",
+          "first_name": "Jane",
+          "last_name": "Doe",
+          "job_title": "Senior Software Engineer",
+          "email": "jane.doe@example.com",
+          "phone": "+14155552671",
+          "linkedin": "https://linkedin.com/in/janedoe",
+          "websites": ["https://janedoe.dev"],
+          "summary": "Updated summary",
+          "city": "San Francisco",
+          "state_region": "California",
+          "country": "United States",
+          "postal_code": "94102",
+          "willing_to_relocate": false,
+          "created_at": "2025-01-15T10:32:00.000Z",
+          "updated_at": "2025-01-18T10:30:00.000Z"
+        }
+      }
+    },
+    "deleteContactInfo": {
+      "endpoint": "DELETE /api/profile/contact",
+      "status": 200,
+      "response": {
+        "success": true,
+        "message": "Contact information deleted successfully"
+      }
+    },
+    "getWorkExperience": {
+      "endpoint": "GET /api/profile/work-experience",
+      "status": 200,
+      "response": {
+        "success": true,
+        "data": [
+          {
+            "id": "work-exp-001",
+            "profile_id": "profile-uuid-001",
+            "company": "TechCorp Inc.",
+            "title": "Senior Software Engineer",
+            "location": "San Francisco, CA",
+            "url": "https://techcorp.com",
+            "start_date": "2020-06-01",
+            "end_date": null,
+            "current_position": true,
+            "summary": "Leading development of cloud-native applications",
+            "highlights": [
+              "Architected microservices platform",
+              "Reduced API response times by 60%"
+            ],
+            "display_order": 0,
+            "created_at": "2025-01-15T10:35:00.000Z",
+            "updated_at": "2025-01-15T11:20:00.000Z"
+          }
+        ]
+      }
+    },
+    "updateWorkExperience": {
+      "endpoint": "PUT /api/profile/work-experience",
+      "status": 200,
+      "request": [
+        {
+          "id": "work-exp-001",
+          "company": "TechCorp Inc.",
+          "title": "Senior Software Engineer",
+          "location": "San Francisco, CA",
+          "url": "https://techcorp.com",
+          "startDate": "2020-06-01",
+          "endDate": null,
+          "currentPosition": true,
+          "summary": "Updated summary",
+          "highlights": ["Updated highlight"],
+          "display_order": 0
+        }
+      ],
+      "response": {
+        "success": true,
+        "message": "Work experience updated successfully",
+        "data": [
+          {
+            "id": "work-exp-001",
+            "profile_id": "profile-uuid-001",
+            "company": "TechCorp Inc.",
+            "title": "Senior Software Engineer",
+            "location": "San Francisco, CA",
+            "url": "https://techcorp.com",
+            "start_date": "2020-06-01",
+            "end_date": null,
+            "current_position": true,
+            "summary": "Updated summary",
+            "highlights": ["Updated highlight"],
+            "display_order": 0,
+            "created_at": "2025-01-15T10:35:00.000Z",
+            "updated_at": "2025-01-18T11:00:00.000Z"
+          }
+        ]
+      }
+    },
+    "deleteWorkExperience": {
+      "endpoint": "DELETE /api/profile/work-experience/:id",
+      "status": 200,
+      "response": {
+        "success": true,
+        "message": "Work experience deleted successfully"
+      }
+    },
+    "errors": {
+      "profileNotFound": {
+        "status": 404,
+        "response": {
+          "success": false,
+          "error": {
+            "code": "PROFILE_NOT_FOUND",
+            "message": "No profile exists for this user"
+          }
+        }
+      },
+      "validationError": {
+        "status": 400,
+        "response": {
+          "success": false,
+          "error": {
+            "code": "VALIDATION_ERROR",
+            "message": "Validation failed",
+            "details": [
+              {
+                "field": "contact_info.email",
+                "message": "Invalid email format",
+                "code": "INVALID_FORMAT"
+              }
+            ]
+          }
+        }
+      },
+      "profileAlreadyExists": {
+        "status": 409,
+        "response": {
+          "success": false,
+          "error": {
+            "code": "PROFILE_ALREADY_EXISTS",
+            "message": "A profile already exists for this user"
+          }
+        }
+      },
+      "unauthorized": {
+        "status": 401,
+        "response": {
+          "success": false,
+          "error": {
+            "code": "UNAUTHORIZED",
+            "message": "Authentication required"
+          }
+        }
+      }
+    }
+  }
+}
+

@@ -9,22 +9,22 @@
 - [x] 1.5 Create `app/components/profile/CertificationsSection.vue` component with fields for name, organization, date
 - [x] 1.6 Create `app/components/profile/SkillsSection.vue` component with tag/list interface and autocomplete from skills catalog
 - [x] 1.7 Create `app/components/profile/ContactSection.vue` component with fields for email, phone, location, LinkedIn
-- [ ] 1.8 Define TypeScript interfaces for all data shapes (ProfileData, WorkExperience, Education, Certification, Skill, ContactInfo)
+- [x] 1.8 Define TypeScript interfaces for all data shapes (ProfileData, WorkExperience, Education, Certification, Skill, ContactInfo)
 - [ ] 1.9 Add placeholder data to demonstrate form behavior and validation
 - [ ] 1.10 Add visual indicators for required fields and validation states
 
 ## 2. Backend: API Contract + Mocks
 
-- [ ] 2.1 Define Profile domain models in `deliverables/schemas/domain-models.ts` (Profile, WorkExperience, Education, Certification, Skill, ContactInfo)
-- [ ] 2.2 Define DTOs for API requests/responses (ProfileDTO, CreateProfileRequest, UpdateProfileRequest, etc.)
-- [ ] 2.3 Create API contract specification in `deliverables/schemas/api-spec.md` documenting all endpoints, request/response formats, and error codes
-- [ ] 2.4 Implement mock GET endpoint `server/api/profile.get.ts` returning sample profile JSON with all sections
-- [ ] 2.5 Implement mock POST endpoint `server/api/profile.post.ts` accepting new profile data and returning success
-- [ ] 2.6 Implement mock PUT endpoint `server/api/profile.put.ts` accepting profile updates and returning updated profile
-- [ ] 2.7 Implement mock DELETE endpoints for removing individual entries from sections
-- [ ] 2.8 Add validation logic in mock endpoints (email format, required fields, date formats)
-- [ ] 2.9 Share API contract with frontend for validation and feedback
-- [ ] 2.10 Create mock data samples in `deliverables/mocks/profile-responses.json`
+- [x] 2.1 Define Profile domain models in `deliverables/schemas/domain-models.ts` (Profile, WorkExperience, Education, Certification, Skill, ContactInfo)
+- [x] 2.2 Define DTOs for API requests/responses (ProfileDTO, CreateProfileRequest, UpdateProfileRequest, etc.)
+- [x] 2.3 Create API contract specification in `deliverables/schemas/api-spec.md` documenting all endpoints, request/response formats, and error codes
+- [x] 2.4 Implement mock GET endpoint `server/api/profile.get.ts` returning sample profile JSON with all sections
+- [x] 2.5 Implement mock POST endpoint `server/api/profile.post.ts` accepting new profile data and returning success
+- [x] 2.6 Implement mock PUT endpoint `server/api/profile.put.ts` accepting profile updates and returning updated profile
+- [x] 2.7 Implement mock DELETE endpoints for removing individual entries from sections
+- [x] 2.8 Add validation logic in mock endpoints (email format, required fields, date formats)
+- [x] 2.9 Share API contract with frontend for validation and feedback
+- [x] 2.10 Create mock data samples in `deliverables/mocks/profile-responses.json`
 
 ## 3. Database: Schema + Migrations
 

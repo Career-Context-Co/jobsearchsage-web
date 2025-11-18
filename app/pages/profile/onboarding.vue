@@ -2,7 +2,7 @@
 import type { StepperItem } from '@nuxt/ui'
 
 const stepper = useTemplateRef('stepper')
-const activeStep = ref('experience')
+const activeStep = ref('contact')
 
 const steps: StepperItem[] = [
 { 
