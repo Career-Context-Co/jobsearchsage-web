@@ -28,42 +28,42 @@ This document provides everything the database team needs to implement the Caree
 
 ### Phase 3: Database Schema & Migrations (Your Task)
 
-Implement the database schema in the `open_career` schema (NOT `jobsearchsage` schema).
+Implement the database schema in the `career_id` schema (NOT `jobsearchsage` schema).
 
 **Why separate schemas?**
-- `open_career` = Career Sage Core Platform (profile data) - shared across all Career Sage applications
+- `career_id` = Career Sage Core Platform (profile data) - shared across all Career Sage applications
 - `jobsearchsage` = Application-specific data (job applications, resumes, etc.)
 - This separation enables the platform vision: other Career Sage apps can access core profile data
 
 #### 3.1 Database Tables Required
 
-All tables go in the **`open_career`** schema:
+All tables go in the **`career_id`** schema:
 
-1. **`open_career.profiles`**
+1. **`career_id.profiles`**
    - Main profile metadata
    - One per user
    - Tracks completion status
 
-2. **`open_career.work_experiences`**
+2. **`career_id.work_experiences`**
    - Professional work history
    - Many per profile
    - Includes highlights as JSON array
 
-3. **`open_career.education`**
+3. **`career_id.education`**
    - Educational background
    - Many per profile
    - Includes coursework and minors as JSON arrays
 
-4. **`open_career.certifications`**
+4. **`career_id.certifications`**
    - Professional certifications
    - Many per profile
 
-5. **`open_career.skill_categories`**
+5. **`career_id.skill_categories`**
    - User-defined skill groupings
    - Many per profile
    - Skills stored as simple string array (simplified from original junction table design)
 
-6. **`open_career.contact_info`**
+6. **`career_id.contact_info`**
    - Contact details and professional links
    - One per profile (one-to-one relationship)
    - Includes websites as JSON array
@@ -127,7 +127,7 @@ All tables go in the **`open_career`** schema:
 5. **`design.md`**
    - Architecture decisions and rationale
    - Why we chose normalized schema
-   - Why `open_career` vs `jobsearchsage` schemas
+   - Why `career_id` vs `jobsearchsage` schemas
 
 ---
 
@@ -136,7 +136,6 @@ All tables go in the **`open_career`** schema:
 Create in `deliverables/migrations/`:
 
 ```
-001_create_open_career_schema.sql      - Create schema if not exists
 002_create_profiles.sql                - Profiles table
 003_create_work_experiences.sql        - Work experience table
 004_create_education.sql               - Education table
@@ -189,50 +188,6 @@ CREATE POLICY "Users can update own profile"
 
 ---
 
-## API Endpoints to Implement
-
-Replace mock implementations in `server/api/profile/` with real database queries.
-
-### Main Profile Endpoints
-
-- **GET** `/api/profile` → `index.get.ts`
-  - Fetch complete profile with all sections
-  - Joins: profiles + work_experiences + education + certifications + skill_categories + contact_info
-  - Returns 404 if profile doesn't exist
-
-- **POST** `/api/profile` → `index.post.ts`
-  - Create new profile
-  - Use transaction for multi-table inserts
-  - Returns 409 if profile already exists for user
-
-### Section Endpoints (All in subfolders)
-
-#### Contact Info
-- **GET** `/api/profile/contact` → `contact/index.get.ts`
-- **PUT** `/api/profile/contact` → `contact/index.put.ts`
-- **DELETE** `/api/profile/contact` → `contact/index.delete.ts`
-
-#### Work Experience
-- **GET** `/api/profile/work-experience` → `work-experience/index.get.ts`
-- **PUT** `/api/profile/work-experience` → `work-experience/index.put.ts` (replaces entire array)
-- **DELETE** `/api/profile/work-experience/:id` → `work-experience/[id].delete.ts`
-
-#### Education
-- **GET** `/api/profile/education` → `education/index.get.ts`
-- **PUT** `/api/profile/education` → `education/index.put.ts` (replaces entire array)
-- **DELETE** `/api/profile/education/:id` → `education/[id].delete.ts`
-
-#### Certifications
-- **GET** `/api/profile/certifications` → `certifications/index.get.ts`
-- **PUT** `/api/profile/certifications` → `certifications/index.put.ts` (replaces entire array)
-- **DELETE** `/api/profile/certifications/:id` → `certifications/[id].delete.ts`
-
-#### Skills
-- **GET** `/api/profile/skills` → `skills/index.get.ts`
-- **PUT** `/api/profile/skills` → `skills/index.put.ts` (replaces entire array)
-- **DELETE** `/api/profile/skills/:id` → `skills/[id].delete.ts`
-
----
 
 ## Implementation Checklist
 
@@ -252,26 +207,6 @@ Replace mock implementations in `server/api/profile/` with real database queries
 - [ ] Set up updated_at triggers
 - [ ] Configure Row Level Security policies (if using Supabase)
 - [ ] Create seed data for testing (optional)
-
-### API Implementation
-- [ ] Replace mock data in GET endpoints with database queries
-- [ ] Implement POST endpoint with transaction handling
-- [ ] Implement PUT endpoints with proper validation
-- [ ] Implement DELETE endpoints with ownership checks
-- [ ] Add field name mapping (camelCase ↔ snake_case)
-- [ ] Add authentication checks (user can only access own profile)
-- [ ] Add validation (email format, date ranges, required fields)
-- [ ] Add error handling (404, 409, 400, 401)
-- [ ] Return proper HTTP status codes
-
-### Testing
-- [ ] Test profile creation with all sections
-- [ ] Test profile fetch (GET /api/profile)
-- [ ] Test section updates (PUT endpoints)
-- [ ] Test individual item deletion (DELETE endpoints)
-- [ ] Test validation errors (invalid email, missing required fields)
-- [ ] Test authorization (user can't access another user's profile)
-- [ ] Test edge cases (empty arrays, null fields, max lengths)
 
 ---
 
@@ -312,7 +247,7 @@ Full validation rules in `api-spec.md`.
 
 ## Important Notes
 
-⚠️ **Schema Placement:** All tables MUST go in `open_career` schema, NOT `jobsearchsage`
+⚠️ **Schema Placement:** All tables MUST go in `career_id` schema, NOT `jobsearchsage`
 
 ⚠️ **Transactions:** Profile creation (POST /api/profile) involves multiple tables - use database transactions
 
@@ -331,18 +266,4 @@ Full validation rules in `api-spec.md`.
 - Review `design.md` for architecture rationale
 - Check `api-spec.md` for detailed endpoint behavior
 - See `domain-models.ts` for complete field documentation
-- Test with mock endpoints to understand expected behavior
-
----
-
-## Next Steps After Database Implementation
-
-Once database schema and API implementation are complete:
-
-1. **Phase 4:** Backend team replaces mocks with real DB queries
-2. **Phase 5:** Frontend team integrates with real API
-3. **Testing:** End-to-end testing of complete flow
-4. **Deployment:** Roll out to production
-
-The frontend is ready and waiting! 🚀
 

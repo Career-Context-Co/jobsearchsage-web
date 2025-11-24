@@ -28,50 +28,49 @@
 
 ## 3. Database: Schema + Migrations
 
-**Note:** Profile tables go in `open_career` schema (Career Sage Core Platform), not `jobsearchsage` schema. Application-specific workflow data (job applications, resumes, etc.) goes in `jobsearchsage` schema (or public).
+**Note:** Profile tables go in `career_id` schema (Career Sage Core Platform), not `jobsearchsage` schema. Application-specific workflow data (job applications, resumes, etc.) goes in `jobsearchsage` schema (or public).
 
-- [ ] 3.1 Design `open_career.profiles` table schema (id, user_id, created_at, updated_at, completion_status)
-- [ ] 3.2 Design `open_career.work_experiences` table schema (id, profile_id, company, title, start_date, end_date, accomplishments JSON array, display_order)
-- [ ] 3.3 Design `open_career.education` table schema (id, profile_id, degree, institution, graduation_year, coursework, display_order)
-- [ ] 3.4 Design `open_career.certifications` table schema (id, profile_id, name, issuing_org, date_obtained, display_order)
-- [ ] 3.5 Design `open_career.skills` table schema (master catalog: id, skill_name, category, aliases, created_at)
-- [ ] 3.6 Design `open_career.profile_skills` junction table schema (id, profile_id, skill_id, proficiency_level, years_experience, display_order)
-- [ ] 3.7 Design `open_career.contact_info` table schema (id, profile_id, email, phone, location, linkedin_url)
-- [ ] 3.8 Create migration script `deliverables/migrations/001_create_open_career_schema.sql` to create schema if not exists
-- [ ] 3.9 Create migration script `deliverables/migrations/002_create_profiles.sql` for open_career.profiles table
-- [ ] 3.10 Create migration script `deliverables/migrations/003_create_work_experiences.sql` for open_career.work_experiences table
-- [ ] 3.11 Create migration script `deliverables/migrations/004_create_education.sql` for open_career.education table
-- [ ] 3.12 Create migration script `deliverables/migrations/005_create_certifications.sql` for open_career.certifications table
-- [ ] 3.13 Create migration script `deliverables/migrations/006_create_skills.sql` for open_career.skills master catalog table
-- [ ] 3.14 Create migration script `deliverables/migrations/007_create_profile_skills.sql` for open_career.profile_skills junction table
-- [ ] 3.15 Create migration script `deliverables/migrations/008_create_contact_info.sql` for open_career.contact_info table
-- [ ] 3.16 Add indexes on foreign keys (profile_id, user_id, skill_id) in all migration scripts
-- [ ] 3.17 Document schema relationships in `deliverables/schemas/profile_schema.md` with ERD showing open_career schema separation
-- [ ] 3.18 Create sample seed data in `deliverables/seeds/profile_seeds.sql` including ~500-1000 common skills for master catalog
+- [x] 3.1 Design `career_id.profiles` table schema (id, user_id, created_at, updated_at, completion_status)
+- [x] 3.2 Design `career_id.experience` table schema (id, profile_id, employer, title, employment_type, location_type, start_date, end_date, highlights JSONB, display_order)
+- [x] 3.3 Design `career_id.education` table schema (id, profile_id, degree, institution, graduation_year, coursework, display_order)
+- [x] 3.4 Design `career_id.certifications` table schema (id, profile_id, name, issuing_org, date_obtained, display_order)
+- [x] 3.5 Design `reference.skills` table schema (master catalog: id, skill_name, category, aliases, created_at)
+- [x] 3.6 Design `career_id.profile_skills` junction table schema (id, profile_id, skill_id, proficiency_level, years_experience, display_order)
+- [x] 3.7 Design `career_id.contact_info` table schema (id, profile_id, email, phone, location, linkedin_url)
+- [x] 3.9 Create migration script `deliverables/migrations/002_create_profiles.sql` for career_id.profiles table
+- [x] 3.10 Create migration script `deliverables/migrations/003_create_experience.sql` for career_id.experience table
+- [x] 3.11 Create migration script `deliverables/migrations/004_create_education.sql` for career_id.education table
+- [x] 3.12 Create migration script `deliverables/migrations/005_create_certifications.sql` for career_id.certifications table
+- [x] 3.13 Create migration script `deliverables/migrations/006_create_skills.sql` for reference.skills master catalog table
+- [x] 3.14 Create migration script `deliverables/migrations/007_create_profile_skills.sql` for career_id.profile_skills junction table
+- [x] 3.15 Create migration script `deliverables/migrations/008_create_contact_info.sql` for career_id.contact_info table
+- [x] 3.16 Add indexes on foreign keys (profile_id, user_id, skill_id) in all migration scripts
+- [x] 3.17 Document schema relationships in `deliverables/schemas/profile_schema.md` with ERD showing career_id schema separation (covered by SCHEMA_DESIGN.md)
+- [x] 3.18 Create sample seed data in `deliverables/seeds/profile_seeds.sql` including 424 common skills for master catalog (tech, business, marketing, management, sales, general professional)
 - [ ] 3.19 **WAIT FOR HUMAN REVIEW AND EXECUTION** - Do not proceed to Phase 4 until migrations are applied
 
 ## 4. Backend: Real DB Integration
 
-**Note:** All queries target `open_career` schema tables. Skills use junction table pattern (profile_skills linking to skills master catalog).
+**Note:** All queries target `career_id` schema tables (profiles, experience, education, etc.) and `reference` schema tables (skills, social_platforms). Skills use junction table pattern (profile_skills linking to reference.skills master catalog).
 
-- [ ] 4.1 Create `server/utils/db/ProfileRepository.ts` with methods for profile CRUD operations on open_career schema
-- [ ] 4.2 Implement `getProfile(userId)` method to fetch complete profile with all sections from open_career schema
-- [ ] 4.3 Implement `createProfile(userId, profileData)` method to create new profile in open_career.profiles
+- [ ] 4.1 Create `server/utils/db/ProfileRepository.ts` with methods for profile CRUD operations on career_id schema
+- [ ] 4.2 Implement `getProfile(userId)` method to fetch complete profile with all sections from career_id schema
+- [ ] 4.3 Implement `createProfile(userId, profileData)` method to create new profile in career_id.profiles
 - [ ] 4.4 Implement `updateProfile(profileId, profileData)` method to update existing profile
-- [ ] 4.5 Implement `addWorkExperience(profileId, experience)` method for open_career.work_experiences
-- [ ] 4.6 Implement `updateWorkExperience(experienceId, experience)` method
-- [ ] 4.7 Implement `deleteWorkExperience(experienceId)` method
-- [ ] 4.8 Implement similar CRUD methods for education, certifications, and contact info (open_career schema)
-- [ ] 4.9 Implement `addSkill(profileId, skillName, metadata)` method that finds/creates skill in open_career.skills and creates junction entry in open_career.profile_skills
-- [ ] 4.10 Implement `updateProfileSkill(profileSkillId, metadata)` method to update proficiency/years in open_career.profile_skills
-- [ ] 4.11 Implement `deleteProfileSkill(profileSkillId)` method to remove junction entry from open_career.profile_skills
-- [ ] 4.12 Implement `searchSkills(query)` method for autocomplete from open_career.skills master catalog
-- [ ] 4.13 Replace mock data in `server/api/profile.get.ts` with real database queries joining profile_skills to skills
+- [ ] 4.5 Implement `addExperience(profileId, experience)` method for career_id.experience
+- [ ] 4.6 Implement `updateExperience(experienceId, experience)` method
+- [ ] 4.7 Implement `deleteExperience(experienceId)` method
+- [ ] 4.8 Implement similar CRUD methods for education, certifications, and contact info (career_id schema)
+- [ ] 4.9 Implement `addSkill(profileId, skillName, metadata)` method that finds/creates skill in reference.skills and creates junction entry in career_id.profile_skills
+- [ ] 4.10 Implement `updateProfileSkill(profileSkillId, metadata)` method to update proficiency/years in career_id.profile_skills
+- [ ] 4.11 Implement `deleteProfileSkill(profileSkillId)` method to remove junction entry from career_id.profile_skills
+- [ ] 4.12 Implement `searchSkills(query)` method for autocomplete from reference.skills master catalog
+- [ ] 4.13 Replace mock data in `server/api/profile.get.ts` with real database queries joining career_id.profile_skills to reference.skills
 - [ ] 4.14 Replace mock logic in `server/api/profile.post.ts` with real database inserts using transactions
 - [ ] 4.15 Replace mock logic in `server/api/profile.put.ts` with real database updates
 - [ ] 4.16 Add validation rules: email format, phone format, URL format, date ranges
-- [ ] 4.17 Add business logic: ensure at least one accomplishment per work experience
-- [ ] 4.18 Add authorization: users can only access/modify their own profiles in open_career schema
+- [ ] 4.17 Add business logic: ensure at least one highlight per experience entry
+- [ ] 4.18 Add authorization: users can only access/modify their own profiles in career_id schema
 - [ ] 4.19 Add transaction handling for multi-table operations (especially profile + profile_skills creation)
 - [ ] 4.20 Add error handling and proper HTTP status codes
 
