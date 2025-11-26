@@ -47,53 +47,95 @@
 - [x] 3.16 Add indexes on foreign keys (profile_id, user_id, skill_id) in all migration scripts
 - [x] 3.17 Document schema relationships in `deliverables/schemas/profile_schema.md` with ERD showing career_id schema separation (covered by SCHEMA_DESIGN.md)
 - [x] 3.18 Create sample seed data in `deliverables/seeds/profile_seeds.sql` including 424 common skills for master catalog (tech, business, marketing, management, sales, general professional)
-- [ ] 3.19 **WAIT FOR HUMAN REVIEW AND EXECUTION** - Do not proceed to Phase 4 until migrations are applied
+- [x] 3.19 **WAIT FOR HUMAN REVIEW AND EXECUTION** - Do not proceed to Phase 4 until migrations are applied
 
 ## 4. Backend: Real DB Integration
 
-**Note:** All queries target `career_id` schema tables (profiles, experience, education, etc.) and `reference` schema tables (skills, social_platforms). Skills use junction table pattern (profile_skills linking to reference.skills master catalog).
+**Note:** All queries target `career_id` schema tables (profiles, experience, education, certifications, contact_info, profile_skills) and `reference` schema tables (skills, social_platforms). Business logic handled directly in API route handlers. Auth/authorization skipped for this phase.
 
-- [ ] 4.1 Create `server/utils/db/ProfileRepository.ts` with methods for profile CRUD operations on career_id schema
-- [ ] 4.2 Implement `getProfile(userId)` method to fetch complete profile with all sections from career_id schema
-- [ ] 4.3 Implement `createProfile(userId, profileData)` method to create new profile in career_id.profiles
-- [ ] 4.4 Implement `updateProfile(profileId, profileData)` method to update existing profile
-- [ ] 4.5 Implement `addExperience(profileId, experience)` method for career_id.experience
-- [ ] 4.6 Implement `updateExperience(experienceId, experience)` method
-- [ ] 4.7 Implement `deleteExperience(experienceId)` method
-- [ ] 4.8 Implement similar CRUD methods for education, certifications, and contact info (career_id schema)
-- [ ] 4.9 Implement `addSkill(profileId, skillName, metadata)` method that finds/creates skill in reference.skills and creates junction entry in career_id.profile_skills
-- [ ] 4.10 Implement `updateProfileSkill(profileSkillId, metadata)` method to update proficiency/years in career_id.profile_skills
-- [ ] 4.11 Implement `deleteProfileSkill(profileSkillId)` method to remove junction entry from career_id.profile_skills
-- [ ] 4.12 Implement `searchSkills(query)` method for autocomplete from reference.skills master catalog
-- [ ] 4.13 Replace mock data in `server/api/profile.get.ts` with real database queries joining career_id.profile_skills to reference.skills
-- [ ] 4.14 Replace mock logic in `server/api/profile.post.ts` with real database inserts using transactions
-- [ ] 4.15 Replace mock logic in `server/api/profile.put.ts` with real database updates
-- [ ] 4.16 Add validation rules: email format, phone format, URL format, date ranges
-- [ ] 4.17 Add business logic: ensure at least one highlight per experience entry
-- [ ] 4.18 Add authorization: users can only access/modify their own profiles in career_id schema
-- [ ] 4.19 Add transaction handling for multi-table operations (especially profile + profile_skills creation)
-- [ ] 4.20 Add error handling and proper HTTP status codes
+### 4.A Main Profile Routes (`/api/career-id/profile/`)
+
+**GET Profile (uses database function for complex joins):**
+- [ ] 4.1 Create database function `career_id.get_complete_profile(p_user_id TEXT)` that returns JSON with all profile sections
+- [ ] 4.2 In database function, join career_id.profiles with experience, education, certifications, contact_info tables
+- [ ] 4.3 In database function, join career_id.profile_skills with reference.skills to include skills with metadata (proficiency_level, years_experience)
+- [ ] 4.4 In database function, join career_id.profile_social_links with reference.social_platforms to include social links
+- [ ] 4.5 Replace mock in `server/api/career-id/profile/index.get.ts` with call to `career_id.get_complete_profile()` function
+
+**POST Profile (simple INSERT for initial profile shell - entities saved separately via autosave):**
+- [x] 4.6 Replace mock in `server/api/career-id/profile/index.post.ts` with simple INSERT into career_id.profiles only
+- [x] 4.7 In POST handler, generate prefixed ID (`prof_*`) before insert
+- [x] 4.8 Add validation in POST handler: required fields (user_id only)
+- [x] 4.9 Return created profile with id for frontend to use in subsequent autosave calls to entity endpoints
+
+### 4.B Experience Routes (`/api/career-id/profile/experience/`)
+
+- [x] 4.10 Replace mock in `server/api/career-id/profile/experience/index.get.ts` with query to fetch all experience entries for profile
+- [x] 4.11 Replace mock in `server/api/career-id/profile/experience/index.post.ts` with real INSERT for new experience entries (REST: POST for create)
+- [x] 4.12 Add validation in POST handler: employer, title, start_date required; end_date validation (if provided, must be after start_date)
+- [x] 4.13 Replace mock in `server/api/career-id/profile/experience/[id].delete.ts` with real DELETE from career_id.experience
+- [x] 4.14 Create `server/api/career-id/profile/experience/[id].put.ts` for updating existing experience entries (REST: PUT for update)
+
+### 4.C Education Routes (`/api/career-id/profile/education/`)
+
+- [ ] 4.14 Replace mock in `server/api/career-id/profile/education/index.get.ts` with query to fetch all education entries for profile
+- [ ] 4.15 Replace mock in `server/api/career-id/profile/education/index.put.ts` with real INSERT for new education entries
+- [ ] 4.16 Add validation in PUT handler: degree_type, area_of_study, institution required; date validation
+- [ ] 4.17 Replace mock in `server/api/career-id/profile/education/[id].delete.ts` with real DELETE from career_id.education
+
+### 4.D Certifications Routes (`/api/career-id/profile/certifications/`)
+
+- [ ] 4.18 Replace mock in `server/api/career-id/profile/certifications/index.get.ts` with query to fetch all certifications for profile
+- [ ] 4.19 Replace mock in `server/api/career-id/profile/certifications/index.put.ts` with real INSERT for new certification entries
+- [ ] 4.20 Add validation in PUT handler: name, issuer, date_obtained required; URL format if provided
+- [ ] 4.21 Replace mock in `server/api/career-id/profile/certifications/[id].delete.ts` with real DELETE from career_id.certifications
+
+### 4.E Skills Routes (`/api/career-id/profile/skills/`)
+
+- [ ] 4.22 Replace mock in `server/api/career-id/profile/skills/index.get.ts` with query joining career_id.profile_skills and reference.skills
+- [ ] 4.23 Replace mock in `server/api/career-id/profile/skills/index.put.ts` with upsert logic: find/create skill in reference.skills, then insert into career_id.profile_skills
+- [ ] 4.24 In skills PUT handler, search reference.skills by skill_name and category; if not found, insert new skill
+- [ ] 4.25 Add validation in skills PUT handler: skill_name required, proficiency_level must be valid enum value
+- [ ] 4.26 Replace mock in `server/api/career-id/profile/skills/[id].delete.ts` with DELETE from career_id.profile_skills (not reference.skills)
+- [ ] 4.27 Create new endpoint `server/api/career-id/skills/search.get.ts` for autocomplete from reference.skills catalog with ILIKE query
+
+### 4.F Contact Info Routes (`/api/career-id/profile/contact/`)
+
+- [ ] 4.28 Replace mock in `server/api/career-id/profile/contact/index.get.ts` with query to fetch contact_info for profile
+- [ ] 4.29 Replace mock in `server/api/career-id/profile/contact/index.put.ts` with UPSERT (INSERT or UPDATE) on career_id.contact_info
+- [ ] 4.30 In contact PUT handler, generate prefixed ID (`cont_*`) if creating new record
+- [ ] 4.31 Add validation in contact PUT handler: email format (if provided), phone format, URL format for websites/linkedin
+- [ ] 4.32 Replace mock in `server/api/career-id/profile/contact/index.delete.ts` with DELETE from career_id.contact_info
+
+### 4.G Error Handling & Utilities
+
+- [ ] 4.33 Add proper error handling in all routes: catch database errors, return appropriate HTTP status codes (400, 404, 409, 500)
+- [ ] 4.34 Create validation utilities in `server/utils/validation.ts` for common patterns (email, phone, URL, date ranges)
+- [ ] 4.35 Create migration script `deliverables/migrations/012_create_get_profile_function.sql` for the get_complete_profile database function
+- [ ] 4.36 Test all endpoints manually with curl/Postman to verify database integration works correctly
 
 ## 5. Frontend: Real API Integration
 
 - [ ] 5.1 Create `app/composables/useProfile.ts` composable for profile data management
-- [ ] 5.2 Replace mock data in onboarding form with real GET /api/profile call
-- [ ] 5.3 Implement save functionality calling POST /api/profile for new profiles during onboarding
-- [ ] 5.4 Implement update functionality calling PUT /api/profile for existing profiles
-- [ ] 5.5 Implement delete functionality for individual section entries
-- [ ] 5.6 Implement skills autocomplete in SkillsSection component calling GET /api/skills/search
-- [ ] 5.7 Handle skill selection by calling POST /api/profile/skills with skill_name and metadata (proficiency, years)
-- [ ] 5.8 Add loading states for all API operations (spinners, skeleton loaders)
-- [ ] 5.9 Add error handling with user-friendly toast notifications
-- [ ] 5.10 Handle validation errors from backend and display inline in form
-- [ ] 5.11 Handle 401/403 authorization errors with appropriate redirects
-- [ ] 5.12 Add optimistic UI updates for better perceived performance
-- [ ] 5.13 Implement explicit save buttons per section (not auto-save) with clear feedback
-- [ ] 5.14 Add confirmation dialogs for destructive actions (delete entries)
-- [ ] 5.15 Test complete onboarding flow: create profile → add entries → save → reload → edit → save
-- [ ] 5.16 Test validation: required fields, format validation, error messages
-- [ ] 5.17 Test skills autocomplete and junction table behavior (duplicate prevention, metadata updates)
-- [ ] 5.18 Test responsive behavior on mobile and tablet devices
-- [ ] 5.19 Run type checking: `pnpm typecheck`
-- [ ] 5.20 Run linter: `pnpm lint` and fix any issues
+- [ ] 5.2 Replace mock data in onboarding form with real GET /api/career-id/profile call
+- [ ] 5.3 Implement initial profile creation calling POST /api/career-id/profile (creates profile shell, returns id for subsequent saves)
+- [ ] 5.4 Implement autosave on step navigation: save current section before moving to next step
+- [ ] 5.5 Implement add experience calling PUT /api/career-id/profile/experience (autosaves on step change)
+- [ ] 5.6 Implement delete experience calling DELETE /api/career-id/profile/experience/[id]
+- [ ] 5.7 Implement add/delete for education, certifications using PUT/DELETE endpoints (autosaves on step change)
+- [ ] 5.8 Implement contact info save calling PUT /api/career-id/profile/contact (upsert behavior, autosaves on step change)
+- [ ] 5.9 Implement skills autocomplete in SkillsSection component calling GET /api/career-id/skills/search
+- [ ] 5.10 Handle skill selection by calling PUT /api/career-id/profile/skills with skill_name, category, proficiency_level, years_experience
+- [ ] 5.11 Handle skill deletion by calling DELETE /api/career-id/profile/skills/[id]
+- [ ] 5.12 Add loading states for all API operations (spinners, skeleton loaders)
+- [ ] 5.13 Add error handling with user-friendly toast notifications
+- [ ] 5.14 Handle validation errors from backend and display inline in form
+- [ ] 5.15 Add visual feedback when autosave completes (e.g., "Saved" indicator)
+- [ ] 5.16 Add confirmation dialogs for destructive actions (delete entries)
+- [ ] 5.17 Test complete onboarding flow: create profile → add entries → autosave on step change → reload → edit → save
+- [ ] 5.18 Test validation: required fields, format validation, error messages
+- [ ] 5.19 Test skills autocomplete and junction table behavior (duplicate prevention, metadata updates)
+- [ ] 5.20 Test responsive behavior on mobile and tablet devices
+- [ ] 5.21 Run type checking: `pnpm typecheck`
+- [ ] 5.22 Run linter: `pnpm lint` and fix any issues
 

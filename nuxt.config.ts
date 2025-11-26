@@ -3,7 +3,8 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
-    '@vueuse/nuxt'
+    '@vueuse/nuxt',
+    '@nuxtjs/supabase'
   ],
 
   devtools: {
@@ -19,6 +20,10 @@ export default defineNuxtConfig({
   },
 
   compatibilityDate: '2024-07-11',
+
+  supabase: {
+    redirect: false,
+  },
 
   eslint: {
     config: {

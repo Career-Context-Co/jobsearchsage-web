@@ -9,6 +9,8 @@ CREATE TABLE career_id.profiles (
   id TEXT PRIMARY KEY NOT NULL UNIQUE,
   user_id TEXT UNIQUE NOT NULL,
   completion_status career_id.completion_status_enum NOT NULL DEFAULT 'incomplete',
+  deleted_at TIMESTAMPTZ,
+  is_deleted BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -19,10 +21,14 @@ COMMENT ON COLUMN career_id.profiles.internal_id IS 'Internal database ID for so
 COMMENT ON COLUMN career_id.profiles.id IS 'Public prefixed ID (e.g., prof_xK9j2mP4nQ8rL5tY7vW3zB1c)';
 COMMENT ON COLUMN career_id.profiles.user_id IS 'Reference to user (will become FK when auth system implemented)';
 COMMENT ON COLUMN career_id.profiles.completion_status IS 'Profile completion status for tracking onboarding progress';
+COMMENT ON COLUMN career_id.profiles.deleted_at IS 'Timestamp when profile was soft deleted. NULL if profile is active. Used for churn tracking and analytics.';
+COMMENT ON COLUMN career_id.profiles.is_deleted IS 'Boolean flag for soft delete. FALSE = active profile, TRUE = deleted profile. Enables quick filtering without complex queries.';
 
 -- Create indexes
 CREATE INDEX idx_profiles_internal_id ON career_id.profiles(internal_id);
 CREATE INDEX idx_profiles_user_id ON career_id.profiles(user_id);
+CREATE INDEX idx_profiles_is_deleted ON career_id.profiles(is_deleted) WHERE is_deleted = false;
+CREATE INDEX idx_profiles_deleted_at ON career_id.profiles(deleted_at) WHERE deleted_at IS NOT NULL;
 
 -- Create updated_at trigger function (if it doesn't exist)
 CREATE OR REPLACE FUNCTION career_id.update_updated_at_column()

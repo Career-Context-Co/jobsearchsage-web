@@ -1,0 +1,376 @@
+{
+  "description": "Mock API request samples for Profile Builder endpoints - Use these for testing POST/PUT operations",
+  "version": "1.0.0",
+  "requests": {
+    "createProfile": {
+      "endpoint": "POST /api/career-id/profile",
+      "description": "Create a new profile shell (entities saved separately)",
+      "request": {
+        "userId": "user-abc123"
+      }
+    },
+    "createExperience_fullTime": {
+      "endpoint": "POST /api/career-id/profile/experience",
+      "description": "Create a new full-time work experience entry",
+      "request": {
+        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "employmentType": "full_time",
+        "employer": "TechCorp Inc.",
+        "title": "Senior Software Engineer",
+        "location": "San Francisco, CA",
+        "locationType": "hybrid",
+        "url": "https://techcorp.com",
+        "startDate": "2020-06-01",
+        "endDate": null,
+        "currentPosition": true,
+        "summary": "Leading development of cloud-native applications and microservices architecture. Managing a team of 5 engineers and driving technical strategy for the platform team.",
+        "highlights": [
+          "Architected and implemented a microservices platform serving 2M+ daily active users",
+          "Reduced API response times by 60% through caching and query optimization",
+          "Mentored 5 junior engineers and conducted technical training sessions",
+          "Led migration from monolith to microservices, improving deployment frequency by 10x"
+        ],
+        "displayOrder": 0
+      }
+    },
+    "createExperience_freelance": {
+      "endpoint": "POST /api/career-id/profile/experience",
+      "description": "Create a new freelance/contract experience entry",
+      "request": {
+        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "employmentType": "freelance",
+        "employer": "Various Clients",
+        "title": "Freelance Full Stack Developer",
+        "location": "Remote",
+        "locationType": "remote",
+        "url": null,
+        "startDate": "2018-03-15",
+        "endDate": "2020-05-31",
+        "currentPosition": false,
+        "summary": "Built custom web applications for various clients using modern tech stack.",
+        "highlights": [
+          "Developed 15+ client projects from concept to deployment",
+          "Maintained 98% client satisfaction rating",
+          "Specialized in React, Node.js, and PostgreSQL"
+        ],
+        "displayOrder": 1
+      }
+    },
+    "createExperience_internship": {
+      "endpoint": "POST /api/career-id/profile/experience",
+      "description": "Create a new internship experience entry",
+      "request": {
+        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "employmentType": "internship",
+        "employer": "StartupXYZ",
+        "title": "Software Engineering Intern",
+        "location": "New York, NY",
+        "locationType": "on_site",
+        "url": "https://startupxyz.com",
+        "startDate": "2017-06-01",
+        "endDate": "2017-08-31",
+        "currentPosition": false,
+        "summary": "Summer internship focused on backend development and API design.",
+        "highlights": [
+          "Built RESTful API endpoints serving 10K+ daily requests",
+          "Improved test coverage from 60% to 85%",
+          "Received return offer for full-time position"
+        ],
+        "displayOrder": 2
+      }
+    },
+    "createExperience_volunteer": {
+      "endpoint": "POST /api/career-id/profile/experience",
+      "description": "Create a new volunteer experience entry",
+      "request": {
+        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "employmentType": "volunteer",
+        "employer": "Code for Good Nonprofit",
+        "title": "Volunteer Software Developer",
+        "location": "San Francisco, CA",
+        "locationType": "hybrid",
+        "url": "https://codeforgood.org",
+        "startDate": "2019-01-15",
+        "endDate": "2020-12-31",
+        "currentPosition": false,
+        "summary": "Developed pro bono software for local nonprofits.",
+        "highlights": [
+          "Built donor management system used by 3 organizations",
+          "Mentored junior volunteers in software development",
+          "Contributed 200+ hours of volunteer work"
+        ],
+        "displayOrder": 3
+      }
+    },
+    "updateExperience": {
+      "endpoint": "PUT /api/career-id/profile/experience/:id",
+      "description": "Update an existing experience entry (partial update supported)",
+      "request": {
+        "title": "Lead Software Engineer",
+        "summary": "Updated summary with new responsibilities",
+        "highlights": [
+          "Architected and implemented a microservices platform serving 3M+ daily active users",
+          "Reduced API response times by 70% through caching and query optimization",
+          "Mentored 8 junior engineers and conducted technical training sessions",
+          "Led migration from monolith to microservices, improving deployment frequency by 15x",
+          "Implemented CI/CD pipelines reducing deployment time by 80%"
+        ],
+        "currentPosition": true
+      }
+    },
+    "addEducation_bachelors": {
+      "endpoint": "PUT /api/career-id/profile/education",
+      "description": "Add a bachelor's degree entry",
+      "request": {
+        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "degreeType": "Bachelor of Science",
+        "areaOfStudy": "Computer Science",
+        "institution": "Stanford University",
+        "startDate": "2012-09-01",
+        "endDate": "2016-06-15",
+        "completed": true,
+        "url": "https://www.stanford.edu",
+        "creditHours": 180,
+        "coursework": [
+          "Data Structures and Algorithms",
+          "Machine Learning",
+          "Database Systems",
+          "Computer Networks",
+          "Software Engineering",
+          "Artificial Intelligence"
+        ],
+        "minors": ["Mathematics", "Business Administration"],
+        "displayOrder": 0
+      }
+    },
+    "addEducation_masters": {
+      "endpoint": "PUT /api/career-id/profile/education",
+      "description": "Add a master's degree entry",
+      "request": {
+        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "degreeType": "Master of Science",
+        "areaOfStudy": "Software Engineering",
+        "institution": "MIT",
+        "startDate": "2019-09-01",
+        "endDate": "2021-05-15",
+        "completed": true,
+        "url": "https://www.mit.edu",
+        "creditHours": 60,
+        "coursework": [
+          "Advanced Algorithms",
+          "Distributed Systems",
+          "Cloud Computing Architecture",
+          "System Design and Scalability"
+        ],
+        "minors": [],
+        "displayOrder": 1
+      }
+    },
+    "addEducation_bootcamp": {
+      "endpoint": "PUT /api/career-id/profile/education",
+      "description": "Add a coding bootcamp entry",
+      "request": {
+        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "degreeType": "Certificate",
+        "areaOfStudy": "Full Stack Web Development",
+        "institution": "General Assembly",
+        "startDate": "2017-03-01",
+        "endDate": "2017-06-01",
+        "completed": true,
+        "url": "https://generalassemb.ly",
+        "creditHours": null,
+        "coursework": [
+          "HTML/CSS/JavaScript",
+          "React and Redux",
+          "Node.js and Express",
+          "MongoDB and PostgreSQL"
+        ],
+        "minors": [],
+        "displayOrder": 2
+      }
+    },
+    "addCertification_aws": {
+      "endpoint": "PUT /api/career-id/profile/certifications",
+      "description": "Add AWS certification",
+      "request": {
+        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "name": "AWS Solutions Architect - Professional",
+        "issuer": "Amazon Web Services",
+        "dateObtained": "2023-06-15",
+        "url": "https://aws.amazon.com/certification/certified-solutions-architect-professional/",
+        "displayOrder": 0
+      }
+    },
+    "addCertification_kubernetes": {
+      "endpoint": "PUT /api/career-id/profile/certifications",
+      "description": "Add Kubernetes certification",
+      "request": {
+        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "name": "Certified Kubernetes Administrator (CKA)",
+        "issuer": "Cloud Native Computing Foundation",
+        "dateObtained": "2022-11-20",
+        "url": "https://www.cncf.io/certification/cka/",
+        "displayOrder": 1
+      }
+    },
+    "addCertification_scrum": {
+      "endpoint": "PUT /api/career-id/profile/certifications",
+      "description": "Add Scrum certification",
+      "request": {
+        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "name": "Professional Scrum Master I (PSM I)",
+        "issuer": "Scrum.org",
+        "dateObtained": "2021-03-10",
+        "url": "https://www.scrum.org/professional-scrum-master-i-certification",
+        "displayOrder": 2
+      }
+    },
+    "addSkill_expert": {
+      "endpoint": "PUT /api/career-id/profile/skills",
+      "description": "Add an expert-level skill",
+      "request": {
+        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "skillName": "TypeScript",
+        "category": "Programming Languages",
+        "proficiencyLevel": "expert",
+        "yearsExperience": 5,
+        "displayOrder": 0
+      }
+    },
+    "addSkill_advanced": {
+      "endpoint": "PUT /api/career-id/profile/skills",
+      "description": "Add an advanced-level skill",
+      "request": {
+        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "skillName": "React",
+        "category": "Frameworks & Libraries",
+        "proficiencyLevel": "advanced",
+        "yearsExperience": 4,
+        "displayOrder": 1
+      }
+    },
+    "addSkill_intermediate": {
+      "endpoint": "PUT /api/career-id/profile/skills",
+      "description": "Add an intermediate-level skill",
+      "request": {
+        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "skillName": "Docker",
+        "category": "DevOps & Tools",
+        "proficiencyLevel": "intermediate",
+        "yearsExperience": 2,
+        "displayOrder": 2
+      }
+    },
+    "addSkill_beginner": {
+      "endpoint": "PUT /api/career-id/profile/skills",
+      "description": "Add a beginner-level skill",
+      "request": {
+        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "skillName": "Rust",
+        "category": "Programming Languages",
+        "proficiencyLevel": "beginner",
+        "yearsExperience": 1,
+        "displayOrder": 3
+      }
+    },
+    "createContactInfo": {
+      "endpoint": "PUT /api/career-id/profile/contact",
+      "description": "Create or update contact information",
+      "request": {
+        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "firstName": "Jane",
+        "lastName": "Doe",
+        "jobTitle": "Senior Software Engineer",
+        "email": "jane.doe@example.com",
+        "phone": "+14155552671",
+        "linkedin": "https://linkedin.com/in/janedoe",
+        "websites": [
+          "https://janedoe.dev",
+          "https://github.com/janedoe",
+          "https://twitter.com/janedoe"
+        ],
+        "summary": "Experienced software engineer with 8+ years building scalable web applications and cloud infrastructure. Passionate about clean code, system design, and mentoring junior developers. Strong background in full-stack development, microservices architecture, and DevOps practices. Seeking opportunities to lead technical teams and drive innovation in fast-paced environments.",
+        "city": "San Francisco",
+        "stateRegion": "California",
+        "country": "United States",
+        "postalCode": "94102",
+        "willingToRelocate": false
+      }
+    },
+    "updateContactInfo_minimal": {
+      "endpoint": "PUT /api/career-id/profile/contact",
+      "description": "Update contact info with minimal required fields",
+      "request": {
+        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "firstName": "John",
+        "lastName": "Smith",
+        "email": "john.smith@example.com"
+      }
+    },
+    "validationExamples": {
+      "description": "Examples that should fail validation",
+      "missingRequiredFields_experience": {
+        "endpoint": "PUT /api/career-id/profile/experience",
+        "expectedError": "VALIDATION_ERROR - Missing required fields",
+        "request": {
+          "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+          "title": "Software Engineer"
+        }
+      },
+      "invalidDateRange_experience": {
+        "endpoint": "PUT /api/career-id/profile/experience",
+        "expectedError": "VALIDATION_ERROR - endDate must be after startDate",
+        "request": {
+          "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+          "employmentType": "full_time",
+          "employer": "TechCorp",
+          "title": "Software Engineer",
+          "startDate": "2023-01-01",
+          "endDate": "2022-01-01",
+          "currentPosition": false,
+          "highlights": ["Built things"]
+        }
+      },
+      "missingUserId_profile": {
+        "endpoint": "POST /api/career-id/profile",
+        "expectedError": "VALIDATION_ERROR - userId is required",
+        "request": {}
+      }
+    }
+  },
+  "notes": {
+    "fieldMapping": "Request uses camelCase (e.g., profileId, employmentType). Database uses snake_case (e.g., profile_id, employment_type).",
+    "employmentTypes": [
+      "full_time",
+      "part_time",
+      "self_employed",
+      "freelance",
+      "contract",
+      "internship",
+      "apprenticeship",
+      "seasonal",
+      "volunteer"
+    ],
+    "locationTypes": [
+      "on_site",
+      "hybrid",
+      "remote"
+    ],
+    "proficiencyLevels": [
+      "beginner",
+      "intermediate",
+      "advanced",
+      "expert"
+    ],
+    "completionStatuses": [
+      "incomplete",
+      "complete",
+      "verified"
+    ],
+    "dateFormats": {
+      "dates": "YYYY-MM-DD (ISO 8601)",
+      "timestamps": "YYYY-MM-DDTHH:mm:ss.sssZ (ISO 8601 with timezone)"
+    }
+  }
+}
+
