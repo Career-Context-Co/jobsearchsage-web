@@ -7,55 +7,57 @@
  */
 
 import { serverSupabaseClient } from '#supabase/server'
+import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
+import { handleDatabaseError, createValidationError, createNotFoundError } from '@@/server/utils/error-handler'
+import { isRequired, requiredFieldError, validateUrl } from '@@/server/utils/validation'
+
+const ROUTE_PATH = '/api/career-id/profile/:profileId/certifications/:id'
 
 export default eventHandler(async (event) => {
+  const getElapsed = createTimer()
   const supabase = await serverSupabaseClient(event)
   const profileId = getRouterParam(event, 'profileId')
   const id = getRouterParam(event, 'id')
   const body = await readBody(event)
   
-  if (!id) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Bad Request',
-      data: {
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Certification ID is required'
-        }
-      }
-    })
+  logRequest('PATCH', ROUTE_PATH, { profileId, certificationId: id })
+  
+  if (!isRequired(id)) {
+    const error = createValidationError(requiredFieldError('id'))
+    logError('PATCH', ROUTE_PATH, error, { profileId, field: 'id' })
+    throw error
+  }
+  
+  // Check if resource exists first
+  const { data: existing, error: fetchError } = await supabase
+    .schema('career_id')
+    .from('certifications')
+    .select('id')
+    .eq('id', id)
+    .eq('profile_id', profileId)
+    .maybeSingle()
+  
+  if (fetchError) {
+    logError('PATCH', ROUTE_PATH, fetchError, { profileId, certificationId: id, dbCode: fetchError.code })
+    throw handleDatabaseError(fetchError, { operation: 'fetch', resource: 'certification' })
+  }
+  
+  if (!existing) {
+    const notFoundError = createNotFoundError('Certification')
+    logError('PATCH', ROUTE_PATH, notFoundError, { profileId, certificationId: id })
+    throw notFoundError
   }
   
   // Validation: URL format (if provided)
-  if (body.url) {
-    try {
-      new URL(body.url)
-    } catch {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Bad Request',
-        data: {
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Validation failed',
-            details: [
-              {
-                field: 'url',
-                message: 'url must be a valid URL',
-                code: 'INVALID_FORMAT'
-              }
-            ]
-          }
-        }
-      })
-    }
+  const urlError = validateUrl(body.url, 'url', false)
+  if (urlError) {
+    const error = createValidationError(urlError)
+    logError('PATCH', ROUTE_PATH, error, { profileId, certificationId: id, field: 'url' })
+    throw error
   }
   
   // Build update object with only provided fields
-  const updateData: any = {}
+  const updateData: Record<string, any> = {}
   
   if (body.name !== undefined) updateData.name = body.name
   if (body.issuer !== undefined) updateData.issuer = body.issuer
@@ -69,37 +71,17 @@ export default eventHandler(async (event) => {
     .from('certifications')
     .update(updateData)
     .eq('id', id)
+    .eq('profile_id', profileId)
     .select()
     .single()
   
   if (error) {
-    console.error('Database error updating certification:', error)
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Internal Server Error',
-      data: {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to update certification'
-        }
-      }
-    })
+    logError('PATCH', ROUTE_PATH, error, { profileId, certificationId: id, dbCode: error.code })
+    throw handleDatabaseError(error, { operation: 'update', resource: 'certification' })
   }
   
-  if (!data) {
-    throw createError({
-      statusCode: 404,
-      statusMessage: 'Not Found',
-      data: {
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Certification not found'
-        }
-      }
-    })
-  }
+  const duration = getElapsed()
+  logSuccess('PATCH', ROUTE_PATH, duration, { profileId, certificationId: id })
   
   return {
     success: true,
@@ -107,4 +89,3 @@ export default eventHandler(async (event) => {
     data
   }
 })
-

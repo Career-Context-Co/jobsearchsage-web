@@ -7,115 +7,78 @@
  */
 
 import { serverSupabaseClient } from '#supabase/server'
-import { generatePrefixedId } from '../../../../../utils/id-generator'
+import { generatePrefixedId } from '@@/server/utils/id-generator'
+import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
+import { handleDatabaseError, createValidationError, createConflictError } from '@@/server/utils/error-handler'
+import { isRequired, requiredFieldError, validateEmail, validatePhone, validateUrls } from '@@/server/utils/validation'
 
+const ROUTE_PATH = '/api/career-id/profile/:profileId/contact'
 
 export default eventHandler(async (event) => {
+  const getElapsed = createTimer()
   const supabase = await serverSupabaseClient(event)
   const body = await readBody(event)
   
   // Get profile_id from URL path parameter
   const profileId = getRouterParam(event, 'profileId')
   
+  logRequest('POST', ROUTE_PATH, { profileId })
+  
   // Validation
   const validationErrors: Array<{ field: string; message: string; code: string }> = []
   
   // Required fields
-  if (!body.firstName) {
-    validationErrors.push({
-      field: 'firstName',
-      message: 'firstName is required',
-      code: 'REQUIRED'
-    })
+  if (!isRequired(body.firstName)) {
+    validationErrors.push(requiredFieldError('firstName'))
   }
-  if (!body.lastName) {
-    validationErrors.push({
-      field: 'lastName',
-      message: 'lastName is required',
-      code: 'REQUIRED'
-    })
+  if (!isRequired(body.lastName)) {
+    validationErrors.push(requiredFieldError('lastName'))
   }
-  if (!body.email) {
-    validationErrors.push({
-      field: 'email',
-      message: 'email is required',
-      code: 'REQUIRED'
-    })
+  if (!isRequired(body.email)) {
+    validationErrors.push(requiredFieldError('email'))
   }
   
   // Email validation
-  if (body.email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(body.email)) {
-      validationErrors.push({
-        field: 'email',
-        message: 'Invalid email format',
-        code: 'INVALID_FORMAT'
-      })
-    }
+  const emailError = validateEmail(body.email, 'email', false)
+  if (emailError) {
+    validationErrors.push(emailError)
   }
   
   // Phone validation (if provided) - E.164 format
-  if (body.phone) {
-    const phoneRegex = /^\+[1-9]\d{1,14}$/
-    if (!phoneRegex.test(body.phone)) {
-      validationErrors.push({
-        field: 'phone',
-        message: 'Invalid phone format. Use E.164 format (e.g., +14155552671)',
-        code: 'INVALID_FORMAT'
-      })
-    }
+  const phoneError = validatePhone(body.phone, 'phone', false)
+  if (phoneError) {
+    validationErrors.push(phoneError)
   }
   
   // Website URLs validation (if provided)
-  if (body.websites && Array.isArray(body.websites)) {
-    const urlRegex = /^https?:\/\/.+\..+/
-    body.websites.forEach((url: string, index: number) => {
-      if (!urlRegex.test(url)) {
-        validationErrors.push({
-          field: `websites[${index}]`,
-          message: 'Invalid URL format',
-          code: 'INVALID_FORMAT'
-        })
-      }
-    })
+  if (body.websites) {
+    const urlErrors = validateUrls(body.websites, 'websites', false)
+    validationErrors.push(...urlErrors)
   }
   
   if (validationErrors.length > 0) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Bad Request',
-      data: {
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Validation failed',
-          details: validationErrors
-        }
-      }
-    })
+    const error = createValidationError(validationErrors)
+    logError('POST', ROUTE_PATH, error, { profileId, fields: validationErrors.map(e => e.field) })
+    throw error
   }
   
   // Check if contact info already exists for this profile
-  const { data: existing } = await supabase
+  const { data: existing, error: fetchError } = await supabase
     .schema('career_id')
     .from('contact_info')
     .select('id')
     .eq('profile_id', profileId)
     .maybeSingle()
   
+  if (fetchError) {
+    logError('POST', ROUTE_PATH, fetchError, { profileId, dbCode: fetchError.code })
+    throw handleDatabaseError(fetchError, { operation: 'check', resource: 'existing contact info' })
+  }
+  
   if (existing) {
-    throw createError({
-      statusCode: 409,
-      statusMessage: 'Conflict',
-      data: {
-        success: false,
-        error: {
-          code: 'ALREADY_EXISTS',
-          message: 'Contact information already exists for this profile. Use PATCH to update.'
-        }
-      }
-    })
+    const conflictError = createConflictError('Contact information already exists for this profile. Use PATCH to update.')
+    logError('POST', ROUTE_PATH, conflictError, { profileId, existingId: existing.id })
+    throw conflictError
   }
   
   // Generate prefixed ID for new contact info
@@ -144,19 +107,15 @@ export default eventHandler(async (event) => {
     .single()
   
   if (error) {
-    console.error('Database error creating contact info:', error)
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Internal Server Error',
-      data: {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to create contact information'
-        }
-      }
-    })
+    logError('POST', ROUTE_PATH, error, { profileId, contactId, dbCode: error.code })
+    throw handleDatabaseError(error, { operation: 'create', resource: 'contact information' })
   }
+  
+  // Set response status to 201 Created
+  setResponseStatus(event, 201)
+  
+  const duration = getElapsed()
+  logSuccess('POST', ROUTE_PATH, duration, { profileId, contactId: data.id })
   
   return {
     success: true,
@@ -164,4 +123,3 @@ export default eventHandler(async (event) => {
     data
   }
 })
-

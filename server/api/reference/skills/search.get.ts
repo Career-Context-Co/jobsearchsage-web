@@ -6,8 +6,13 @@
  */
 
 import { serverSupabaseClient } from '#supabase/server'
+import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
+import { handleDatabaseError } from '@@/server/utils/error-handler'
+
+const ROUTE_PATH = '/api/reference/skills/search'
 
 export default eventHandler(async (event) => {
+  const getElapsed = createTimer()
   const supabase = await serverSupabaseClient(event)
   
   // Get query parameters
@@ -15,7 +20,11 @@ export default eventHandler(async (event) => {
   const searchQuery = (query.q as string) || ''
   const limit = parseInt((query.limit as string) || '20')
   
+  logRequest('GET', ROUTE_PATH, { query: searchQuery, limit })
+  
   if (!searchQuery || searchQuery.length < 2) {
+    const duration = getElapsed()
+    logSuccess('GET', ROUTE_PATH, duration, { query: searchQuery, count: 0, reason: 'query too short' })
     return {
       success: true,
       data: []
@@ -32,23 +41,15 @@ export default eventHandler(async (event) => {
     .limit(limit)
   
   if (error) {
-    console.error('Database error searching skills:', error)
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Internal Server Error',
-      data: {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to search skills catalog'
-        }
-      }
-    })
+    logError('GET', ROUTE_PATH, error, { query: searchQuery, dbCode: error.code })
+    throw handleDatabaseError(error, { operation: 'search', resource: 'skills catalog' })
   }
+  
+  const duration = getElapsed()
+  logSuccess('GET', ROUTE_PATH, duration, { query: searchQuery, count: data?.length ?? 0 })
   
   return {
     success: true,
     data: data || []
   }
 })
-

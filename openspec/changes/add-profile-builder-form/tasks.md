@@ -113,12 +113,32 @@
 - [x] 4.31 Create `server/api/career-id/profile/[profileId]/contact/[id].patch.ts` for partial updates with validation: email format, phone format (E.164), URL format for websites
 - [x] 4.32 Create `server/api/career-id/profile/[profileId]/contact/[id].delete.ts` with DELETE from career_id.contact_info (uses contact ID in URL path)
 
-### 4.G Error Handling & Utilities
+### 4.G Social Links Routes (`/api/career-id/profile/:profileId/social-links/`)
+**Note:** Junction table pattern similar to skills. Links to reference.social_platforms catalog.
 
-- [ ] 4.33 Add proper error handling in all routes: catch database errors, return appropriate HTTP status codes (400, 404, 409, 500)
-- [ ] 4.34 Create validation utilities in `server/utils/validation.ts` for common patterns (email, phone, URL, date ranges)
-- [ ] 4.35 Create migration script `deliverables/migrations/012_create_get_profile_function.sql` for the get_complete_profile database function
-- [ ] 4.36 Test all endpoints manually with curl/Postman to verify database integration works correctly
+- [x] 4.33 Create `server/api/career-id/profile/[profileId]/social-links/index.get.ts` to fetch all social links for profile
+- [x] 4.34 Create `server/api/career-id/profile/[profileId]/social-links/index.post.ts` for adding social links (accepts array, validates URL and platformId)
+- [x] 4.35 In social links POST handler, validate URL format, prevent duplicate platforms, cache platform_name from reference.social_platforms
+- [x] 4.36 Create `server/api/career-id/profile/[profileId]/social-links/[id].patch.ts` for updating social link URL/display order
+- [x] 4.37 Create `server/api/career-id/profile/[profileId]/social-links/[id].delete.ts` for removing social links
+- [x] 4.38 Create `server/api/reference/social-platforms/index.get.ts` to list available platforms for dropdown/selection
+
+### 4.H Error Handling & Utilities
+
+- [x] 4.39 Add proper error handling in all routes: catch database errors, return appropriate HTTP status codes (400, 404, 409, 500)
+  - [x] 4.39.1 Create `server/utils/error-handler.ts` with database error mapping (23505→409, 23503→400) and standard error builders
+  - [x] 4.39.2 Create `server/utils/logger.ts` with structured logging (logRequest, logSuccess, logError, createTimer)
+  - [x] 4.39.3 Update profile routes (index.get.ts under [profileId], index.post.ts) with error handling and logging
+  - [x] 4.39.4 Update all 4 experience endpoints (GET, POST, PATCH, DELETE) with standard patterns
+  - [x] 4.39.5 Update all 4 education endpoints (GET, POST, PATCH, DELETE) with standard patterns
+  - [x] 4.39.6 Update all 4 certification endpoints (GET, POST, PATCH, DELETE) with standard patterns
+  - [x] 4.39.7 Update all 4 skills endpoints (GET, POST, PATCH, DELETE) with standard patterns
+  - [x] 4.39.8 Update all 4 contact endpoints (GET, POST, PATCH, DELETE) with standard patterns
+  - [x] 4.39.9 Update all 4 socials endpoints (GET, POST, PATCH, DELETE) with standard patterns
+  - [x] 4.39.10 Update reference/skills/search.get.ts with standard patterns
+- [x] 4.40 Create validation utilities in `server/utils/validation.ts` for common patterns (email, phone, URL, date ranges)
+- [x] 4.41 Create migration script `deliverables/migrations/014_create_get_profile_function.sql` for the get_full_profile database function
+- [x] 4.42 Test all endpoints manually with curl/Postman to verify database integration works correctly
 
 ## 5. Frontend: Real API Integration
 

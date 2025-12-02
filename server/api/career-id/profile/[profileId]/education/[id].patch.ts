@@ -7,56 +7,57 @@
  */
 
 import { serverSupabaseClient } from '#supabase/server'
+import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
+import { handleDatabaseError, createValidationError, createNotFoundError } from '@@/server/utils/error-handler'
+import { isRequired, requiredFieldError, validateDateRange } from '@@/server/utils/validation'
+
+const ROUTE_PATH = '/api/career-id/profile/:profileId/education/:id'
 
 export default eventHandler(async (event) => {
+  const getElapsed = createTimer()
   const supabase = await serverSupabaseClient(event)
   const profileId = getRouterParam(event, 'profileId')
   const id = getRouterParam(event, 'id')
   const body = await readBody(event)
   
-  if (!id) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Bad Request',
-      data: {
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Education ID is required'
-        }
-      }
-    })
+  logRequest('PATCH', ROUTE_PATH, { profileId, educationId: id })
+  
+  if (!isRequired(id)) {
+    const error = createValidationError(requiredFieldError('id'))
+    logError('PATCH', ROUTE_PATH, error, { profileId, field: 'id' })
+    throw error
+  }
+  
+  // Check if resource exists first
+  const { data: existing, error: fetchError } = await supabase
+    .schema('career_id')
+    .from('education')
+    .select('id')
+    .eq('id', id)
+    .eq('profile_id', profileId)
+    .maybeSingle()
+  
+  if (fetchError) {
+    logError('PATCH', ROUTE_PATH, fetchError, { profileId, educationId: id, dbCode: fetchError.code })
+    throw handleDatabaseError(fetchError, { operation: 'fetch', resource: 'education entry' })
+  }
+  
+  if (!existing) {
+    const notFoundError = createNotFoundError('Education entry')
+    logError('PATCH', ROUTE_PATH, notFoundError, { profileId, educationId: id })
+    throw notFoundError
   }
   
   // Validation: Date range (if both dates provided, end_date must be after start_date)
-  if (body.endDate && body.startDate) {
-    const startDate = new Date(body.startDate)
-    const endDate = new Date(body.endDate)
-    
-    if (endDate < startDate) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Bad Request',
-        data: {
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Validation failed',
-            details: [
-              {
-                field: 'endDate',
-                message: 'endDate must be after startDate',
-                code: 'INVALID_RANGE'
-              }
-            ]
-          }
-        }
-      })
-    }
+  const dateRangeError = validateDateRange(body.startDate, body.endDate)
+  if (dateRangeError) {
+    const error = createValidationError(dateRangeError)
+    logError('PATCH', ROUTE_PATH, error, { profileId, educationId: id, field: 'endDate' })
+    throw error
   }
   
   // Build update object with only provided fields
-  const updateData: any = {}
+  const updateData: Record<string, any> = {}
   
   if (body.degreeType !== undefined) updateData.degree_type = body.degreeType
   if (body.areaOfStudy !== undefined) updateData.area_of_study = body.areaOfStudy
@@ -76,37 +77,17 @@ export default eventHandler(async (event) => {
     .from('education')
     .update(updateData)
     .eq('id', id)
+    .eq('profile_id', profileId)
     .select()
     .single()
   
   if (error) {
-    console.error('Database error updating education:', error)
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Internal Server Error',
-      data: {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to update education entry'
-        }
-      }
-    })
+    logError('PATCH', ROUTE_PATH, error, { profileId, educationId: id, dbCode: error.code })
+    throw handleDatabaseError(error, { operation: 'update', resource: 'education entry' })
   }
   
-  if (!data) {
-    throw createError({
-      statusCode: 404,
-      statusMessage: 'Not Found',
-      data: {
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Education entry not found'
-        }
-      }
-    })
-  }
+  const duration = getElapsed()
+  logSuccess('PATCH', ROUTE_PATH, duration, { profileId, educationId: id })
   
   return {
     success: true,
@@ -114,4 +95,3 @@ export default eventHandler(async (event) => {
     data
   }
 })
-

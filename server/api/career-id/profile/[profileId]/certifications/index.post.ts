@@ -6,67 +6,47 @@
  */
 
 import { serverSupabaseClient } from '#supabase/server'
+import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
+import { handleDatabaseError, createValidationError } from '@@/server/utils/error-handler'
+import { isRequired, requiredFieldError, validateUrl } from '@@/server/utils/validation'
+
+const ROUTE_PATH = '/api/career-id/profile/:profileId/certifications'
 
 export default eventHandler(async (event) => {
+  const getElapsed = createTimer()
   const supabase = await serverSupabaseClient(event)
   const body = await readBody(event)
   
   // Get profile_id from URL path parameter
   const profileId = getRouterParam(event, 'profileId')
   
+  logRequest('POST', ROUTE_PATH, { profileId })
+  
   // Validation: Required fields
   const validationErrors = []
   
-  if (!body.name) {
-    validationErrors.push({
-      field: 'name',
-      message: 'name is required',
-      code: 'REQUIRED'
-    })
+  if (!isRequired(body.name)) {
+    validationErrors.push(requiredFieldError('name'))
   }
   
-  if (!body.issuer) {
-    validationErrors.push({
-      field: 'issuer',
-      message: 'issuer is required',
-      code: 'REQUIRED'
-    })
+  if (!isRequired(body.issuer)) {
+    validationErrors.push(requiredFieldError('issuer'))
   }
   
-  if (!body.dateObtained) {
-    validationErrors.push({
-      field: 'dateObtained',
-      message: 'dateObtained is required',
-      code: 'REQUIRED'
-    })
+  if (!isRequired(body.dateObtained)) {
+    validationErrors.push(requiredFieldError('dateObtained'))
   }
   
   // Validation: URL format (if provided)
-  if (body.url) {
-    try {
-      new URL(body.url)
-    } catch {
-      validationErrors.push({
-        field: 'url',
-        message: 'url must be a valid URL',
-        code: 'INVALID_FORMAT'
-      })
-    }
+  const urlError = validateUrl(body.url, 'url', false)
+  if (urlError) {
+    validationErrors.push(urlError)
   }
   
   if (validationErrors.length > 0) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Bad Request',
-      data: {
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Validation failed',
-          details: validationErrors
-        }
-      }
-    })
+    const error = createValidationError(validationErrors)
+    logError('POST', ROUTE_PATH, error, { profileId, fields: validationErrors.map(e => e.field) })
+    throw error
   }
   
   // Insert new certification entry
@@ -85,19 +65,15 @@ export default eventHandler(async (event) => {
     .single()
   
   if (error) {
-    console.error('Database error inserting certification:', error)
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Internal Server Error',
-      data: {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to create certification'
-        }
-      }
-    })
+    logError('POST', ROUTE_PATH, error, { profileId, dbCode: error.code })
+    throw handleDatabaseError(error, { operation: 'create', resource: 'certification' })
   }
+  
+  // Set response status to 201 Created
+  setResponseStatus(event, 201)
+  
+  const duration = getElapsed()
+  logSuccess('POST', ROUTE_PATH, duration, { profileId, certificationId: data.id })
   
   return {
     success: true,
@@ -105,4 +81,3 @@ export default eventHandler(async (event) => {
     data
   }
 })
-

@@ -1,68 +1,79 @@
-import { serverSupabaseClient } from '#supabase/server'
-import { generatePrefixedId } from '../../../utils/id-generator'
+/**
+ * POST /api/career-id/profile
+ * 
+ * Creates a new profile for a user.
+ * Only creates the profile shell - entities (experience, education, etc.)
+ * are saved separately via their own endpoints.
+ */
 
+import { serverSupabaseClient } from '#supabase/server'
+import { generatePrefixedId } from '@@/server/utils/id-generator'
+import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
+import { 
+  handleDatabaseError, 
+  createValidationError,
+  ErrorCodes 
+} from '@@/server/utils/error-handler'
+import { isRequired, requiredFieldError } from '@@/server/utils/validation'
+
+const ROUTE_PATH = '/api/career-id/profile'
 
 export default eventHandler(async (event) => {
-  // Get Supabase service role client (RLS not enabled yet)
+  const getElapsed = createTimer()
+  
+  logRequest('POST', ROUTE_PATH)
+  
+  // Get Supabase client
   const supabase = await serverSupabaseClient(event)
   
   // Read request body
   const body = await readBody(event)
   
   // Validate required fields
-  if (!body.userId) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Bad Request',
-      data: {
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Validation failed',
-          details: [
-            {
-              field: 'userId',
-              message: 'userId is required',
-              code: 'REQUIRED'
-            }
-          ]
-        }
-      }
-    })
+  if (!isRequired(body.userId)) {
+    const error = createValidationError(requiredFieldError('userId'))
+    logError('POST', ROUTE_PATH, error, { field: 'userId' })
+    throw error
   }
   
   // Generate prefixed ID for the profile
   const profileId = generatePrefixedId('prof')
-  console.log('Generated profile ID:', profileId)
+  
+  logRequest('POST', ROUTE_PATH, { userId: body.userId, profileId })
 
-  // Insert profile into database (profiles table only - entities saved separately)
- const { data, error } = await supabase
- .schema('career_id')
- .from('profiles')
- .insert({
-  id: profileId,
-  user_id: body.userId,
-  completion_status: 'incomplete'
- }).select();
+  // Insert profile into database
+  const { data, error } = await supabase
+    .schema('career_id')
+    .from('profiles')
+    .insert({
+      id: profileId,
+      user_id: body.userId,
+      completion_status: 'incomplete'
+    })
+    .select()
+    .single()
   
   // Handle database errors
   if (error) {
-    console.error('Database error creating profile:', error)
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Internal Server Error',
-      data: {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to create profile'
-        }
-      }
+    logError('POST', ROUTE_PATH, error, { 
+      userId: body.userId, 
+      profileId,
+      dbCode: error.code 
+    })
+    throw handleDatabaseError(error, { 
+      operation: 'create', 
+      resource: 'profile' 
     })
   }
   
   // Set response status to 201 Created
   setResponseStatus(event, 201)
+  
+  const duration = getElapsed()
+  logSuccess('POST', ROUTE_PATH, duration, { 
+    profileId: data.id,
+    userId: data.user_id 
+  })
   
   // Return created profile with structure matching API spec
   return {
@@ -72,9 +83,10 @@ export default eventHandler(async (event) => {
       profile: {
         id: data.id,
         user_id: data.user_id,
-        completion_status: data.completion_status
+        completion_status: data.completion_status,
+        created_at: data.created_at,
+        updated_at: data.updated_at
       }
     }
   }
 })
-

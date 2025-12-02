@@ -6,76 +6,51 @@
  */
 
 import { serverSupabaseClient } from '#supabase/server'
+import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
+import { handleDatabaseError, createValidationError } from '@@/server/utils/error-handler'
+import { isRequired, requiredFieldError, validateDateRange } from '@@/server/utils/validation'
+
+const ROUTE_PATH = '/api/career-id/profile/:profileId/experience'
 
 export default eventHandler(async (event) => {
+  const getElapsed = createTimer()
   const supabase = await serverSupabaseClient(event)
   const body = await readBody(event)
   
   // Get profile_id from URL path parameter  
   const profileId = getRouterParam(event, 'profileId')
   
+  logRequest('POST', ROUTE_PATH, { profileId })
+  
   // Validation: Required fields
   const validationErrors = []
   
-  if (!body.employer) {
-    validationErrors.push({
-      field: 'employer',
-      message: 'employer is required',
-      code: 'REQUIRED'
-    })
+  if (!isRequired(body.employer)) {
+    validationErrors.push(requiredFieldError('employer'))
   }
   
-  if (!body.title) {
-    validationErrors.push({
-      field: 'title',
-      message: 'title is required',
-      code: 'REQUIRED'
-    })
+  if (!isRequired(body.title)) {
+    validationErrors.push(requiredFieldError('title'))
   }
   
-  if (!body.startDate) {
-    validationErrors.push({
-      field: 'startDate',
-      message: 'startDate is required',
-      code: 'REQUIRED'
-    })
+  if (!isRequired(body.startDate)) {
+    validationErrors.push(requiredFieldError('startDate'))
   }
   
-  if (!body.employmentType) {
-    validationErrors.push({
-      field: 'employmentType',
-      message: 'employmentType is required',
-      code: 'REQUIRED'
-    })
+  if (!isRequired(body.employmentType)) {
+    validationErrors.push(requiredFieldError('employmentType'))
   }
   
   // Validation: Date range (if end_date provided, must be after start_date)
-  if (body.endDate && body.startDate) {
-    const startDate = new Date(body.startDate)
-    const endDate = new Date(body.endDate)
-    
-    if (endDate < startDate) {
-      validationErrors.push({
-        field: 'endDate',
-        message: 'endDate must be after startDate',
-        code: 'INVALID_RANGE'
-      })
-    }
+  const dateRangeError = validateDateRange(body.startDate, body.endDate)
+  if (dateRangeError) {
+    validationErrors.push(dateRangeError)
   }
   
   if (validationErrors.length > 0) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Bad Request',
-      data: {
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Validation failed',
-          details: validationErrors
-        }
-      }
-    })
+    const error = createValidationError(validationErrors)
+    logError('POST', ROUTE_PATH, error, { profileId, fields: validationErrors.map(e => e.field) })
+    throw error
   }
   
   // Insert new experience entry
@@ -101,19 +76,15 @@ export default eventHandler(async (event) => {
     .single()
   
   if (error) {
-    console.error('Database error inserting experience:', error)
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Internal Server Error',
-      data: {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to create experience entry'
-        }
-      }
-    })
+    logError('POST', ROUTE_PATH, error, { profileId, dbCode: error.code })
+    throw handleDatabaseError(error, { operation: 'create', resource: 'experience entry' })
   }
+  
+  // Set response status to 201 Created
+  setResponseStatus(event, 201)
+  
+  const duration = getElapsed()
+  logSuccess('POST', ROUTE_PATH, duration, { profileId, experienceId: data.id })
   
   return {
     success: true,
@@ -121,4 +92,3 @@ export default eventHandler(async (event) => {
     data
   }
 })
-

@@ -325,6 +325,52 @@
       "request": null,
       "note": "Returns matching skills from master catalog for typeahead suggestions"
     },
+    "createSocialLinks": {
+      "endpoint": "POST /api/career-id/profile/:profileId/socials",
+      "description": "Add social links to profile (bulk operation). Accepts array. Links to reference.social_platforms catalog.",
+      "request": [
+        {
+          "platformId": 1,
+          "url": "https://linkedin.com/in/janedoe",
+          "displayOrder": 0
+        },
+        {
+          "platformId": 2,
+          "url": "https://github.com/janedoe",
+          "displayOrder": 1
+        },
+        {
+          "platformId": 3,
+          "url": "https://twitter.com/janedoe",
+          "displayOrder": 2
+        }
+      ],
+      "note": "platformId references reference.social_platforms.id. Get available platforms from GET /api/reference/social-platforms"
+    },
+    "createSocialLink_single": {
+      "endpoint": "POST /api/career-id/profile/:profileId/socials",
+      "description": "Add a single social link (still accepts as array for consistency)",
+      "request": [
+        {
+          "platformId": 10,
+          "url": "https://medium.com/@janedoe"
+        }
+      ]
+    },
+    "updateSocialLink": {
+      "endpoint": "PATCH /api/career-id/profile/:profileId/socials/:id",
+      "description": "Update social link URL or display order. Cannot change platform - must delete and re-add for that.",
+      "request": {
+        "url": "https://linkedin.com/in/jane-m-doe",
+        "displayOrder": 0
+      }
+    },
+    "getSocialPlatforms": {
+      "endpoint": "GET /api/reference/social-platforms",
+      "description": "Fetch all available social platforms from reference catalog (for dropdown/selection UI)",
+      "request": null,
+      "note": "Returns platforms like LinkedIn, GitHub, Twitter, etc. with platform_name, display_name, base_url, icon_name"
+    },
     "createContactInfo": {
       "endpoint": "POST /api/career-id/profile/:profileId/contact",
       "description": "Create contact information (one-to-one with profile). Server generates prefixed ID (cont_*). Required fields: firstName, lastName, email. Returns 409 if already exists. ProfileId comes from URL path.",

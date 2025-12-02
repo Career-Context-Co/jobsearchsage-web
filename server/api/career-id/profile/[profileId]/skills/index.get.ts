@@ -7,12 +7,19 @@
  */
 
 import { serverSupabaseClient } from '#supabase/server'
+import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
+import { handleDatabaseError } from '@@/server/utils/error-handler'
+
+const ROUTE_PATH = '/api/career-id/profile/:profileId/skills'
 
 export default eventHandler(async (event) => {
+  const getElapsed = createTimer()
   const supabase = await serverSupabaseClient(event)
   
   // Get profile_id from URL path parameter
   const profileId = getRouterParam(event, 'profileId')
+  
+  logRequest('GET', ROUTE_PATH, { profileId })
   
   // Fetch profile skills
   // name is always populated (what user typed)
@@ -35,23 +42,15 @@ export default eventHandler(async (event) => {
     .order('display_order', { ascending: true })
   
   if (error) {
-    console.error('Database error fetching skills:', error)
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Internal Server Error',
-      data: {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to fetch skills'
-        }
-      }
-    })
+    logError('GET', ROUTE_PATH, error, { profileId, dbCode: error.code })
+    throw handleDatabaseError(error, { operation: 'fetch', resource: 'skills' })
   }
+  
+  const duration = getElapsed()
+  logSuccess('GET', ROUTE_PATH, duration, { profileId, count: data?.length ?? 0 })
   
   return {
     success: true,
     data: data || []
   }
 })
-

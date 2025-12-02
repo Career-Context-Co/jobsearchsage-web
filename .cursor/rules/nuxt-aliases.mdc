@@ -1,0 +1,92 @@
+---
+description: When creating new files or updating imports
+alwaysApply: false
+---
+# Nuxt Path Aliases
+
+## Overview
+
+Nuxt provides predefined aliases to simplify imports and avoid messy relative paths. Always use these aliases instead of relative path navigation (e.g., `../../../`).
+
+## Available Aliases
+
+```typescript
+{
+  "~": "/<srcDir>",        // Source directory (app folder)
+  "@": "/<srcDir>",        // Source directory (app folder)
+  "~~": "/<rootDir>",      // Project root
+  "@@": "/<rootDir>",      // Project root
+  "#shared": "/<rootDir>/shared",
+  "assets": "/<srcDir>/assets",
+  "public": "/<rootDir>/public",
+  "#build": "/<rootDir>/.nuxt",
+  "#internal/nuxt/paths": "/<rootDir>/.nuxt/paths.mjs"
+}
+```
+
+## Usage Guidelines
+
+### Frontend Code (app/ folder)
+
+Use `@` or `~` to import from the source directory:
+
+```typescript
+// ✅ GOOD
+import { something } from '@/components/MyComponent.vue'
+import { util } from '@/utils/helpers'
+
+// ❌ BAD - Don't use relative paths
+import { something } from '../../../components/MyComponent.vue'
+```
+
+**Note:** In webpack contexts (image sources, CSS), prefix with `~`:
+```vue
+<style>
+.background {
+  background-image: url('~assets/image.png');
+}
+</style>
+```
+
+### Backend Code (server/ folder)
+
+Use `@@` to import from the project root, then navigate to `server/`:
+
+```typescript
+// ✅ GOOD - Use @@ alias
+import { generatePrefixedId } from '@@/server/utils/id-generator'
+import { extractLogContext } from '@@/server/utils/logger'
+import { handleApiError } from '@@/server/utils/error-handler'
+
+// ❌ BAD - Don't use relative paths drilling up
+import { generatePrefixedId } from '../../../../../utils/id-generator'
+import { extractLogContext } from '../../utils/logger'
+```
+
+## Why This Matters
+
+1. **Maintainability**: Moving files doesn't break imports
+2. **Readability**: Clear where imports come from (`@@/server/` vs `../../../`)
+3. **Type Safety**: Aliases are automatically added to TypeScript configs
+4. **Consistency**: Team-wide standard for import paths
+
+## Examples from Codebase
+
+### ✅ Correct Usage
+
+From `server/api/career-id/profile/[profileId]/certifications/[id].delete.ts`:
+```typescript
+import { extractLogContext } from '@@/server/utils/logger'
+```
+
+### ❌ Incorrect Usage
+
+From `server/api/career-id/profile/[profileId]/contact/index.post.ts`:
+```typescript
+import { generatePrefixedId } from '../../../../../utils/id-generator'
+// Should be: import { generatePrefixedId } from '@@/server/utils/id-generator'
+```
+
+## Reference
+
+See [Nuxt Alias Documentation](https://nuxt.com/docs/api/nuxt-config#alias) for more details.

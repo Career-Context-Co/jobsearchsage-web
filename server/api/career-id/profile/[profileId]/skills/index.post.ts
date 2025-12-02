@@ -8,66 +8,63 @@
  */
 
 import { serverSupabaseClient } from '#supabase/server'
+import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
+import { handleDatabaseError, createValidationError, createConflictError, ErrorCodes } from '@@/server/utils/error-handler'
+import { isRequired, validateEnum } from '@@/server/utils/validation'
+
+const ROUTE_PATH = '/api/career-id/profile/:profileId/skills'
+const VALID_PROFICIENCY_LEVELS = ['beginner', 'intermediate', 'advanced', 'expert'] as const
 
 export default eventHandler(async (event) => {
+  const getElapsed = createTimer()
   const supabase = await serverSupabaseClient(event)
   const body = await readBody(event)
   
   // Get profile_id from URL path parameter
   const profileId = getRouterParam(event, 'profileId')
   
+  logRequest('POST', ROUTE_PATH, { profileId })
+  
   // Ensure body is an array
   const skills = Array.isArray(body) ? body : [body]
   
   if (skills.length === 0) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Bad Request',
-      data: {
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'At least one skill is required'
-        }
-      }
+    const error = createValidationError({
+      field: 'skills',
+      message: 'At least one skill is required',
+      code: ErrorCodes.REQUIRED
     })
+    logError('POST', ROUTE_PATH, error, { profileId })
+    throw error
   }
   
-  const validLevels = ['beginner', 'intermediate', 'advanced', 'expert']
   const validationErrors: Array<{ field: string; message: string; code: string }> = []
   
   // Validate all skills
   skills.forEach((skill, index) => {
-    if (!skill.name || skill.name.trim() === '') {
+    if (!isRequired(skill.name)) {
       validationErrors.push({
         field: `skills[${index}].name`,
         message: 'name is required and cannot be empty',
-        code: 'REQUIRED'
+        code: ErrorCodes.REQUIRED
       })
     }
     
-    if (skill.proficiencyLevel && !validLevels.includes(skill.proficiencyLevel)) {
-      validationErrors.push({
-        field: `skills[${index}].proficiencyLevel`,
-        message: `proficiencyLevel must be one of: ${validLevels.join(', ')}`,
-        code: 'INVALID_VALUE'
-      })
+    const levelError = validateEnum(
+      skill.proficiencyLevel,
+      `skills[${index}].proficiencyLevel`,
+      VALID_PROFICIENCY_LEVELS,
+      false
+    )
+    if (levelError) {
+      validationErrors.push(levelError)
     }
   })
   
   if (validationErrors.length > 0) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Bad Request',
-      data: {
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Validation failed',
-          details: validationErrors
-        }
-      }
-    })
+    const error = createValidationError(validationErrors)
+    logError('POST', ROUTE_PATH, error, { profileId, fields: validationErrors.map(e => e.field) })
+    throw error
   }
   
   // Check for duplicate skill names within this request
@@ -75,26 +72,25 @@ export default eventHandler(async (event) => {
   const duplicates = skillNames.filter((name, index) => skillNames.indexOf(name) !== index)
   
   if (duplicates.length > 0) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Bad Request',
-      data: {
-        success: false,
-        error: {
-          code: 'DUPLICATE_SKILLS',
-          message: 'Duplicate skills detected in request',
-          duplicates: [...new Set(duplicates)]
-        }
-      }
+    const error = createConflictError('Duplicate skills detected in request', {
+      duplicates: [...new Set(duplicates)]
     })
+    error.data.error.code = ErrorCodes.DUPLICATE_SKILLS
+    logError('POST', ROUTE_PATH, error, { profileId, duplicates })
+    throw error
   }
   
   // Check for existing skills in profile
-  const { data: existingSkills } = await supabase
+  const { data: existingSkills, error: fetchError } = await supabase
     .schema('career_id')
     .from('profile_skills')
     .select('name')
     .eq('profile_id', profileId)
+  
+  if (fetchError) {
+    logError('POST', ROUTE_PATH, fetchError, { profileId, dbCode: fetchError.code })
+    throw handleDatabaseError(fetchError, { operation: 'check', resource: 'existing skills' })
+  }
   
   const existingNames = new Set(
     (existingSkills || []).map(s => s.name.toLowerCase().trim())
@@ -103,18 +99,12 @@ export default eventHandler(async (event) => {
   const alreadyExists = skillNames.filter(name => existingNames.has(name))
   
   if (alreadyExists.length > 0) {
-    throw createError({
-      statusCode: 409,
-      statusMessage: 'Conflict',
-      data: {
-        success: false,
-        error: {
-          code: 'SKILLS_ALREADY_EXIST',
-          message: 'Some skills already exist in profile',
-          existing: alreadyExists
-        }
-      }
+    const error = createConflictError('Some skills already exist in profile', {
+      existing: alreadyExists
     })
+    error.data.error.code = ErrorCodes.SKILLS_ALREADY_EXIST
+    logError('POST', ROUTE_PATH, error, { profileId, existing: alreadyExists })
+    throw error
   }
   
   // Insert skills directly into profile_skills
@@ -135,19 +125,15 @@ export default eventHandler(async (event) => {
     .select()
   
   if (error) {
-    console.error('Database error inserting profile skills:', error)
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Internal Server Error',
-      data: {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: `Failed to add skills to profile: ${error.message}`
-        }
-      }
-    })
+    logError('POST', ROUTE_PATH, error, { profileId, dbCode: error.code })
+    throw handleDatabaseError(error, { operation: 'add', resource: 'skills' })
   }
+  
+  // Set response status to 201 Created
+  setResponseStatus(event, 201)
+  
+  const duration = getElapsed()
+  logSuccess('POST', ROUTE_PATH, duration, { profileId, count: data.length })
   
   return {
     success: true,
@@ -155,4 +141,3 @@ export default eventHandler(async (event) => {
     data
   }
 })
-

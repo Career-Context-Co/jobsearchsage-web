@@ -1,89 +1,60 @@
 /**
- * POST /api/career-id/profile/education
+ * POST /api/career-id/profile/:profileId/education
  * 
  * Creates a new education entry for a profile.
  * Validates required fields and date ranges.
  */
 
 import { serverSupabaseClient } from '#supabase/server'
+import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
+import { handleDatabaseError, createValidationError } from '@@/server/utils/error-handler'
+import { isRequired, requiredFieldError, validateDateRange } from '@@/server/utils/validation'
+
+const ROUTE_PATH = '/api/career-id/profile/:profileId/education'
 
 export default eventHandler(async (event) => {
+  const getElapsed = createTimer()
   const supabase = await serverSupabaseClient(event)
   const body = await readBody(event)
   
   // Get profile_id from URL path parameter
   const profileId = getRouterParam(event, 'profileId')
   
+  logRequest('POST', ROUTE_PATH, { profileId })
+  
   // Validation: Required fields
   const validationErrors = []
   
-  if (!body.degreeType) {
-    validationErrors.push({
-      field: 'degreeType',
-      message: 'degreeType is required',
-      code: 'REQUIRED'
-    })
+  if (!isRequired(body.degreeType)) {
+    validationErrors.push(requiredFieldError('degreeType'))
   }
   
-  if (!body.areaOfStudy) {
-    validationErrors.push({
-      field: 'areaOfStudy',
-      message: 'areaOfStudy is required',
-      code: 'REQUIRED'
-    })
+  if (!isRequired(body.areaOfStudy)) {
+    validationErrors.push(requiredFieldError('areaOfStudy'))
   }
   
-  if (!body.institution) {
-    validationErrors.push({
-      field: 'institution',
-      message: 'institution is required',
-      code: 'REQUIRED'
-    })
+  if (!isRequired(body.institution)) {
+    validationErrors.push(requiredFieldError('institution'))
   }
   
-  if (!body.startDate) {
-    validationErrors.push({
-      field: 'startDate',
-      message: 'startDate is required',
-      code: 'REQUIRED'
-    })
+  if (!isRequired(body.startDate)) {
+    validationErrors.push(requiredFieldError('startDate'))
   }
   
-  if (!body.endDate) {
-    validationErrors.push({
-      field: 'endDate',
-      message: 'endDate is required',
-      code: 'REQUIRED'
-    })
+  if (!isRequired(body.endDate)) {
+    validationErrors.push(requiredFieldError('endDate'))
   }
   
   // Validation: Date range (end_date must be after start_date)
-  if (body.endDate && body.startDate) {
-    const startDate = new Date(body.startDate)
-    const endDate = new Date(body.endDate)
-    
-    if (endDate < startDate) {
-      validationErrors.push({
-        field: 'endDate',
-        message: 'endDate must be after startDate',
-        code: 'INVALID_RANGE'
-      })
-    }
+  const dateRangeError = validateDateRange(body.startDate, body.endDate)
+  if (dateRangeError) {
+    validationErrors.push(dateRangeError)
   }
   
   if (validationErrors.length > 0) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Bad Request',
-      data: {
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Validation failed',
-          details: validationErrors
-        }
-      }
-    })
+    const error = createValidationError(validationErrors)
+    logError('POST', ROUTE_PATH, error, { profileId, fields: validationErrors.map(e => e.field) })
+    throw error
   }
   
   // Insert new education entry
@@ -108,19 +79,15 @@ export default eventHandler(async (event) => {
     .single()
   
   if (error) {
-    console.error('Database error inserting education:', error)
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Internal Server Error',
-      data: {
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to create education entry'
-        }
-      }
-    })
+    logError('POST', ROUTE_PATH, error, { profileId, dbCode: error.code })
+    throw handleDatabaseError(error, { operation: 'create', resource: 'education entry' })
   }
+  
+  // Set response status to 201 Created
+  setResponseStatus(event, 201)
+  
+  const duration = getElapsed()
+  logSuccess('POST', ROUTE_PATH, duration, { profileId, educationId: data.id })
   
   return {
     success: true,
@@ -128,4 +95,3 @@ export default eventHandler(async (event) => {
     data
   }
 })
-
