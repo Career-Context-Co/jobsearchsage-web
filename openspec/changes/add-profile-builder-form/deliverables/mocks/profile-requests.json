@@ -1,17 +1,19 @@
 {
-  "description": "Mock API request samples for Profile Builder endpoints - Use these for testing POST/PUT operations",
+  "description": "Mock API request samples for Profile Builder endpoints - Use these for testing POST/PUT/PATCH operations",
   "version": "1.0.0",
+  "important": "POST requests do NOT include 'id' field - server auto-generates prefixed IDs (prof_, exp_, edu_, cert_, cont_, etc.)",
   "requests": {
     "createProfile": {
       "endpoint": "POST /api/career-id/profile",
-      "description": "Create a new profile shell (entities saved separately)",
+      "description": "Create a new profile shell (entities saved separately). Server generates prefixed ID (prof_*).",
       "request": {
         "userId": "user-abc123"
-      }
+      },
+      "note": "No 'id' in request body - server generates it"
     },
     "createExperience_fullTime": {
       "endpoint": "POST /api/career-id/profile/:profileId/experience",
-      "description": "Create a new full-time work experience entry (profileId in URL path)",
+      "description": "Create a new full-time work experience entry (profileId in URL path). Server generates prefixed ID (exp_*).",
       "request": {
         "employmentType": "full_time",
         "employer": "TechCorp Inc.",
@@ -99,8 +101,8 @@
       }
     },
     "updateExperience": {
-      "endpoint": "PUT /api/career-id/profile/:profileId/experience/:id",
-      "description": "Update an existing experience entry (partial update supported, profileId in URL path)",
+      "endpoint": "PATCH /api/career-id/profile/:profileId/experience/:id",
+      "description": "Partially update an existing experience entry (only provided fields are updated, profileId in URL path)",
       "request": {
         "title": "Lead Software Engineer",
         "summary": "Updated summary with new responsibilities",
@@ -116,7 +118,7 @@
     },
     "createEducation_bachelors": {
       "endpoint": "POST /api/career-id/profile/:profileId/education",
-      "description": "Create a new bachelor's degree entry (profileId in URL path)",
+      "description": "Create a new bachelor's degree entry (profileId in URL path). Server generates prefixed ID (edu_*).",
       "request": {
         "degreeType": "Bachelor of Science",
         "areaOfStudy": "Computer Science",
@@ -183,8 +185,8 @@
       }
     },
     "updateEducation": {
-      "endpoint": "PUT /api/career-id/profile/:profileId/education/:id",
-      "description": "Update an existing education entry (partial update supported, profileId in URL path)",
+      "endpoint": "PATCH /api/career-id/profile/:profileId/education/:id",
+      "description": "Partially update an existing education entry (only provided fields are updated, profileId in URL path)",
       "request": {
         "degreeType": "Bachelor of Science",
         "areaOfStudy": "Computer Science with Honors",
@@ -202,7 +204,7 @@
     },
     "createCertification_aws": {
       "endpoint": "POST /api/career-id/profile/:profileId/certifications",
-      "description": "Create AWS certification (profileId in URL path)",
+      "description": "Create AWS certification (profileId in URL path). Server generates prefixed ID (cert_*).",
       "request": {
         "name": "AWS Solutions Architect - Professional",
         "issuer": "Amazon Web Services",
@@ -234,8 +236,8 @@
       }
     },
     "updateCertification": {
-      "endpoint": "PUT /api/career-id/profile/:profileId/certifications/:id",
-      "description": "Update an existing certification (partial update supported, profileId in URL path)",
+      "endpoint": "PATCH /api/career-id/profile/:profileId/certifications/:id",
+      "description": "Partially update an existing certification (only provided fields are updated, profileId in URL path)",
       "request": {
         "name": "AWS Solutions Architect - Professional (Updated)",
         "url": "https://aws.amazon.com/certification/certified-solutions-architect-professional/v2/"
@@ -243,7 +245,7 @@
     },
     "createSkills_bulk": {
       "endpoint": "POST /api/career-id/profile/:profileId/skills",
-      "description": "Add multiple skills at once (free-form text, like adding tags). Accepts whatever user types - no validation against catalog. Background job will match to reference later.",
+      "description": "Add multiple skills at once (free-form text, like adding tags). Server generates integer IDs. Accepts whatever user types - no validation against catalog. Background job will match to reference later.",
       "request": [
         {
           "name": "TypeScript",
@@ -324,20 +326,17 @@
       "note": "Returns matching skills from master catalog for typeahead suggestions"
     },
     "createContactInfo": {
-      "endpoint": "PUT /api/career-id/profile/contact",
-      "description": "Create or update contact information",
+      "endpoint": "POST /api/career-id/profile/:profileId/contact",
+      "description": "Create contact information (one-to-one with profile). Server generates prefixed ID (cont_*). Required fields: firstName, lastName, email. Returns 409 if already exists. ProfileId comes from URL path.",
       "request": {
-        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
         "firstName": "Jane",
         "lastName": "Doe",
         "jobTitle": "Senior Software Engineer",
         "email": "jane.doe@example.com",
         "phone": "+14155552671",
-        "linkedin": "https://linkedin.com/in/janedoe",
         "websites": [
           "https://janedoe.dev",
-          "https://github.com/janedoe",
-          "https://twitter.com/janedoe"
+          "https://github.com/janedoe"
         ],
         "summary": "Experienced software engineer with 8+ years building scalable web applications and cloud infrastructure. Passionate about clean code, system design, and mentoring junior developers. Strong background in full-stack development, microservices architecture, and DevOps practices. Seeking opportunities to lead technical teams and drive innovation in fast-paced environments.",
         "city": "San Francisco",
@@ -345,17 +344,24 @@
         "country": "United States",
         "postalCode": "94102",
         "willingToRelocate": false
-      }
+      },
+      "note": "Social links (linkedin, twitter, etc.) are managed via the social_platforms schema, not here."
     },
-    "updateContactInfo_minimal": {
-      "endpoint": "PUT /api/career-id/profile/contact",
-      "description": "Update contact info with minimal required fields",
+    "updateContactInfo_partial": {
+      "endpoint": "PATCH /api/career-id/profile/:profileId/contact/:id",
+      "description": "Partially update existing contact info (PATCH semantics - only provided fields are updated). Returns 404 if doesn't exist. Both profileId and contact id come from URL path.",
       "request": {
-        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
-        "firstName": "John",
-        "lastName": "Smith",
-        "email": "john.smith@example.com"
-      }
+        "jobTitle": "Lead Software Engineer",
+        "phone": "+14155559999",
+        "willingToRelocate": true
+      },
+      "note": "Only updates the fields provided. Other fields remain unchanged. Must provide contact ID in URL (e.g., /profile/prof_123/contact/cont_456)"
+    },
+    "deleteContactInfo": {
+      "endpoint": "DELETE /api/career-id/profile/:profileId/contact/:id",
+      "description": "Delete contact information. Both profileId and contact id come from URL path.",
+      "request": null,
+      "note": "Must provide contact ID in URL (e.g., /profile/prof_123/contact/cont_456)"
     },
     "validationExamples": {
       "description": "Examples that should fail validation",
@@ -387,6 +393,7 @@
     }
   },
   "notes": {
+    "idGeneration": "POST requests do NOT include 'id' field. Server auto-generates: prof_* (profiles), exp_* (experience), edu_* (education), cert_* (certifications), cont_* (contact), integer IDs for skills.",
     "fieldMapping": "Request uses camelCase (e.g., profileId, employmentType). Database uses snake_case (e.g., profile_id, employment_type).",
     "employmentTypes": [
       "full_time",

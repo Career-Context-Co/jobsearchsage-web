@@ -1,34 +1,59 @@
 /**
- * GET /api/profile/contact
+ * GET /api/career-id/profile/:profileId/contact
  * 
- * Mock endpoint that returns contact information for the user's profile.
- * In production, this will fetch from the database.
+ * Fetches contact information for a profile.
+ * Returns 404 if no contact info exists yet (one-to-one relationship).
  */
 
-const mockContactInfo = {
-  id: 'contact-001',
-  profile_id: 'profile-uuid-001',
-  first_name: 'Jane',
-  last_name: 'Doe',
-  job_title: 'Senior Software Engineer',
-  email: 'jane.doe@example.com',
-  phone: '+14155552671',
-  linkedin: 'https://linkedin.com/in/janedoe',
-  websites: ['https://janedoe.dev', 'https://github.com/janedoe'],
-  summary: 'Experienced software engineer with 8+ years building scalable web applications and cloud infrastructure. Passionate about clean code, system design, and mentoring junior developers.',
-  city: 'San Francisco',
-  state_region: 'California',
-  country: 'United States',
-  postal_code: '94102',
-  willing_to_relocate: false,
-  created_at: '2025-01-15T10:32:00.000Z',
-  updated_at: '2025-01-15T14:45:00.000Z'
-}
+import { serverSupabaseClient } from '#supabase/server'
 
-export default eventHandler(async () => {
+export default eventHandler(async (event) => {
+  const supabase = await serverSupabaseClient(event)
+  
+  // Get profile_id from URL path parameter
+  const profileId = getRouterParam(event, 'profileId')
+  
+  // Fetch contact info (one-to-one relationship with profile)
+  const { data, error } = await supabase
+    .schema('career_id')
+    .from('contact_info')
+    .select('*')
+    .eq('profile_id', profileId)
+    .maybeSingle()
+  
+  if (error) {
+    console.error('Database error fetching contact info:', error)
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Internal Server Error',
+      data: {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to fetch contact information'
+        }
+      }
+    })
+  }
+  
+  // Return 404 if no contact info exists
+  if (!data) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Not Found',
+      data: {
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Contact information not found for this profile'
+        }
+      }
+    })
+  }
+  
   return {
     success: true,
-    data: mockContactInfo
+    data
   }
 })
 

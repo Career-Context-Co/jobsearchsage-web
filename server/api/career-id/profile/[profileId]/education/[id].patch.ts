@@ -1,7 +1,8 @@
 /**
- * PUT /api/career-id/profile/:profileId/education/:id
+ * PATCH /api/career-id/profile/:profileId/education/:id
  * 
- * Updates an existing education entry.
+ * Partially updates an existing education entry.
+ * Only updates fields provided in the request body.
  * Validates fields and date ranges.
  */
 

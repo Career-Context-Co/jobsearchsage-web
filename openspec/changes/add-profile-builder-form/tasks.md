@@ -74,7 +74,7 @@
 - [x] 4.11 Replace mock in `server/api/career-id/profile/[profileId]/experience/index.post.ts` with real INSERT for new experience entries (REST: POST for create, profileId from URL path)
 - [x] 4.12 Add validation in POST handler: employer, title, start_date required; end_date validation (if provided, must be after start_date)
 - [x] 4.13 Replace mock in `server/api/career-id/profile/[profileId]/experience/[id].delete.ts` with real DELETE from career_id.experience
-- [x] 4.14 Create `server/api/career-id/profile/[profileId]/experience/[id].put.ts` for updating existing experience entries (REST: PUT for update)
+- [x] 4.14 Create `server/api/career-id/profile/[profileId]/experience/[id].patch.ts` for updating existing experience entries (REST: PATCH for partial update)
 
 ### 4.C Education Routes (`/api/career-id/profile/:profileId/education/`)
 
@@ -82,7 +82,7 @@
 - [x] 4.15 Replace mock in `server/api/career-id/profile/[profileId]/education/index.post.ts` with real INSERT for new education entries (REST: POST for create, profileId from URL path)
 - [x] 4.16 Add validation in POST handler: degree_type, area_of_study, institution required; date validation
 - [x] 4.17 Replace mock in `server/api/career-id/profile/[profileId]/education/[id].delete.ts` with real DELETE from career_id.education
-- [x] 4.18 Create `server/api/career-id/profile/[profileId]/education/[id].put.ts` for updating existing education entries (REST: PUT for update)
+- [x] 4.18 Create `server/api/career-id/profile/[profileId]/education/[id].patch.ts` for updating existing education entries (REST: PATCH for partial update)
 
 ### 4.D Certifications Routes (`/api/career-id/profile/:profileId/certifications/`)
 
@@ -90,7 +90,7 @@
 - [x] 4.19 Replace mock in `server/api/career-id/profile/[profileId]/certifications/index.post.ts` with real INSERT for new certification entries (REST: POST for create, profileId from URL path)
 - [x] 4.20 Add validation in POST handler: name, issuer, date_obtained required; URL format if provided
 - [x] 4.21 Replace mock in `server/api/career-id/profile/[profileId]/certifications/[id].delete.ts` with real DELETE from career_id.certifications
-- [x] 4.22 Create `server/api/career-id/profile/[profileId]/certifications/[id].put.ts` for updating existing certifications (REST: PUT for update)
+- [x] 4.22 Create `server/api/career-id/profile/[profileId]/certifications/[id].patch.ts` for updating existing certifications (REST: PATCH for partial update)
 
 ### 4.E Skills Routes (`/api/career-id/profile/:profileId/skills/`)
 **Note:** Skills use "accept anything, match later" approach with array-based bulk operations (tag-like UI pattern)
@@ -104,13 +104,14 @@
 - [x] 4.28 Create `server/api/career-id/profile/[profileId]/skills/index.patch.ts` for bulk partial updates of skill metadata (PATCH for partial update semantics)
 - [x] 4.29 Create `server/api/reference/skills/lookup.post.ts` for background matching job (not used by profile endpoints directly)
 
-### 4.F Contact Info Routes (`/api/career-id/profile/contact/`)
+### 4.F Contact Info Routes (`/api/career-id/profile/:profileId/contact/`)
+**Note:** One-to-one relationship with profile. POST for create, PATCH/DELETE use ID in path like other resources.
 
-- [ ] 4.28 Replace mock in `server/api/career-id/profile/contact/index.get.ts` with query to fetch contact_info for profile
-- [ ] 4.29 Replace mock in `server/api/career-id/profile/contact/index.put.ts` with UPSERT (INSERT or UPDATE) on career_id.contact_info
-- [ ] 4.30 In contact PUT handler, generate prefixed ID (`cont_*`) if creating new record
-- [ ] 4.31 Add validation in contact PUT handler: email format (if provided), phone format, URL format for websites/linkedin
-- [ ] 4.32 Replace mock in `server/api/career-id/profile/contact/index.delete.ts` with DELETE from career_id.contact_info
+- [x] 4.28 Replace mock in `server/api/career-id/profile/[profileId]/contact/index.get.ts` with query to fetch contact_info for profile (returns 404 if not found)
+- [x] 4.29 Create `server/api/career-id/profile/[profileId]/contact/index.post.ts` for creating contact_info (returns 409 if already exists)
+- [x] 4.30 In contact POST handler, generate prefixed ID (`cont_*`) and validate required fields (firstName, lastName, email)
+- [x] 4.31 Create `server/api/career-id/profile/[profileId]/contact/[id].patch.ts` for partial updates with validation: email format, phone format (E.164), URL format for websites
+- [x] 4.32 Create `server/api/career-id/profile/[profileId]/contact/[id].delete.ts` with DELETE from career_id.contact_info (uses contact ID in URL path)
 
 ### 4.G Error Handling & Utilities
 
