@@ -1,20 +1,17 @@
 /**
- * GET /api/career-id/profile/experience
+ * DELETE /api/career-id/profile/:profileId/experience/:id
  * 
- * Fetches all experience entries for a profile.
- * Query parameter: profileId (required)
+ * Deletes a specific experience entry from the database.
  */
 
 import { serverSupabaseClient } from '#supabase/server'
 
 export default eventHandler(async (event) => {
   const supabase = await serverSupabaseClient(event)
+  const profileId = getRouterParam(event, 'profileId')
+  const id = getRouterParam(event, 'id')
   
-  // Get profile_id from query parameter
-  const query = getQuery(event)
-  const profileId = query.profileId as string
-  
-  if (!profileId) {
+  if (!id) {
     throw createError({
       statusCode: 400,
       statusMessage: 'Bad Request',
@@ -22,22 +19,21 @@ export default eventHandler(async (event) => {
         success: false,
         error: {
           code: 'VALIDATION_ERROR',
-          message: 'profileId query parameter is required'
+          message: 'Experience ID is required'
         }
       }
     })
   }
   
-  // Fetch all experience entries for the profile
-  const { data, error } = await supabase
+  // Delete the experience entry
+  const { error } = await supabase
     .schema('career_id')
     .from('experience')
-    .select('*')
-    .eq('profile_id', profileId)
-    .order('display_order', { ascending: true })
+    .delete()
+    .eq('id', id)
   
   if (error) {
-    console.error('Database error fetching experience:', error)
+    console.error('Database error deleting experience:', error)
     throw createError({
       statusCode: 500,
       statusMessage: 'Internal Server Error',
@@ -45,7 +41,7 @@ export default eventHandler(async (event) => {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
-          message: 'Failed to fetch experience entries'
+          message: 'Failed to delete experience entry'
         }
       }
     })
@@ -53,7 +49,7 @@ export default eventHandler(async (event) => {
   
   return {
     success: true,
-    data: data || []
+    message: 'Experience deleted successfully'
   }
 })
 

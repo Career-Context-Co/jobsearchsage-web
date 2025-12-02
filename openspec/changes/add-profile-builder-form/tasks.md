@@ -68,36 +68,41 @@
 - [x] 4.8 Add validation in POST handler: required fields (user_id only)
 - [x] 4.9 Return created profile with id for frontend to use in subsequent autosave calls to entity endpoints
 
-### 4.B Experience Routes (`/api/career-id/profile/experience/`)
+### 4.B Experience Routes (`/api/career-id/profile/:profileId/experience/`)
 
-- [x] 4.10 Replace mock in `server/api/career-id/profile/experience/index.get.ts` with query to fetch all experience entries for profile
-- [x] 4.11 Replace mock in `server/api/career-id/profile/experience/index.post.ts` with real INSERT for new experience entries (REST: POST for create)
+- [x] 4.10 Replace mock in `server/api/career-id/profile/[profileId]/experience/index.get.ts` with query to fetch all experience entries for profile
+- [x] 4.11 Replace mock in `server/api/career-id/profile/[profileId]/experience/index.post.ts` with real INSERT for new experience entries (REST: POST for create, profileId from URL path)
 - [x] 4.12 Add validation in POST handler: employer, title, start_date required; end_date validation (if provided, must be after start_date)
-- [x] 4.13 Replace mock in `server/api/career-id/profile/experience/[id].delete.ts` with real DELETE from career_id.experience
-- [x] 4.14 Create `server/api/career-id/profile/experience/[id].put.ts` for updating existing experience entries (REST: PUT for update)
+- [x] 4.13 Replace mock in `server/api/career-id/profile/[profileId]/experience/[id].delete.ts` with real DELETE from career_id.experience
+- [x] 4.14 Create `server/api/career-id/profile/[profileId]/experience/[id].put.ts` for updating existing experience entries (REST: PUT for update)
 
-### 4.C Education Routes (`/api/career-id/profile/education/`)
+### 4.C Education Routes (`/api/career-id/profile/:profileId/education/`)
 
-- [ ] 4.14 Replace mock in `server/api/career-id/profile/education/index.get.ts` with query to fetch all education entries for profile
-- [ ] 4.15 Replace mock in `server/api/career-id/profile/education/index.put.ts` with real INSERT for new education entries
-- [ ] 4.16 Add validation in PUT handler: degree_type, area_of_study, institution required; date validation
-- [ ] 4.17 Replace mock in `server/api/career-id/profile/education/[id].delete.ts` with real DELETE from career_id.education
+- [x] 4.14 Replace mock in `server/api/career-id/profile/[profileId]/education/index.get.ts` with query to fetch all education entries for profile
+- [x] 4.15 Replace mock in `server/api/career-id/profile/[profileId]/education/index.post.ts` with real INSERT for new education entries (REST: POST for create, profileId from URL path)
+- [x] 4.16 Add validation in POST handler: degree_type, area_of_study, institution required; date validation
+- [x] 4.17 Replace mock in `server/api/career-id/profile/[profileId]/education/[id].delete.ts` with real DELETE from career_id.education
+- [x] 4.18 Create `server/api/career-id/profile/[profileId]/education/[id].put.ts` for updating existing education entries (REST: PUT for update)
 
-### 4.D Certifications Routes (`/api/career-id/profile/certifications/`)
+### 4.D Certifications Routes (`/api/career-id/profile/:profileId/certifications/`)
 
-- [ ] 4.18 Replace mock in `server/api/career-id/profile/certifications/index.get.ts` with query to fetch all certifications for profile
-- [ ] 4.19 Replace mock in `server/api/career-id/profile/certifications/index.put.ts` with real INSERT for new certification entries
-- [ ] 4.20 Add validation in PUT handler: name, issuer, date_obtained required; URL format if provided
-- [ ] 4.21 Replace mock in `server/api/career-id/profile/certifications/[id].delete.ts` with real DELETE from career_id.certifications
+- [x] 4.18 Replace mock in `server/api/career-id/profile/[profileId]/certifications/index.get.ts` with query to fetch all certifications for profile
+- [x] 4.19 Replace mock in `server/api/career-id/profile/[profileId]/certifications/index.post.ts` with real INSERT for new certification entries (REST: POST for create, profileId from URL path)
+- [x] 4.20 Add validation in POST handler: name, issuer, date_obtained required; URL format if provided
+- [x] 4.21 Replace mock in `server/api/career-id/profile/[profileId]/certifications/[id].delete.ts` with real DELETE from career_id.certifications
+- [x] 4.22 Create `server/api/career-id/profile/[profileId]/certifications/[id].put.ts` for updating existing certifications (REST: PUT for update)
 
-### 4.E Skills Routes (`/api/career-id/profile/skills/`)
+### 4.E Skills Routes (`/api/career-id/profile/:profileId/skills/`)
+**Note:** Skills use "accept anything, match later" approach with array-based bulk operations (tag-like UI pattern)
 
-- [ ] 4.22 Replace mock in `server/api/career-id/profile/skills/index.get.ts` with query joining career_id.profile_skills and reference.skills
-- [ ] 4.23 Replace mock in `server/api/career-id/profile/skills/index.put.ts` with upsert logic: find/create skill in reference.skills, then insert into career_id.profile_skills
-- [ ] 4.24 In skills PUT handler, search reference.skills by skill_name and category; if not found, insert new skill
-- [ ] 4.25 Add validation in skills PUT handler: skill_name required, proficiency_level must be valid enum value
-- [ ] 4.26 Replace mock in `server/api/career-id/profile/skills/[id].delete.ts` with DELETE from career_id.profile_skills (not reference.skills)
-- [ ] 4.27 Create new endpoint `server/api/career-id/skills/search.get.ts` for autocomplete from reference.skills catalog with ILIKE query
+- [x] 4.22 Replace mock in `server/api/career-id/profile/[profileId]/skills/index.get.ts` - fetch from profile_skills, display name field
+- [x] 4.23 Replace mock in `server/api/career-id/profile/[profileId]/skills/index.post.ts` - free-form text input, inserts with skill_id=NULL, background job matches later
+- [x] 4.24 In skills POST handler, validate duplicate checking (case-insensitive) within request and against existing profile skills
+- [x] 4.25 Add validation in skills POST handler: skill_name required (non-empty), proficiency_level must be valid enum if provided
+- [x] 4.26 Replace mock in `server/api/career-id/profile/[profileId]/skills/index.delete.ts` with bulk DELETE (accepts array of IDs)
+- [x] 4.27 Create `server/api/reference/skills/search.get.ts` for autocomplete suggestions (optional UX enhancement, user not required to select)
+- [x] 4.28 Create `server/api/career-id/profile/[profileId]/skills/index.patch.ts` for bulk partial updates of skill metadata (PATCH for partial update semantics)
+- [x] 4.29 Create `server/api/reference/skills/lookup.post.ts` for background matching job (not used by profile endpoints directly)
 
 ### 4.F Contact Info Routes (`/api/career-id/profile/contact/`)
 

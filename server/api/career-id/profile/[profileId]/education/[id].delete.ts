@@ -1,13 +1,14 @@
 /**
- * DELETE /api/career-id/profile/experience/:id
+ * DELETE /api/career-id/profile/:profileId/education/:id
  * 
- * Deletes a specific experience entry from the database.
+ * Deletes a specific education entry from the database.
  */
 
 import { serverSupabaseClient } from '#supabase/server'
 
 export default eventHandler(async (event) => {
   const supabase = await serverSupabaseClient(event)
+  const profileId = getRouterParam(event, 'profileId')
   const id = getRouterParam(event, 'id')
   
   if (!id) {
@@ -18,21 +19,21 @@ export default eventHandler(async (event) => {
         success: false,
         error: {
           code: 'VALIDATION_ERROR',
-          message: 'Experience ID is required'
+          message: 'Education ID is required'
         }
       }
     })
   }
   
-  // Delete the experience entry
+  // Delete the education entry
   const { error } = await supabase
     .schema('career_id')
-    .from('experience')
+    .from('education')
     .delete()
     .eq('id', id)
   
   if (error) {
-    console.error('Database error deleting experience:', error)
+    console.error('Database error deleting education:', error)
     throw createError({
       statusCode: 500,
       statusMessage: 'Internal Server Error',
@@ -40,7 +41,7 @@ export default eventHandler(async (event) => {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
-          message: 'Failed to delete experience entry'
+          message: 'Failed to delete education entry'
         }
       }
     })
@@ -48,7 +49,7 @@ export default eventHandler(async (event) => {
   
   return {
     success: true,
-    message: 'Experience deleted successfully'
+    message: 'Education deleted successfully'
   }
 })
 

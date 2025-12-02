@@ -1,5 +1,5 @@
 /**
- * PUT /api/career-id/profile/experience/:id
+ * PUT /api/career-id/profile/:profileId/experience/:id
  * 
  * Updates an existing experience entry.
  * Validates fields and date ranges.
@@ -9,6 +9,7 @@ import { serverSupabaseClient } from '#supabase/server'
 
 export default eventHandler(async (event) => {
   const supabase = await serverSupabaseClient(event)
+  const profileId = getRouterParam(event, 'profileId')
   const id = getRouterParam(event, 'id')
   const body = await readBody(event)
   

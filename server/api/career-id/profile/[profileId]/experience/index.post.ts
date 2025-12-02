@@ -1,5 +1,5 @@
 /**
- * POST /api/career-id/profile/experience
+ * POST /api/career-id/profile/:profileId/experience
  * 
  * Creates a new experience entry for a profile.
  * Validates required fields and date ranges.
@@ -11,16 +11,11 @@ export default eventHandler(async (event) => {
   const supabase = await serverSupabaseClient(event)
   const body = await readBody(event)
   
+  // Get profile_id from URL path parameter  
+  const profileId = getRouterParam(event, 'profileId')
+  
   // Validation: Required fields
   const validationErrors = []
-  
-  if (!body.profileId) {
-    validationErrors.push({
-      field: 'profileId',
-      message: 'profileId is required',
-      code: 'REQUIRED'
-    })
-  }
   
   if (!body.employer) {
     validationErrors.push({
@@ -88,7 +83,7 @@ export default eventHandler(async (event) => {
     .schema('career_id')
     .from('experience')
     .insert({
-      profile_id: body.profileId,
+      profile_id: profileId,
       employment_type: body.employmentType,
       employer: body.employer,
       title: body.title,

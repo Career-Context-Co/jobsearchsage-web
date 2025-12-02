@@ -10,10 +10,9 @@
       }
     },
     "createExperience_fullTime": {
-      "endpoint": "POST /api/career-id/profile/experience",
-      "description": "Create a new full-time work experience entry",
+      "endpoint": "POST /api/career-id/profile/:profileId/experience",
+      "description": "Create a new full-time work experience entry (profileId in URL path)",
       "request": {
-        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
         "employmentType": "full_time",
         "employer": "TechCorp Inc.",
         "title": "Senior Software Engineer",
@@ -34,10 +33,9 @@
       }
     },
     "createExperience_freelance": {
-      "endpoint": "POST /api/career-id/profile/experience",
-      "description": "Create a new freelance/contract experience entry",
+      "endpoint": "POST /api/career-id/profile/:profileId/experience",
+      "description": "Create a new freelance/contract experience entry (profileId in URL path)",
       "request": {
-        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
         "employmentType": "freelance",
         "employer": "Various Clients",
         "title": "Freelance Full Stack Developer",
@@ -57,10 +55,9 @@
       }
     },
     "createExperience_internship": {
-      "endpoint": "POST /api/career-id/profile/experience",
-      "description": "Create a new internship experience entry",
+      "endpoint": "POST /api/career-id/profile/:profileId/experience",
+      "description": "Create a new internship experience entry (profileId in URL path)",
       "request": {
-        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
         "employmentType": "internship",
         "employer": "StartupXYZ",
         "title": "Software Engineering Intern",
@@ -80,10 +77,9 @@
       }
     },
     "createExperience_volunteer": {
-      "endpoint": "POST /api/career-id/profile/experience",
-      "description": "Create a new volunteer experience entry",
+      "endpoint": "POST /api/career-id/profile/:profileId/experience",
+      "description": "Create a new volunteer experience entry (profileId in URL path)",
       "request": {
-        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
         "employmentType": "volunteer",
         "employer": "Code for Good Nonprofit",
         "title": "Volunteer Software Developer",
@@ -103,8 +99,8 @@
       }
     },
     "updateExperience": {
-      "endpoint": "PUT /api/career-id/profile/experience/:id",
-      "description": "Update an existing experience entry (partial update supported)",
+      "endpoint": "PUT /api/career-id/profile/:profileId/experience/:id",
+      "description": "Update an existing experience entry (partial update supported, profileId in URL path)",
       "request": {
         "title": "Lead Software Engineer",
         "summary": "Updated summary with new responsibilities",
@@ -118,11 +114,10 @@
         "currentPosition": true
       }
     },
-    "addEducation_bachelors": {
-      "endpoint": "PUT /api/career-id/profile/education",
-      "description": "Add a bachelor's degree entry",
+    "createEducation_bachelors": {
+      "endpoint": "POST /api/career-id/profile/:profileId/education",
+      "description": "Create a new bachelor's degree entry (profileId in URL path)",
       "request": {
-        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
         "degreeType": "Bachelor of Science",
         "areaOfStudy": "Computer Science",
         "institution": "Stanford University",
@@ -143,11 +138,10 @@
         "displayOrder": 0
       }
     },
-    "addEducation_masters": {
-      "endpoint": "PUT /api/career-id/profile/education",
-      "description": "Add a master's degree entry",
+    "createEducation_masters": {
+      "endpoint": "POST /api/career-id/profile/:profileId/education",
+      "description": "Create a new master's degree entry (profileId in URL path)",
       "request": {
-        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
         "degreeType": "Master of Science",
         "areaOfStudy": "Software Engineering",
         "institution": "MIT",
@@ -166,11 +160,10 @@
         "displayOrder": 1
       }
     },
-    "addEducation_bootcamp": {
-      "endpoint": "PUT /api/career-id/profile/education",
-      "description": "Add a coding bootcamp entry",
+    "createEducation_bootcamp": {
+      "endpoint": "POST /api/career-id/profile/:profileId/education",
+      "description": "Create a new coding bootcamp entry (profileId in URL path)",
       "request": {
-        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
         "degreeType": "Certificate",
         "areaOfStudy": "Full Stack Web Development",
         "institution": "General Assembly",
@@ -189,11 +182,28 @@
         "displayOrder": 2
       }
     },
-    "addCertification_aws": {
-      "endpoint": "PUT /api/career-id/profile/certifications",
-      "description": "Add AWS certification",
+    "updateEducation": {
+      "endpoint": "PUT /api/career-id/profile/:profileId/education/:id",
+      "description": "Update an existing education entry (partial update supported, profileId in URL path)",
       "request": {
-        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
+        "degreeType": "Bachelor of Science",
+        "areaOfStudy": "Computer Science with Honors",
+        "coursework": [
+          "Data Structures and Algorithms",
+          "Machine Learning",
+          "Database Systems",
+          "Computer Networks",
+          "Software Engineering",
+          "Artificial Intelligence",
+          "Computer Graphics"
+        ],
+        "minors": ["Mathematics", "Business Administration", "Statistics"]
+      }
+    },
+    "createCertification_aws": {
+      "endpoint": "POST /api/career-id/profile/:profileId/certifications",
+      "description": "Create AWS certification (profileId in URL path)",
+      "request": {
         "name": "AWS Solutions Architect - Professional",
         "issuer": "Amazon Web Services",
         "dateObtained": "2023-06-15",
@@ -201,11 +211,10 @@
         "displayOrder": 0
       }
     },
-    "addCertification_kubernetes": {
-      "endpoint": "PUT /api/career-id/profile/certifications",
-      "description": "Add Kubernetes certification",
+    "createCertification_kubernetes": {
+      "endpoint": "POST /api/career-id/profile/:profileId/certifications",
+      "description": "Create Kubernetes certification (profileId in URL path)",
       "request": {
-        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
         "name": "Certified Kubernetes Administrator (CKA)",
         "issuer": "Cloud Native Computing Foundation",
         "dateObtained": "2022-11-20",
@@ -213,11 +222,10 @@
         "displayOrder": 1
       }
     },
-    "addCertification_scrum": {
-      "endpoint": "PUT /api/career-id/profile/certifications",
-      "description": "Add Scrum certification",
+    "createCertification_scrum": {
+      "endpoint": "POST /api/career-id/profile/:profileId/certifications",
+      "description": "Create Scrum certification (profileId in URL path)",
       "request": {
-        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
         "name": "Professional Scrum Master I (PSM I)",
         "issuer": "Scrum.org",
         "dateObtained": "2021-03-10",
@@ -225,53 +233,95 @@
         "displayOrder": 2
       }
     },
-    "addSkill_expert": {
-      "endpoint": "PUT /api/career-id/profile/skills",
-      "description": "Add an expert-level skill",
+    "updateCertification": {
+      "endpoint": "PUT /api/career-id/profile/:profileId/certifications/:id",
+      "description": "Update an existing certification (partial update supported, profileId in URL path)",
       "request": {
-        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
-        "skillName": "TypeScript",
-        "category": "Programming Languages",
-        "proficiencyLevel": "expert",
-        "yearsExperience": 5,
-        "displayOrder": 0
+        "name": "AWS Solutions Architect - Professional (Updated)",
+        "url": "https://aws.amazon.com/certification/certified-solutions-architect-professional/v2/"
       }
     },
-    "addSkill_advanced": {
-      "endpoint": "PUT /api/career-id/profile/skills",
-      "description": "Add an advanced-level skill",
+    "createSkills_bulk": {
+      "endpoint": "POST /api/career-id/profile/:profileId/skills",
+      "description": "Add multiple skills at once (free-form text, like adding tags). Accepts whatever user types - no validation against catalog. Background job will match to reference later.",
+      "request": [
+        {
+          "name": "TypeScript",
+          "proficiencyLevel": "expert",
+          "yearsExperience": 5,
+          "displayOrder": 0
+        },
+        {
+          "name": "React.js",
+          "proficiencyLevel": "advanced",
+          "yearsExperience": 4,
+          "displayOrder": 1
+        },
+        {
+          "name": "docker",
+          "proficiencyLevel": "intermediate",
+          "yearsExperience": 2,
+          "displayOrder": 2
+        }
+      ],
+      "note": "Skills are case-insensitive and allow any text. Duplicates (case-insensitive) within request or existing profile are rejected."
+    },
+    "createSkills_single": {
+      "endpoint": "POST /api/career-id/profile/:profileId/skills",
+      "description": "Add a single skill (still accepts as array for consistency)",
+      "request": [
+        {
+          "name": "Rust",
+          "proficiencyLevel": "beginner",
+          "yearsExperience": 1
+        }
+      ]
+    },
+    "updateSkills_bulk": {
+      "endpoint": "PATCH /api/career-id/profile/:profileId/skills",
+      "description": "Partially update multiple skills at once (array with IDs). Only provided fields are updated. Cannot change the skill name itself, only metadata.",
+      "request": [
+        {
+          "id": 1,
+          "proficiencyLevel": "expert",
+          "yearsExperience": 6,
+          "displayOrder": 0
+        },
+        {
+          "id": 2,
+          "proficiencyLevel": "advanced",
+          "displayOrder": 1
+        }
+      ]
+    },
+    "deleteSkills_bulk": {
+      "endpoint": "DELETE /api/career-id/profile/:profileId/skills",
+      "description": "Remove multiple skills from profile at once (bulk delete with array of IDs)",
       "request": {
-        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
-        "skillName": "React",
-        "category": "Frameworks & Libraries",
-        "proficiencyLevel": "advanced",
-        "yearsExperience": 4,
-        "displayOrder": 1
+        "ids": [1, 2, 3]
       }
     },
-    "addSkill_intermediate": {
-      "endpoint": "PUT /api/career-id/profile/skills",
-      "description": "Add an intermediate-level skill",
-      "request": {
-        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
-        "skillName": "Docker",
-        "category": "DevOps & Tools",
-        "proficiencyLevel": "intermediate",
-        "yearsExperience": 2,
-        "displayOrder": 2
-      }
+    "lookupSkills_bulk": {
+      "endpoint": "POST /api/reference/skills/lookup",
+      "description": "INTERNAL: Find or create multiple skills in the reference catalog (used by background matching job, not called directly by profile endpoints)",
+      "request": [
+        {
+          "name": "TypeScript",
+          "category": "Programming Languages",
+          "description": "Typed superset of JavaScript"
+        },
+        {
+          "name": "React",
+          "category": "Frameworks & Libraries"
+        }
+      ],
+      "note": "Background job uses this to match free-form skill names to canonical reference.skills. Returns array with { success, index, name, data: { id, ... }, created: true/false }"
     },
-    "addSkill_beginner": {
-      "endpoint": "PUT /api/career-id/profile/skills",
-      "description": "Add a beginner-level skill",
-      "request": {
-        "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
-        "skillName": "Rust",
-        "category": "Programming Languages",
-        "proficiencyLevel": "beginner",
-        "yearsExperience": 1,
-        "displayOrder": 3
-      }
+    "searchSkills": {
+      "endpoint": "GET /api/reference/skills/search?q=java&limit=10",
+      "description": "Search skills catalog for autocomplete (queries reference.skills with ILIKE)",
+      "request": null,
+      "note": "Returns matching skills from master catalog for typeahead suggestions"
     },
     "createContactInfo": {
       "endpoint": "PUT /api/career-id/profile/contact",
@@ -310,18 +360,16 @@
     "validationExamples": {
       "description": "Examples that should fail validation",
       "missingRequiredFields_experience": {
-        "endpoint": "PUT /api/career-id/profile/experience",
+        "endpoint": "POST /api/career-id/profile/:profileId/experience",
         "expectedError": "VALIDATION_ERROR - Missing required fields",
         "request": {
-          "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
           "title": "Software Engineer"
         }
       },
       "invalidDateRange_experience": {
-        "endpoint": "PUT /api/career-id/profile/experience",
+        "endpoint": "POST /api/career-id/profile/:profileId/experience",
         "expectedError": "VALIDATION_ERROR - endDate must be after startDate",
         "request": {
-          "profileId": "prof_myf2i85se9xri4e4wgsxxim7",
           "employmentType": "full_time",
           "employer": "TechCorp",
           "title": "Software Engineer",

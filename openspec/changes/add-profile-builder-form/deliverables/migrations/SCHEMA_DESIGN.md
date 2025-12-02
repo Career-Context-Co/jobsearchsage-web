@@ -452,7 +452,7 @@ This document describes the database schema for Career Sage Profile Builder. All
 | `id` | INTEGER | PRIMARY KEY, GENERATED ALWAYS AS IDENTITY | NOT NULL | Unique identifier for this profile-skill link |
 | `profile_id` | TEXT | FOREIGN KEY → career_id.profiles(id) | NOT NULL | Reference to parent profile (prefixed ID) |
 | `skill_id` | INTEGER | FOREIGN KEY → reference.skills(id) | NULL | Reference to skill in master catalog (INTEGER, nullable if skill deleted) |
-| `skill_name_cache` | TEXT | | NULL | Cached skill name for display when skill_id is null |
+| `name` | TEXT | | NULL | User-provided skill name (always displayed, matched to reference later) |
 | `proficiency_level` | skill_level_enum | | NULL | User's proficiency level with this skill |
 | `years_experience` | NUMERIC(4,1) | | NULL | Years of experience with this skill |
 | `display_order` | INTEGER | DEFAULT 0 | NOT NULL | Display order within profile (lower = first) |
@@ -479,8 +479,8 @@ This document describes the database schema for Career Sage Profile Builder. All
   - profile_id (TEXT): References profiles.id (prefixed ID)
   - skill_id (INTEGER): References skills.id (INTEGER)
 - ON DELETE CASCADE for profile_id: deleting profile removes all skill associations
-- **ON DELETE SET NULL for skill_id:** if skill deleted from catalog, skill_id becomes null and skill_name_cache preserves display value
-- skill_name_cache populated when skill association is created, used as fallback display when skill_id is null
+- **ON DELETE SET NULL for skill_id:** if skill deleted from catalog, skill_id becomes null and name field preserves display value
+- name field populated when skill association is created, always used for display (preserves user's original input)
 - Partial UNIQUE constraint allows null skill_id without violating uniqueness
 - display_order allows users to prioritize/reorder skills on their profile
 - Minimal constraints - validation primarily at application layer
@@ -663,7 +663,7 @@ career_id.profiles (TEXT: prof_*)
 
 **Foreign Key Cascade Behavior:**
 - Deleting a profile → CASCADE to all related data (experience, education, certifications, profile_skills, profile_social_links, contact_info)
-- Deleting a skill from skills → SET NULL on profile_skills.skill_id (preserves user data via skill_name_cache)
+- Deleting a skill from skills → SET NULL on profile_skills.skill_id (preserves user data via name field)
 - Deleting a platform from social_platforms → SET NULL on profile_social_links.platform_id (preserves user data via platform_name_cache)
 - Deleting a user → Will cascade to profile when auth FK is added
 
@@ -727,7 +727,7 @@ Based on review feedback, the following decisions have been finalized:
 - `skill_level_enum`: 'beginner', 'intermediate', 'advanced', 'expert'
 
 ✅ **Skill deletion behavior:**
-- ON DELETE SET NULL with skill_name_cache fallback
+- ON DELETE SET NULL with name field preservation
 - Preserves user data when skills removed from catalog
 
 ✅ **Array storage:**
@@ -750,7 +750,7 @@ Based on review feedback, the following decisions have been finalized:
    - **ulid** - Timestamp-based, sortable
    - Recommendation: CUID2 for proven reliability and good defaults
 
-2. **skill_name_cache population:** Should we implement a database trigger to auto-populate skill_name_cache when profile_skills are created/updated, or handle in application code?
+2. **name field population:** Handled in application code - always populated with user's input when creating skill associations.
    - Recommendation: Application code for simplicity (one less trigger to maintain)
 
 3. **ENUM extensibility:** If skill levels or completion statuses need to change later, ALTER TYPE is required. Consider if we should use lookup tables instead for easier extensibility (trade-off: more complexity, joins).
@@ -785,7 +785,7 @@ After design review approval:
    - 004: education table (profile_id as TEXT FK)
    - 005: certifications table (profile_id as TEXT FK)
    - 006: skills table (INTEGER auto-increment)
-   - 007: profile_skills table (profile_id as TEXT FK, skill_id as INTEGER FK, skill_name_cache)
+   - 007: profile_skills table (profile_id as TEXT FK, skill_id as INTEGER FK, name field)
    - 008: contact_info table (with internal_id + id dual-ID, profile_id as TEXT FK)
    - 009: social_platforms table (INTEGER auto-increment, pre-seeded with common platforms)
    - 010: profile_social_links table (profile_id as TEXT FK, platform_id as INTEGER FK, platform_name_cache)
@@ -795,7 +795,7 @@ After design review approval:
    - Composite indexes for ordered queries (profile_id, display_order)
    - GIN index on skills.aliases (JSONB search)
    - updated_at triggers for all tables
-   - skill_name_cache population trigger on profile_skills
+   - 012: Rename skill_name_cache to name for clarity
 
 4. **Row Level Security** (if using Supabase):
    - Users can only view/modify their own profile data
