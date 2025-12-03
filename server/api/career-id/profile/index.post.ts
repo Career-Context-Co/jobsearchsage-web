@@ -15,6 +15,7 @@ import {
   ErrorCodes 
 } from '@@/server/utils/error-handler'
 import { isRequired, requiredFieldError } from '@@/server/utils/validation'
+import { transformProfile } from '@@/server/utils/career-id-transformer'
 
 const ROUTE_PATH = '/api/career-id/profile'
 
@@ -75,18 +76,15 @@ export default eventHandler(async (event) => {
     userId: data.user_id 
   })
   
+  // Transform snake_case to camelCase before returning
+  const transformedProfile = transformProfile(data)
+  
   // Return created profile with structure matching API spec
   return {
     success: true,
     message: 'Profile created successfully',
     data: {
-      profile: {
-        id: data.id,
-        user_id: data.user_id,
-        completion_status: data.completion_status,
-        created_at: data.created_at,
-        updated_at: data.updated_at
-      }
+      profile: transformedProfile
     }
   }
 })

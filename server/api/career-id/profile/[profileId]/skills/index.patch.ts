@@ -16,6 +16,7 @@ import { serverSupabaseClient } from '#supabase/server'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { handleDatabaseError, createValidationError, ErrorCodes } from '@@/server/utils/error-handler'
 import { isRequired, validateEnum } from '@@/server/utils/validation'
+import { transformProfileSkill } from '@@/server/utils/career-id-transformer'
 
 const ROUTE_PATH = '/api/career-id/profile/:profileId/skills'
 const VALID_PROFICIENCY_LEVELS = ['beginner', 'intermediate', 'advanced', 'expert'] as const
@@ -145,12 +146,15 @@ export default eventHandler(async (event) => {
         continue
       }
       
+      // Transform snake_case to camelCase before adding to results
+      const transformedData = transformProfileSkill(data)
+      
       results.push({
         index,
         id: skill.id,
         status: 200,
         success: true,
-        data
+        data: transformedData
       })
     } catch (err: any) {
       logError('PATCH', ROUTE_PATH, err, { profileId, skillId: skill.id })

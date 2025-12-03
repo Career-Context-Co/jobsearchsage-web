@@ -11,6 +11,7 @@ import { generatePrefixedId } from '@@/server/utils/id-generator'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { handleDatabaseError, createValidationError, createConflictError } from '@@/server/utils/error-handler'
 import { isRequired, requiredFieldError, validateEmail, validatePhone, validateUrls } from '@@/server/utils/validation'
+import { transformContactInfo } from '@@/server/utils/career-id-transformer'
 
 const ROUTE_PATH = '/api/career-id/profile/:profileId/contact'
 
@@ -117,9 +118,12 @@ export default eventHandler(async (event) => {
   const duration = getElapsed()
   logSuccess('POST', ROUTE_PATH, duration, { profileId, contactId: data.id })
   
+  // Transform snake_case to camelCase before returning
+  const transformedData = transformContactInfo(data)
+  
   return {
     success: true,
     message: 'Contact information created successfully',
-    data
+    data: transformedData
   }
 })

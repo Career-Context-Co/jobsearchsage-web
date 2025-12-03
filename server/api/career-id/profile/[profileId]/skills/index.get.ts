@@ -9,6 +9,7 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { handleDatabaseError } from '@@/server/utils/error-handler'
+import { transformProfileSkill } from '@@/server/utils/career-id-transformer'
 
 const ROUTE_PATH = '/api/career-id/profile/:profileId/skills'
 
@@ -49,8 +50,11 @@ export default eventHandler(async (event) => {
   const duration = getElapsed()
   logSuccess('GET', ROUTE_PATH, duration, { profileId, count: data?.length ?? 0 })
   
+  // Transform snake_case to camelCase before returning
+  const transformedData = (data || []).map(transformProfileSkill)
+  
   return {
     success: true,
-    data: data || []
+    data: transformedData
   }
 })

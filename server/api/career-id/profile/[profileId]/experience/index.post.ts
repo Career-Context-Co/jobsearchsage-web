@@ -9,6 +9,7 @@ import { serverSupabaseClient } from '#supabase/server'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { handleDatabaseError, createValidationError } from '@@/server/utils/error-handler'
 import { isRequired, requiredFieldError, validateDateRange } from '@@/server/utils/validation'
+import { transformExperience } from '@@/server/utils/career-id-transformer'
 
 const ROUTE_PATH = '/api/career-id/profile/:profileId/experience'
 
@@ -86,9 +87,12 @@ export default eventHandler(async (event) => {
   const duration = getElapsed()
   logSuccess('POST', ROUTE_PATH, duration, { profileId, experienceId: data.id })
   
+  // Transform snake_case to camelCase before returning
+  const transformedData = transformExperience(data)
+  
   return {
     success: true,
     message: 'Experience added successfully',
-    data
+    data: transformedData
   }
 })

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { StepperItem } from '@nuxt/ui'
+import { ref, useTemplateRef } from 'vue'
 
 const stepper = useTemplateRef('stepper')
 const activeStep = ref('contact')

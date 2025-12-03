@@ -11,6 +11,7 @@ import { serverSupabaseClient } from '#supabase/server'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { handleDatabaseError, createValidationError, createConflictError, ErrorCodes } from '@@/server/utils/error-handler'
 import { isRequired, validateEnum } from '@@/server/utils/validation'
+import { transformProfileSkill } from '@@/server/utils/career-id-transformer'
 
 const ROUTE_PATH = '/api/career-id/profile/:profileId/skills'
 const VALID_PROFICIENCY_LEVELS = ['beginner', 'intermediate', 'advanced', 'expert'] as const
@@ -135,9 +136,12 @@ export default eventHandler(async (event) => {
   const duration = getElapsed()
   logSuccess('POST', ROUTE_PATH, duration, { profileId, count: data.length })
   
+  // Transform snake_case to camelCase before returning
+  const transformedData = data.map(transformProfileSkill)
+  
   return {
     success: true,
     message: `${data.length} skill(s) added successfully`,
-    data
+    data: transformedData
   }
 })

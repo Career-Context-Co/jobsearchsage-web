@@ -142,26 +142,113 @@
 
 ## 5. Frontend: Real API Integration
 
-- [ ] 5.1 Create `app/composables/useProfile.ts` composable for profile data management
-- [ ] 5.2 Replace mock data in onboarding form with real GET /api/career-id/profile call
-- [ ] 5.3 Implement initial profile creation calling POST /api/career-id/profile (creates profile shell, returns id for subsequent saves)
-- [ ] 5.4 Implement autosave on step navigation: save current section before moving to next step
-- [ ] 5.5 Implement add experience calling PUT /api/career-id/profile/experience (autosaves on step change)
-- [ ] 5.6 Implement delete experience calling DELETE /api/career-id/profile/experience/[id]
-- [ ] 5.7 Implement add/delete for education, certifications using PUT/DELETE endpoints (autosaves on step change)
-- [ ] 5.8 Implement contact info save calling PUT /api/career-id/profile/contact (upsert behavior, autosaves on step change)
-- [ ] 5.9 Implement skills autocomplete in SkillsSection component calling GET /api/career-id/skills/search
-- [ ] 5.10 Handle skill selection by calling PUT /api/career-id/profile/skills with skill_name, category, proficiency_level, years_experience
-- [ ] 5.11 Handle skill deletion by calling DELETE /api/career-id/profile/skills/[id]
-- [ ] 5.12 Add loading states for all API operations (spinners, skeleton loaders)
-- [ ] 5.13 Add error handling with user-friendly toast notifications
-- [ ] 5.14 Handle validation errors from backend and display inline in form
-- [ ] 5.15 Add visual feedback when autosave completes (e.g., "Saved" indicator)
-- [ ] 5.16 Add confirmation dialogs for destructive actions (delete entries)
-- [ ] 5.17 Test complete onboarding flow: create profile → add entries → autosave on step change → reload → edit → save
-- [ ] 5.18 Test validation: required fields, format validation, error messages
-- [ ] 5.19 Test skills autocomplete and junction table behavior (duplicate prevention, metadata updates)
-- [ ] 5.20 Test responsive behavior on mobile and tablet devices
-- [ ] 5.21 Run type checking: `pnpm typecheck`
-- [ ] 5.22 Run linter: `pnpm lint` and fix any issues
+### 5.A Pinia Store: Career ID Profile State Management (`app/stores/careerIDStore.ts`)
+**Note:** Using Pinia for complex state management instead of a composable. The store holds the complete profile with all sections and manages CRUD operations.
+
+- [x] 5.1 Define TypeScript interfaces in `app/types/careerID/` folder (nested structure matching API response, using camelCase):
+  - [x] 5.1.1 `ProfileResponse` - complete API response with nested sections:
+    - `profile`: core fields (id, userId, completionStatus, timestamps)
+    - `experience[]`, `education[]`, `certifications[]`, `profileSkills[]`, `profileSocialLinks[]`, `contactInfo`
+  - [x] 5.1.2 `Profile` - core profile fields only (id, userId, completionStatus, timestamps, internalId, deletedAt, isDeleted)
+  - [x] 5.1.3 `Experience` - work history (id, employer, title, employmentType, locationType, dates, highlights[], displayOrder)
+  - [x] 5.1.4 `Education` - education records (id, degreeType, areaOfStudy, institution, dates, coursework[], minors[], displayOrder)
+  - [x] 5.1.5 `Certification` - certifications (id, name, issuer, date, url, displayOrder)
+  - [x] 5.1.6 `ProfileSkill` - skills with metadata (id, skillId, name, proficiencyLevel, yearsExperience, displayOrder, skill)
+  - [x] 5.1.7 `ProfileSocialLink` - social links (id, platformId, platformNameCache, url, displayOrder)
+  - [x] 5.1.8 `ContactInfo` - contact details (id, firstName, lastName, jobTitle, email, phone, websites[], summary, location fields)
+
+- [x] 5.2 Build out store state in `app/stores/careerIDStore.ts` (flat structure for ease of use):
+  - [x] 5.2.1 Core state as separate top-level properties:
+    - `profile: Profile | null` - core profile fields
+    - `experience: Experience[]` - work history entries
+    - `education: Education[]` - education records
+    - `certifications: Certification[]` - certifications
+    - `profileSkills: ProfileSkill[]` - skills with metadata
+    - `profileSocialLinks: ProfileSocialLink[]` - social links
+    - `contactInfo: ContactInfo | null` - contact details
+  - [x] 5.2.2 UI state: `isLoading`, `isSaving`, `error`, `lastSaved` timestamp
+
+- [x] 5.3 Create getters for computed profile data:
+  - [x] 5.3.1 `isProfileLoaded` - check if profile exists
+  - [x] 5.3.2 `completionPercentage` - calculate based on filled sections
+  - [x] 5.3.5 `skillsByProficiency` - grouped by proficiency_level
+  - [x] 5.3.6 `hasContactInfo` - check if contact exists
+  - [x] 5.3.7 `sectionCounts` - object with counts for each section
+
+- [x] 5.4 Create actions for profile lifecycle:
+  - [x] 5.4.1 `fetchProfile(profileId)` - GET /api/career-id/profile/:profileId, populate all state sections
+  - [x] 5.4.2 `createProfile(userId)` - POST /api/career-id/profile, returns new profile shell
+  - [x] 5.4.3 `resetProfile()` - clear all state (for logout/switching profiles)
+  - [x] 5.4.4 `setError(error)` / `clearError()` - error state management
+
+- [ ] 5.5 Create actions for Experience CRUD:
+  - [ ] 5.5.1 `addExperience(data)` - POST /api/career-id/profile/:profileId/experience, update local state
+  - [ ] 5.5.2 `updateExperience(id, data)` - PATCH /api/career-id/profile/:profileId/experience/:id, update local state
+  - [ ] 5.5.3 `deleteExperience(id)` - DELETE /api/career-id/profile/:profileId/experience/:id, remove from local state
+
+- [ ] 5.6 Create actions for Education CRUD:
+  - [ ] 5.6.1 `addEducation(data)` - POST /api/career-id/profile/:profileId/education
+  - [ ] 5.6.2 `updateEducation(id, data)` - PATCH /api/career-id/profile/:profileId/education/:id
+  - [ ] 5.6.3 `deleteEducation(id)` - DELETE /api/career-id/profile/:profileId/education/:id
+
+- [ ] 5.7 Create actions for Certifications CRUD:
+  - [ ] 5.7.1 `addCertification(data)` - POST /api/career-id/profile/:profileId/certifications
+  - [ ] 5.7.2 `updateCertification(id, data)` - PATCH /api/career-id/profile/:profileId/certifications/:id
+  - [ ] 5.7.3 `deleteCertification(id)` - DELETE /api/career-id/profile/:profileId/certifications/:id
+
+- [ ] 5.8 Create actions for Skills (bulk operations):
+  - [ ] 5.8.1 `addSkills(skills[])` - POST /api/career-id/profile/:profileId/skills (bulk add)
+  - [ ] 5.8.2 `updateSkills(skills[])` - PATCH /api/career-id/profile/:profileId/skills (bulk update)
+  - [ ] 5.8.3 `deleteSkills(ids[])` - DELETE /api/career-id/profile/:profileId/skills (bulk delete)
+  - [ ] 5.8.4 `searchSkills(query)` - GET /api/reference/skills/search?q=query (for autocomplete, returns suggestions)
+
+- [ ] 5.9 Create actions for Contact Info (one-to-one):
+  - [ ] 5.9.1 `createContactInfo(data)` - POST /api/career-id/profile/:profileId/contact
+  - [ ] 5.9.2 `updateContactInfo(id, data)` - PATCH /api/career-id/profile/:profileId/contact/:id
+  - [ ] 5.9.3 `deleteContactInfo(id)` - DELETE /api/career-id/profile/:profileId/contact/:id
+
+- [ ] 5.10 Create actions for Social Links:
+  - [ ] 5.10.1 `addSocialLinks(links[])` - POST /api/career-id/profile/:profileId/socials (bulk add)
+  - [ ] 5.10.2 `updateSocialLink(id, data)` - PATCH /api/career-id/profile/:profileId/socials/:id
+  - [ ] 5.10.3 `deleteSocialLink(id)` - DELETE /api/career-id/profile/:profileId/socials/:id
+  - [ ] 5.10.4 `fetchSocialPlatforms()` - GET /api/reference/social-platforms (for dropdown options)
+
+### 5.B Frontend Integration with Pinia Store
+
+- [ ] 5.11 Replace mock data in onboarding form with `careerIDStore.fetchProfile(profileId)` call on mount
+- [ ] 5.12 Implement initial profile creation: call `careerIDStore.createProfile(userId)` to get profileId for new users
+- [ ] 5.13 Implement autosave on step navigation using store actions (save current section before moving to next step)
+- [ ] 5.14 Wire up ExperienceSection.vue to use store actions:
+  - [ ] 5.14.1 Use `storeToRefs` to destructure `experience` reactively
+  - [ ] 5.14.2 Call `careerIDStore.addExperience()` for new entries
+  - [ ] 5.14.3 Call `careerIDStore.updateExperience()` for edits
+  - [ ] 5.14.4 Call `careerIDStore.deleteExperience()` for removals
+- [ ] 5.15 Wire up EducationSection.vue to use store actions (same pattern as experience)
+- [ ] 5.16 Wire up CertificationsSection.vue to use store actions (same pattern as experience)
+- [ ] 5.17 Wire up ContactSection.vue to use store actions:
+  - [ ] 5.17.1 Use `careerIDStore.hasContactInfo` getter to determine create vs update
+  - [ ] 5.17.2 Call `createContactInfo()` or `updateContactInfo()` accordingly
+- [ ] 5.18 Wire up SkillsSection.vue to use store actions:
+  - [ ] 5.18.1 Use `careerIDStore.searchSkills()` for autocomplete suggestions
+  - [ ] 5.18.2 Use bulk operations for add/update/delete
+- [ ] 5.19 Wire up SocialsSection.vue to use store actions:
+  - [ ] 5.19.1 Call `careerIDStore.fetchSocialPlatforms()` on mount for dropdown
+  - [ ] 5.19.2 Use store actions for CRUD operations
+
+### 5.C UI/UX Enhancements
+
+- [ ] 5.20 Add loading states using `careerIDStore.isLoading` and section-specific `loadingStates`
+- [ ] 5.21 Add error handling with user-friendly toast notifications using `careerIDStore.error`
+- [ ] 5.22 Handle validation errors from backend and display inline in form
+- [ ] 5.23 Add visual feedback when autosave completes using `careerIDStore.lastSaved` (e.g., "Saved" indicator)
+- [ ] 5.24 Add confirmation dialogs for destructive actions (delete entries)
+
+### 5.D Testing & Validation
+
+- [ ] 5.25 Test complete onboarding flow: create profile → add entries → autosave on step change → reload → edit → save
+- [ ] 5.26 Test validation: required fields, format validation, error messages
+- [ ] 5.27 Test skills autocomplete and junction table behavior (duplicate prevention, metadata updates)
+- [ ] 5.28 Test responsive behavior on mobile and tablet devices
+- [ ] 5.29 Run type checking: `pnpm typecheck`
+- [ ] 5.30 Run linter: `pnpm lint` and fix any issues
 
