@@ -117,6 +117,8 @@ export default eventHandler(async (event) => {
       // Build update object with only provided fields (partial update)
       const updateData: Record<string, any> = {}
       
+      if (skill.name !== undefined) updateData.name = skill.name
+      if (skill.category !== undefined) updateData.category = skill.category
       if (skill.proficiencyLevel !== undefined) updateData.proficiency_level = skill.proficiencyLevel
       if (skill.yearsExperience !== undefined) updateData.years_experience = skill.yearsExperience
       if (skill.displayOrder !== undefined) updateData.display_order = skill.displayOrder

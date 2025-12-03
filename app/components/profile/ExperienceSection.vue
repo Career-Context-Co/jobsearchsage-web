@@ -1,27 +1,35 @@
 <script setup lang="ts">
-import * as z from 'zod'
-import type { FormSubmitEvent } from '@nuxt/ui'
+import type { Experience } from '~/shared/types/careerId'
 import { vMaska } from 'maska/vue'
 
-interface WorkExperience {
-  company: string
+// Form data type (without server-managed fields)
+interface ExperienceFormData {
+  employmentType: 'full_time' | 'part_time' | 'contract' | 'freelance' | 'internship'
+  employer: string
   title: string
   location?: string
-  url?: string
+  locationType: 'on_site' | 'remote' | 'hybrid'
+  url?: string | null
   startDate: string
-  endDate?: string
+  endDate?: string | null
   currentPosition: boolean
-  summary?: string
+  summary?: string | null
   highlights: string[]
   isEditing: boolean
 }
 
-// Start with one blank experience in edit mode
-const workExperiences = ref<WorkExperience[]>([
-  {
-    company: '',
+// Props
+interface Props {
+  modelValue?: ExperienceFormData[]
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  modelValue: () => [{
+    employmentType: 'full_time',
+    employer: '',
     title: '',
     location: '',
+    locationType: 'on_site',
     url: '',
     startDate: '',
     endDate: '',
@@ -29,14 +37,52 @@ const workExperiences = ref<WorkExperience[]>([
     summary: '',
     highlights: [],
     isEditing: true
-  }
-])
+  }]
+})
 
-function createBlankExperience(): WorkExperience {
+// Emits
+const emit = defineEmits<{
+  'update:modelValue': [value: ExperienceFormData[]]
+  save: [index: number, data: ExperienceFormData]
+  delete: [index: number]
+}>()
+
+// Local reactive copy for two-way binding
+const workExperiences = ref<ExperienceFormData[]>([...props.modelValue])
+
+// Watch for external prop changes
+watch(() => props.modelValue, (newValue) => {
+  workExperiences.value = [...newValue]
+}, { deep: true })
+
+// Emit updates when local value changes
+watch(workExperiences, (newValue) => {
+  emit('update:modelValue', newValue)
+}, { deep: true })
+
+// Employment type options
+const employmentTypeOptions = [
+  { value: 'full_time', label: 'Full-time' },
+  { value: 'part_time', label: 'Part-time' },
+  { value: 'contract', label: 'Contract' },
+  { value: 'freelance', label: 'Freelance' },
+  { value: 'internship', label: 'Internship' }
+]
+
+// Location type options
+const locationTypeOptions = [
+  { value: 'on_site', label: 'On-site' },
+  { value: 'remote', label: 'Remote' },
+  { value: 'hybrid', label: 'Hybrid' }
+]
+
+function createBlankExperience(): ExperienceFormData {
   return {
-    company: '',
+    employmentType: 'full_time',
+    employer: '',
     title: '',
     location: '',
+    locationType: 'on_site',
     url: '',
     startDate: '',
     endDate: '',
@@ -54,7 +100,8 @@ function saveExperience(index: number) {
   // Close editing mode for this experience
   experience.isEditing = false
   
-  console.log('Saved experience:', experience)
+  // Emit save event to parent
+  emit('save', index, experience)
 }
 
 function editExperience(index: number) {
@@ -69,8 +116,9 @@ function cancelEdit(index: number) {
   if (!experience) return
   
   // If this is an empty unsaved experience, remove it
-  if (!experience.title && !experience.company) {
+  if (!experience.title && !experience.employer) {
     workExperiences.value.splice(index, 1)
+    emit('delete', index)
   } else {
     experience.isEditing = false
   }
@@ -78,6 +126,7 @@ function cancelEdit(index: number) {
 
 function deleteExperience(index: number) {
   workExperiences.value.splice(index, 1)
+  emit('delete', index)
 }
 
 function addNewExperience() {
@@ -125,7 +174,7 @@ function addNewExperience() {
           <div class="flex items-start justify-between gap-4">
             <div class="flex-1">
               <h2 class="text-md font-semibold text-foreground">{{ experience.title || 'Untitled Position' }}</h2>
-              <h3 class="text-sm text-muted">{{ experience.company || 'Untitled Company' }}</h3>
+              <h3 class="text-sm text-muted">{{ experience.employer || 'Untitled Company' }}</h3>
               <p class="text-sm text-muted">{{ experience.location }}</p>
             </div>
             <div class="flex gap-2">
@@ -154,7 +203,7 @@ function addNewExperience() {
           <div class="flex items-center justify-between mb-4">
             <div class="flex-1">
               <h2 class="text-md font-semibold text-foreground">{{ experience.title || 'Untitled Position' }}</h2>
-              <h3 class="text-sm text-muted">{{ experience.company || 'Untitled Company' }}</h3>
+              <h3 class="text-sm text-muted">{{ experience.employer || 'Untitled Company' }}</h3>
             </div>
             <div class="flex gap-2">
               <UButton 
@@ -185,18 +234,45 @@ function addNewExperience() {
                 <UInput class="w-full" v-model="experience.title" placeholder="e.g., Software Engineer, Project Manager" />
               </UFormField>
 
-              <!-- Company Information -->
-              <UFormField size="xl" label="Company Name" name="company">
-                <UInput class="w-full" v-model="experience.company" placeholder="e.g., Google, Acme Corp" />
+              <!-- Employer -->
+              <UFormField size="xl" label="Employer" name="employer">
+                <UInput class="w-full" v-model="experience.employer" placeholder="e.g., Google, Acme Corp" />
               </UFormField>
 
-              <UFormField size="xl" label="Location" name="location">
-                <UInput class="w-full" v-model="experience.location" placeholder="e.g. Houston, TX or Remote" />
-              </UFormField>
-
-              <UFormField size="xl" label="Company Website" name="url">
+              <UFormField size="xl" label="Employer Website" name="url">
                 <UInput class="w-full" v-model="experience.url" placeholder="e.g. https://www.google.com" />
               </UFormField>
+
+              <!-- Employment Type -->
+              <UFormField size="xl" label="Employment Type" name="employmentType">
+                <USelectMenu
+                  v-model="experience.employmentType"
+                  :items="employmentTypeOptions"
+                  value-key="value"
+                  label-key="label"
+                  size="lg"
+                />
+              </UFormField>
+
+              <!-- Location Type and Location -->
+                <UFormField class="flex-1" size="xl" label="Location Type" name="locationType">
+                  <USelectMenu
+                    v-model="experience.locationType"
+                    :items="locationTypeOptions"
+                    value-key="value"
+                    label-key="label"
+                    size="lg"
+                  />
+                </UFormField>
+
+                <UFormField class="flex-2" size="xl" label="Location" name="location">
+                  <UInput 
+                    class="w-full" 
+                    v-model="experience.location" 
+                    :placeholder="experience.locationType === 'remote' ? 'Remote' : 'e.g. Houston, TX'" 
+                    :disabled="experience.locationType === 'remote'"
+                  />
+                </UFormField>
 
               <!-- Start and End Date -->
               <div class="flex gap-2 w-full"> 

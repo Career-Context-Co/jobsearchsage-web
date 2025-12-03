@@ -9,6 +9,7 @@ CREATE TABLE career_id.profile_skills (
   profile_id TEXT NOT NULL REFERENCES career_id.profiles(id) ON DELETE CASCADE,
   skill_id INTEGER REFERENCES reference.skills(id) ON DELETE SET NULL,
   name TEXT,
+  category TEXT,
   proficiency_level career_id.skill_level_enum,
   years_experience NUMERIC(4,1),
   display_order INTEGER NOT NULL DEFAULT 0,
@@ -21,6 +22,7 @@ COMMENT ON TABLE career_id.profile_skills IS 'Junction table linking profiles to
 COMMENT ON COLUMN career_id.profile_skills.profile_id IS 'Reference to parent profile (prefixed ID)';
 COMMENT ON COLUMN career_id.profile_skills.skill_id IS 'Reference to skill in master catalog (nullable until matched by background job)';
 COMMENT ON COLUMN career_id.profile_skills.name IS 'User-provided skill name (what they typed). Always displayed. May be matched to reference.skills later via skill_id.';
+COMMENT ON COLUMN career_id.profile_skills.category IS 'User-defined category for grouping skills (e.g., "Programming Languages", "Core Skills")';
 COMMENT ON COLUMN career_id.profile_skills.proficiency_level IS 'User proficiency level with this skill (beginner, intermediate, advanced, expert)';
 COMMENT ON COLUMN career_id.profile_skills.years_experience IS 'Years of experience with this skill';
 COMMENT ON COLUMN career_id.profile_skills.display_order IS 'Display order within profile (lower numbers appear first)';

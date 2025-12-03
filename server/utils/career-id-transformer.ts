@@ -117,6 +117,7 @@ export function transformProfileSkill(data: any): ProfileSkill {
     profileId: data.profile_id,
     skillId: data.skill_id,
     name: data.name,
+    category: data.category,
     proficiencyLevel: data.proficiency_level,
     yearsExperience: data.years_experience,
     displayOrder: data.display_order,

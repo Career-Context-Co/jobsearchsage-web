@@ -1,25 +1,29 @@
 <script setup lang="ts">
-import * as z from 'zod'
-import type { FormSubmitEvent } from '@nuxt/ui'
+import type { Education } from '~/shared/types/careerId'
 import { vMaska } from 'maska/vue'
 
-interface Education {
+// Form data type (without server-managed fields)
+interface EducationFormData {
   degreeType: string
   areaOfStudy: string
   institution: string
   startDate: string
   endDate: string
   completed: boolean
-  url?: string
-  creditHours?: number
+  url?: string | null
+  creditHours?: number | null
   coursework: string[]
   minors: string[]
   isEditing: boolean
 }
 
-// Start with one blank education in edit mode
-const educationList = ref<Education[]>([
-  {
+// Props
+interface Props {
+  modelValue?: EducationFormData[]
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  modelValue: () => [{
     degreeType: '',
     areaOfStudy: '',
     institution: '',
@@ -31,10 +35,30 @@ const educationList = ref<Education[]>([
     coursework: [],
     minors: [],
     isEditing: true
-  }
-])
+  }]
+})
 
-function createBlankEducation(): Education {
+// Emits
+const emit = defineEmits<{
+  'update:modelValue': [value: EducationFormData[]]
+  save: [index: number, data: EducationFormData]
+  delete: [index: number]
+}>()
+
+// Local reactive copy for two-way binding
+const educationList = ref<EducationFormData[]>([...props.modelValue])
+
+// Watch for external prop changes
+watch(() => props.modelValue, (newValue) => {
+  educationList.value = [...newValue]
+}, { deep: true })
+
+// Emit updates when local value changes
+watch(educationList, (newValue) => {
+  emit('update:modelValue', newValue)
+}, { deep: true })
+
+function createBlankEducation(): EducationFormData {
   return {
     degreeType: '',
     areaOfStudy: '',
@@ -57,7 +81,8 @@ function saveEducation(index: number) {
   // Close editing mode for this education
   education.isEditing = false
   
-  console.log('Saved education:', education)
+  // Emit save event to parent
+  emit('save', index, education)
 }
 
 function editEducation(index: number) {
@@ -74,6 +99,7 @@ function cancelEdit(index: number) {
   // If this is an empty unsaved education, remove it
   if (!education.degreeType && !education.areaOfStudy && !education.institution) {
     educationList.value.splice(index, 1)
+    emit('delete', index)
   } else {
     education.isEditing = false
   }
@@ -81,6 +107,7 @@ function cancelEdit(index: number) {
 
 function deleteEducation(index: number) {
   educationList.value.splice(index, 1)
+  emit('delete', index)
 }
 
 function addNewEducation() {
@@ -276,12 +303,10 @@ function removeMinor(educationIndex: number, minorIndex: number) {
                 </UFormField>
               </div>
 
-          
-
               <!-- GPA (always shown) and Credit Hours (only when not completed) -->
               <div class="grid grid-cols-2 gap-2 w-full">
                 <UFormField size="xl" label="Completed?" name="completed">
-                  <USwitch v-model="education.completed" class="w-full" />
+                  <USwitch size="xl" v-model="education.completed" class="w-full" />
                 </UFormField>
 
                 <UFormField 
@@ -323,8 +348,9 @@ function removeMinor(educationIndex: number, minorIndex: number) {
                   </div>
                 </div>
                 <UButton 
+                  class="cursor-pointer"
                   icon="i-lucide-plus" 
-                  color="neutral" 
+                  color="primary" 
                   variant="ghost" 
                   size="sm"
                   @click="addMinor(index)"
@@ -356,8 +382,9 @@ function removeMinor(educationIndex: number, minorIndex: number) {
                   </div>
                 </div>
                 <UButton 
+                  class="cursor-pointer"
                   icon="i-lucide-plus" 
-                  color="neutral" 
+                  color="primary" 
                   variant="ghost" 
                   size="sm"
                   @click="addCoursework(index)"
@@ -375,6 +402,7 @@ function removeMinor(educationIndex: number, minorIndex: number) {
                   Cancel
                 </UButton>
               </div>
+              
             </UForm>
           </UCard>
         </template>

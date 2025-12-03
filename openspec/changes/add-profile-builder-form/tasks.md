@@ -213,41 +213,80 @@
   - [x] 5.10.3 `deleteSocialLink(id)` - DELETE /api/career-id/profile/:profileId/socials/:id
   - [x] 5.10.4 `fetchSocialPlatforms()` - GET /api/reference/social-platforms (for dropdown options)
 
-### 5.B Frontend Integration with Pinia Store
+### 5.B Update Components to Match Real Data Model
 
-- [ ] 5.11 Replace mock data in onboarding form with `careerIDStore.fetchProfile(profileId)` call on mount
-- [ ] 5.12 Implement initial profile creation: call `careerIDStore.createProfile(userId)` to get profileId for new users
-- [ ] 5.13 Implement autosave on step navigation using store actions (save current section before moving to next step)
-- [ ] 5.14 Wire up ExperienceSection.vue to use store actions:
-  - [ ] 5.14.2 Call `careerIDStore.addExperience()` for new entries
-  - [ ] 5.14.3 Call `careerIDStore.updateExperience()` for edits
-  - [ ] 5.14.4 Call `careerIDStore.deleteExperience()` for removals
-- [ ] 5.15 Wire up EducationSection.vue to use store actions (same pattern as experience)
-- [ ] 5.16 Wire up CertificationsSection.vue to use store actions (same pattern as experience)
-- [ ] 5.17 Wire up ContactSection.vue to use store actions:
-  - [ ] 5.17.1 Use `careerIDStore.hasContactInfo` getter to determine create vs update
-  - [ ] 5.17.2 Call `createContactInfo()` or `updateContactInfo()` accordingly
-- [ ] 5.18 Wire up SkillsSection.vue to use store actions:
-  - [ ] 5.18.1 Use `careerIDStore.searchSkills()` for autocomplete suggestions
-  - [ ] 5.18.2 Use bulk operations for add/update/delete
-- [ ] 5.19 Wire up SocialsSection.vue to use store actions:
-  - [ ] 5.19.1 Call `careerIDStore.fetchSocialPlatforms()` on mount for dropdown
-  - [ ] 5.19.2 Use store actions for CRUD operations
+- [x] 5.11 Update `ContactSection.vue` to match real ContactInfo schema:
+  - [x] 5.11.1 Replace `linkedin` field with social links dropdown using `USelectMenu` component (https://ui4.nuxt.com/components/select-menu)
+    - [x] 5.11.1.1 Accept `socialPlatforms` prop from parent (fetched from `/api/reference/social-platforms`)
+    - [x] 5.11.1.2 Use `USelectMenu` with `value-key="id"` and `label-key="display_name"` to select platform
+    - [x] 5.11.1.3 Add URL input field for the selected social platform
+    - [x] 5.11.1.4 Emit social link add/update/delete events to parent (not part of ContactInfo save)
+  - [x] 5.11.2 Update interface to match `ContactInfo` type from `shared/types/careerId.ts`
+  - [x] 5.11.3 Convert component to use props + emits pattern (receive contactInfo prop, emit save/update events)
+  - [x] 5.11.4 Remove internal state management and console.log calls
 
-### 5.C UI/UX Enhancements
+- [x] 5.12 Update `ExperienceSection.vue` to match real Experience schema:
+  - [x] 5.12.1 Add `employmentType` field (full_time, part_time, contract, freelance, internship)
+  - [x] 5.12.2 Add `locationType` field (on_site, remote, hybrid)
+  - [x] 5.12.3 Rename `company` to `employer` to match API
+  - [x] 5.12.4 Update interface to match `Experience` type from `shared/types/careerId.ts`
+  - [x] 5.12.5 Convert component to use props + emits pattern (receive experience[] prop, emit add/update/delete events)
+  - [x] 5.12.6 Remove internal state management and console.log calls
 
-- [ ] 5.20 Add loading states using `careerIDStore.isLoading` and section-specific `loadingStates`
-- [ ] 5.21 Add error handling with user-friendly toast notifications using `careerIDStore.error`
-- [ ] 5.22 Handle validation errors from backend and display inline in form
-- [ ] 5.23 Add visual feedback when autosave completes using `careerIDStore.lastSaved` (e.g., "Saved" indicator)
-- [ ] 5.24 Add confirmation dialogs for destructive actions (delete entries)
+- [x] 5.13 Update `EducationSection.vue` to match real Education schema:
+  - [x] 5.13.1 Ensure all fields match `Education` type from `shared/types/careerId.ts`
+  - [x] 5.13.2 Convert component to use props + emits pattern (receive education[] prop, emit add/update/delete events)
+  - [x] 5.13.3 Remove internal state management and console.log calls
 
-### 5.D Testing & Validation
+- [x] 5.14 Update `AdditionalSection.vue` to separate certifications and skills:
+  - [x] 5.14.1 Update certifications to match `Certification` type (use `issueDate` instead of `date`)
+  - [x] 5.14.2 Keep skills as categories with tags for quick entry (can be expanded with proficiency details later)
+  - [x] 5.14.4 Convert component to use props + emits pattern for both sub-sections
+  - [x] 5.14.5 Remove internal state management and console.log calls
 
-- [ ] 5.25 Test complete onboarding flow: create profile → add entries → autosave on step change → reload → edit → save
-- [ ] 5.26 Test validation: required fields, format validation, error messages
-- [ ] 5.27 Test skills autocomplete and junction table behavior (duplicate prevention, metadata updates)
-- [ ] 5.28 Test responsive behavior on mobile and tablet devices
-- [ ] 5.29 Run type checking: `pnpm typecheck`
-- [ ] 5.30 Run linter: `pnpm lint` and fix any issues
+### 5.C Parent Page Integration (Onboarding Flow)
+
+- [ ] 5.15 Update `app/pages/profile/onboarding.vue` to manage profile state:
+  - [ ] 5.15.1 Add careerIDStore instance and fetch/create profile on mount
+  - [ ] 5.15.2 Pass store data as props to each section component (contactInfo, experience[], education[], certifications[], profileSkills[], profileSocialLinks[])
+  - [ ] 5.15.3 Add event handlers for ContactSection: `@save-contact` calls `careerIDStore.createContactInfo()` or `careerIDStore.updateContactInfo()`
+  - [ ] 5.15.4 Add event handlers for ExperienceSection: `@add-experience`, `@update-experience`, `@delete-experience` call respective store actions
+  - [ ] 5.15.5 Add event handlers for EducationSection: `@add-education`, `@update-education`, `@delete-education` call respective store actions
+  - [ ] 5.15.6 Add event handlers for AdditionalSection certifications: `@add-certification`, `@update-certification`, `@delete-certification`
+  - [ ] 5.15.7 Add event handlers for AdditionalSection skills: `@add-skills`, `@update-skills`, `@delete-skills` (bulk operations)
+  - [ ] 5.15.8 Add event handlers for AdditionalSection social links: `@add-social-links`, `@update-social-link`, `@delete-social-link`
+  - [ ] 5.15.9 Fetch social platforms on mount using `careerIDStore.fetchSocialPlatforms()` and pass to AdditionalSection
+
+- [ ] 5.16 Implement autosave on step navigation:
+  - [ ] 5.16.1 Add autosave logic when user clicks "Continue" button (save current section data before advancing)
+  - [ ] 5.16.2 Add loading state during save operations
+  - [ ] 5.16.3 Display error messages if save fails
+  - [ ] 5.16.4 Update `lastSaved` timestamp display using `careerIDStore.lastSaved`
+
+### 5.D Parent Page Integration (Profile View/Edit)
+
+- [ ] 5.17 Update `app/pages/profile/index.vue` for viewing/editing existing profiles:
+  - [ ] 5.17.1 Fetch profile on mount using `careerIDStore.fetchProfile(profileId)` if not already loaded
+  - [ ] 5.17.2 Create a profile view/edit UI that displays profile sections
+  - [ ] 5.17.3 Allow inline editing of sections using the same section components from onboarding
+  - [ ] 5.17.4 Pass store data as props to section components for pre-filling
+  - [ ] 5.17.5 Add event handlers for all CRUD operations (same pattern as onboarding page)
+  - [ ] 5.17.6 Implement real-time save on edit (debounced autosave or explicit save button)
+
+### 5.E UI/UX Enhancements
+
+- [ ] 5.18 Add loading states using `careerIDStore.isLoading` and section-specific `loadingStates`
+- [ ] 5.19 Add error handling with user-friendly toast notifications using `careerIDStore.error`
+- [ ] 5.20 Handle validation errors from backend and display inline in form
+- [ ] 5.21 Add visual feedback when autosave completes using `careerIDStore.lastSaved` (e.g., "Saved" indicator)
+- [ ] 5.22 Add confirmation dialogs for destructive actions (delete entries)
+
+### 5.F Testing & Validation
+
+- [ ] 5.23 Test complete onboarding flow: create profile → add entries → autosave on step change → reload → edit → save
+- [ ] 5.24 Test validation: required fields, format validation, error messages
+- [ ] 5.25 Test skills autocomplete and junction table behavior (duplicate prevention, metadata updates)
+- [ ] 5.26 Test responsive behavior on mobile and tablet devices
+- [ ] 5.27 Run type checking: `pnpm typecheck`
+- [ ] 5.28 Run linter: `pnpm lint` and fix any issues
 

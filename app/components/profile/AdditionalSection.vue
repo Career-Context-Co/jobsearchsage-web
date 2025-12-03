@@ -1,47 +1,80 @@
 <script setup lang="ts">
-import * as z from 'zod'
-import type { FormSubmitEvent } from '@nuxt/ui'
+import type { Certification } from '~/shared/types/careerId'
 
-interface SkillCategory {
+// Form data types (without server-managed fields)
+interface SkillCategoryFormData {
   name: string
   skills: string[]
   isEditing: boolean
 }
 
-interface Certification {
+interface CertificationFormData {
   name: string
   issuer: string
-  date: string
-  url?: string
+  issueDate: string
+  url?: string | null
   isEditing: boolean
 }
 
-// Skills Categories - Start with one blank category
-const skillCategories = ref<SkillCategory[]>([
-  {
+// Props
+interface Props {
+  skillCategories?: SkillCategoryFormData[]
+  certifications?: CertificationFormData[]
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  skillCategories: () => [{
     name: '',
     skills: [],
     isEditing: true
-  }
-])
-
-// Certifications - Start with one blank certification
-const certifications = ref<Certification[]>([
-  {
+  }],
+  certifications: () => [{
     name: '',
     issuer: '',
-    date: '',
+    issueDate: '',
     url: '',
     isEditing: true
-  }
-])
+  }]
+})
+
+// Emits
+const emit = defineEmits<{
+  'update:skillCategories': [value: SkillCategoryFormData[]]
+  'update:certifications': [value: CertificationFormData[]]
+  saveSkillCategory: [index: number, data: SkillCategoryFormData]
+  deleteSkillCategory: [index: number]
+  saveCertification: [index: number, data: CertificationFormData]
+  deleteCertification: [index: number]
+}>()
+
+// Local reactive copies for two-way binding
+const skillCategories = ref<SkillCategoryFormData[]>([...props.skillCategories])
+const certifications = ref<CertificationFormData[]>([...props.certifications])
+
+// Watch for external prop changes
+watch(() => props.skillCategories, (newValue) => {
+  skillCategories.value = [...newValue]
+}, { deep: true })
+
+watch(() => props.certifications, (newValue) => {
+  certifications.value = [...newValue]
+}, { deep: true })
+
+// Emit updates when local values change
+watch(skillCategories, (newValue) => {
+  emit('update:skillCategories', newValue)
+}, { deep: true })
+
+watch(certifications, (newValue) => {
+  emit('update:certifications', newValue)
+}, { deep: true })
 
 // Top-level section visibility
 const skillsSectionOpen = ref(true)
 const certificationsSectionOpen = ref(false)
 
 // Skill Category Functions
-function createBlankSkillCategory(): SkillCategory {
+function createBlankSkillCategory(): SkillCategoryFormData {
   return {
     name: '',
     skills: [],
@@ -57,6 +90,7 @@ function saveSkillCategory(index: number) {
   const category = skillCategories.value[index]
   if (!category) return
   category.isEditing = false
+  emit('saveSkillCategory', index, category)
 }
 
 function editSkillCategory(index: number) {
@@ -67,6 +101,7 @@ function editSkillCategory(index: number) {
 
 function deleteSkillCategory(index: number) {
   skillCategories.value.splice(index, 1)
+  emit('deleteSkillCategory', index)
 }
 
 function cancelEditSkillCategory(index: number) {
@@ -76,17 +111,18 @@ function cancelEditSkillCategory(index: number) {
   // If empty, remove it
   if (!category.name && category.skills.length === 0) {
     skillCategories.value.splice(index, 1)
+    emit('deleteSkillCategory', index)
   } else {
     category.isEditing = false
   }
 }
 
 // Certification Functions
-function createBlankCertification(): Certification {
+function createBlankCertification(): CertificationFormData {
   return {
     name: '',
     issuer: '',
-    date: '',
+    issueDate: '',
     url: '',
     isEditing: true
   }
@@ -100,6 +136,7 @@ function saveCertification(index: number) {
   const cert = certifications.value[index]
   if (!cert) return
   cert.isEditing = false
+  emit('saveCertification', index, cert)
 }
 
 function editCertification(index: number) {
@@ -110,6 +147,7 @@ function editCertification(index: number) {
 
 function deleteCertification(index: number) {
   certifications.value.splice(index, 1)
+  emit('deleteCertification', index)
 }
 
 function cancelEditCertification(index: number) {
@@ -119,6 +157,7 @@ function cancelEditCertification(index: number) {
   // If empty, remove it
   if (!cert.name && !cert.issuer) {
     certifications.value.splice(index, 1)
+    emit('deleteCertification', index)
   } else {
     cert.isEditing = false
   }
@@ -309,7 +348,7 @@ function cancelEditCertification(index: number) {
               <div class="flex-1">
                 <h3 class="text-md font-semibold text-foreground">{{ cert.name || 'Untitled Certification' }}</h3>
                 <p class="text-sm text-muted">{{ cert.issuer || 'Unknown Issuer' }}</p>
-                <p class="text-sm text-muted" v-if="cert.date">{{ cert.date }}</p>
+                <p class="text-sm text-muted" v-if="cert.issueDate">{{ cert.issueDate }}</p>
               </div>
               <div class="flex gap-2">
                 <UButton 
@@ -382,17 +421,17 @@ function cancelEditCertification(index: number) {
                   </UFormField>
                 </div>
 
-                <!-- Date and URL -->
+                <!-- Issue Date and URL -->
                 <div class="flex gap-2 w-full">
-                  <UFormField class="flex-1" size="xl" label="Date" name="date">
+                  <UFormField class="flex-1" size="xl" label="Issue Date" name="issueDate">
                     <UInput 
                       class="w-full"
-                      v-model="cert.date" 
+                      v-model="cert.issueDate" 
                       placeholder="e.g., Jan 2023"
                     />
                   </UFormField>
 
-                  <UFormField class="flex-1" size="xl" label="URL" name="url">
+                  <UFormField class="flex-1" size="xl" label="URL (Optional)" name="url">
                     <UInput 
                       class="w-full"
                       v-model="cert.url" 
