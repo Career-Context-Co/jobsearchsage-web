@@ -208,7 +208,7 @@
       "request": {
         "name": "AWS Solutions Architect - Professional",
         "issuer": "Amazon Web Services",
-        "dateObtained": "2023-06-15",
+        "issueDate": "2023-06-15",
         "url": "https://aws.amazon.com/certification/certified-solutions-architect-professional/",
         "displayOrder": 0
       }
@@ -219,7 +219,7 @@
       "request": {
         "name": "Certified Kubernetes Administrator (CKA)",
         "issuer": "Cloud Native Computing Foundation",
-        "dateObtained": "2022-11-20",
+        "issueDate": "2022-11-20",
         "url": "https://www.cncf.io/certification/cka/",
         "displayOrder": 1
       }
@@ -230,7 +230,7 @@
       "request": {
         "name": "Professional Scrum Master I (PSM I)",
         "issuer": "Scrum.org",
-        "dateObtained": "2021-03-10",
+        "issueDate": "2021-03-10",
         "url": "https://www.scrum.org/professional-scrum-master-i-certification",
         "displayOrder": 2
       }

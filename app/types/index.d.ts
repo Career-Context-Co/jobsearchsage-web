@@ -107,7 +107,7 @@ export interface Education {
 export interface Certification {
   name: string
   issuer: string
-  date: string
+  issueDate: string
   url?: string
   isEditing: boolean
 }

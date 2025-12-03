@@ -34,8 +34,8 @@ export default eventHandler(async (event) => {
     validationErrors.push(requiredFieldError('issuer'))
   }
   
-  if (!isRequired(body.dateObtained)) {
-    validationErrors.push(requiredFieldError('dateObtained'))
+  if (!isRequired(body.issueDate)) {
+    validationErrors.push(requiredFieldError('issueDate'))
   }
   
   // Validation: URL format (if provided)
@@ -58,7 +58,7 @@ export default eventHandler(async (event) => {
       profile_id: profileId,
       name: body.name,
       issuer: body.issuer,
-      date: body.dateObtained,
+      issue_date: body.issueDate,
       url: body.url || null,
       display_order: body.displayOrder ?? 0
     })

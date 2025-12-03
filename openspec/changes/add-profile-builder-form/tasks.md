@@ -181,37 +181,37 @@
   - [x] 5.4.3 `resetProfile()` - clear all state (for logout/switching profiles)
   - [x] 5.4.4 `setError(error)` / `clearError()` - error state management
 
-- [ ] 5.5 Create actions for Experience CRUD:
-  - [ ] 5.5.1 `addExperience(data)` - POST /api/career-id/profile/:profileId/experience, update local state
-  - [ ] 5.5.2 `updateExperience(id, data)` - PATCH /api/career-id/profile/:profileId/experience/:id, update local state
-  - [ ] 5.5.3 `deleteExperience(id)` - DELETE /api/career-id/profile/:profileId/experience/:id, remove from local state
+- [x] 5.5 Create actions for Experience CRUD:
+  - [x] 5.5.1 `addExperience(data)` - POST /api/career-id/profile/:profileId/experience, update local state
+  - [x] 5.5.2 `updateExperience(id, data)` - PATCH /api/career-id/profile/:profileId/experience/:id, update local state
+  - [x] 5.5.3 `deleteExperience(id)` - DELETE /api/career-id/profile/:profileId/experience/:id, remove from local state
 
-- [ ] 5.6 Create actions for Education CRUD:
-  - [ ] 5.6.1 `addEducation(data)` - POST /api/career-id/profile/:profileId/education
-  - [ ] 5.6.2 `updateEducation(id, data)` - PATCH /api/career-id/profile/:profileId/education/:id
-  - [ ] 5.6.3 `deleteEducation(id)` - DELETE /api/career-id/profile/:profileId/education/:id
+- [x] 5.6 Create actions for Education CRUD:
+  - [x] 5.6.1 `addEducation(data)` - POST /api/career-id/profile/:profileId/education
+  - [x] 5.6.2 `updateEducation(id, data)` - PATCH /api/career-id/profile/:profileId/education/:id
+  - [x] 5.6.3 `deleteEducation(id)` - DELETE /api/career-id/profile/:profileId/education/:id
 
-- [ ] 5.7 Create actions for Certifications CRUD:
-  - [ ] 5.7.1 `addCertification(data)` - POST /api/career-id/profile/:profileId/certifications
-  - [ ] 5.7.2 `updateCertification(id, data)` - PATCH /api/career-id/profile/:profileId/certifications/:id
-  - [ ] 5.7.3 `deleteCertification(id)` - DELETE /api/career-id/profile/:profileId/certifications/:id
+- [x] 5.7 Create actions for Certifications CRUD:
+  - [x] 5.7.1 `addCertification(data)` - POST /api/career-id/profile/:profileId/certifications
+  - [x] 5.7.2 `updateCertification(id, data)` - PATCH /api/career-id/profile/:profileId/certifications/:id
+  - [x] 5.7.3 `deleteCertification(id)` - DELETE /api/career-id/profile/:profileId/certifications/:id
 
-- [ ] 5.8 Create actions for Skills (bulk operations):
-  - [ ] 5.8.1 `addSkills(skills[])` - POST /api/career-id/profile/:profileId/skills (bulk add)
-  - [ ] 5.8.2 `updateSkills(skills[])` - PATCH /api/career-id/profile/:profileId/skills (bulk update)
-  - [ ] 5.8.3 `deleteSkills(ids[])` - DELETE /api/career-id/profile/:profileId/skills (bulk delete)
-  - [ ] 5.8.4 `searchSkills(query)` - GET /api/reference/skills/search?q=query (for autocomplete, returns suggestions)
+- [x] 5.8 Create actions for Skills (bulk operations):
+  - [x] 5.8.1 `addSkills(skills[])` - POST /api/career-id/profile/:profileId/skills (bulk add)
+  - [x] 5.8.2 `updateSkills(skills[])` - PATCH /api/career-id/profile/:profileId/skills (bulk update)
+  - [x] 5.8.3 `deleteSkills(ids[])` - DELETE /api/career-id/profile/:profileId/skills (bulk delete)
+  - [x] 5.8.4 `searchSkills(query)` - GET /api/reference/skills/search?q=query (for autocomplete, returns suggestions)
 
-- [ ] 5.9 Create actions for Contact Info (one-to-one):
-  - [ ] 5.9.1 `createContactInfo(data)` - POST /api/career-id/profile/:profileId/contact
-  - [ ] 5.9.2 `updateContactInfo(id, data)` - PATCH /api/career-id/profile/:profileId/contact/:id
-  - [ ] 5.9.3 `deleteContactInfo(id)` - DELETE /api/career-id/profile/:profileId/contact/:id
+- [x] 5.9 Create actions for Contact Info (one-to-one):
+  - [x] 5.9.1 `createContactInfo(data)` - POST /api/career-id/profile/:profileId/contact
+  - [x] 5.9.2 `updateContactInfo(id, data)` - PATCH /api/career-id/profile/:profileId/contact/:id
+  - [x] 5.9.3 `deleteContactInfo(id)` - DELETE /api/career-id/profile/:profileId/contact/:id
 
-- [ ] 5.10 Create actions for Social Links:
-  - [ ] 5.10.1 `addSocialLinks(links[])` - POST /api/career-id/profile/:profileId/socials (bulk add)
-  - [ ] 5.10.2 `updateSocialLink(id, data)` - PATCH /api/career-id/profile/:profileId/socials/:id
-  - [ ] 5.10.3 `deleteSocialLink(id)` - DELETE /api/career-id/profile/:profileId/socials/:id
-  - [ ] 5.10.4 `fetchSocialPlatforms()` - GET /api/reference/social-platforms (for dropdown options)
+- [x] 5.10 Create actions for Social Links:
+  - [x] 5.10.1 `addSocialLinks(links[])` - POST /api/career-id/profile/:profileId/socials (bulk add)
+  - [x] 5.10.2 `updateSocialLink(id, data)` - PATCH /api/career-id/profile/:profileId/socials/:id
+  - [x] 5.10.3 `deleteSocialLink(id)` - DELETE /api/career-id/profile/:profileId/socials/:id
+  - [x] 5.10.4 `fetchSocialPlatforms()` - GET /api/reference/social-platforms (for dropdown options)
 
 ### 5.B Frontend Integration with Pinia Store
 
@@ -219,7 +219,6 @@
 - [ ] 5.12 Implement initial profile creation: call `careerIDStore.createProfile(userId)` to get profileId for new users
 - [ ] 5.13 Implement autosave on step navigation using store actions (save current section before moving to next step)
 - [ ] 5.14 Wire up ExperienceSection.vue to use store actions:
-  - [ ] 5.14.1 Use `storeToRefs` to destructure `experience` reactively
   - [ ] 5.14.2 Call `careerIDStore.addExperience()` for new entries
   - [ ] 5.14.3 Call `careerIDStore.updateExperience()` for edits
   - [ ] 5.14.4 Call `careerIDStore.deleteExperience()` for removals

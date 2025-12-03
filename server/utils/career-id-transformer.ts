@@ -89,13 +89,13 @@ export function transformCertification(data: any): Certification {
     profileId: data.profile_id,
     name: data.name,
     issuer: data.issuer,
-    date: data.date,
+    issueDate: data.issue_date,
     url: data.url,
     displayOrder: data.display_order,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   }
-}
+}   
 
 /**
  * Transform Skill from snake_case to camelCase

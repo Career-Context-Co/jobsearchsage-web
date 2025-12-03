@@ -62,7 +62,7 @@ export default eventHandler(async (event) => {
   
   if (body.name !== undefined) updateData.name = body.name
   if (body.issuer !== undefined) updateData.issuer = body.issuer
-  if (body.dateObtained !== undefined) updateData.date = body.dateObtained
+  if (body.issueDate !== undefined) updateData.issue_date = body.issueDate
   if (body.url !== undefined) updateData.url = body.url
   if (body.displayOrder !== undefined) updateData.display_order = body.displayOrder
   

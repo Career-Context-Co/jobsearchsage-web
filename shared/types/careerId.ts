@@ -60,7 +60,7 @@ export interface Certification {
   profileId: string;
   name: string;
   issuer: string;
-  date: string;
+  issueDate: string;
   url?: string | null;
   displayOrder: number;
   createdAt: string;

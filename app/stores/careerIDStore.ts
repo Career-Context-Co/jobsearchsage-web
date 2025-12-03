@@ -7,7 +7,7 @@ import type {
   ProfileSkill,
   ProfileSocialLink,
   ContactInfo,
-  ProfileResponse,
+  ProfileResponse
 } from '../../shared/types/careerId'
 
 export const useCareerIDStore = defineStore('careerID', {
@@ -26,23 +26,23 @@ export const useCareerIDStore = defineStore('careerID', {
     isLoading: false,
     isSaving: false,
     error: null as string | null,
-    lastSaved: null as string | null,
+    lastSaved: null as string | null
   }),
 
   getters: {
     // Check if profile exists
-    isProfileLoaded: (state) => state.profile !== null,
+    isProfileLoaded: state => state.profile !== null,
 
     // Check if contact info exists
-    hasContactInfo: (state) => state.contactInfo !== null,
+    hasContactInfo: state => state.contactInfo !== null,
 
     // Section counts object
-    sectionCounts: (state) => ({
+    sectionCounts: state => ({
       experience: state.experience.length,
       education: state.education.length,
       certifications: state.certifications.length,
       skills: state.profileSkills.length,
-      socialLinks: state.profileSocialLinks.length,
+      socialLinks: state.profileSocialLinks.length
     }),
 
     // Skills grouped by proficiency level
@@ -51,7 +51,7 @@ export const useCareerIDStore = defineStore('careerID', {
         beginner: [],
         intermediate: [],
         advanced: [],
-        expert: [],
+        expert: []
       }
 
       state.profileSkills.forEach((skill) => {
@@ -70,12 +70,12 @@ export const useCareerIDStore = defineStore('careerID', {
         this.sectionCounts.education > 0,
         this.sectionCounts.certifications > 0,
         this.sectionCounts.skills > 0,
-        this.sectionCounts.socialLinks > 0,
+        this.sectionCounts.socialLinks > 0
       ]
 
       const completedSections = sections.filter(Boolean).length
       return Math.round((completedSections / sections.length) * 100)
-    },
+    }
   },
 
   actions: {
@@ -109,7 +109,7 @@ export const useCareerIDStore = defineStore('careerID', {
       this.error = null
 
       try {
-        const response = await $fetch<{ success: boolean; data: ProfileResponse }>(
+        const response = await $fetch<{ success: boolean, data: ProfileResponse }>(
           `/api/career-id/profile/${profileId}`
         )
 
@@ -150,7 +150,7 @@ export const useCareerIDStore = defineStore('careerID', {
           data: { profile: Profile }
         }>('/api/career-id/profile', {
           method: 'POST',
-          body: { userId },
+          body: { userId }
         })
 
         if (!response.success || !response.data?.profile) {
@@ -173,5 +173,758 @@ export const useCareerIDStore = defineStore('careerID', {
         this.isSaving = false
       }
     },
-  },
+
+    // 5.6.1 Add new education entry
+    async addEducation(data: Omit<Education, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: Education
+        }>(`/api/career-id/profile/${this.profile.id}/education`, {
+          method: 'POST',
+          body: data
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to add education')
+        }
+
+        // API returns data already in camelCase format
+        const education = response.data
+
+        // Add to local state
+        this.education.push(education)
+        this.lastSaved = new Date().toISOString()
+
+        return education
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to add education'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.6.2 Update existing education entry
+    async updateEducation(id: number, data: Partial<Omit<Education, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: Education
+        }>(`/api/career-id/profile/${this.profile.id}/education/${id}`, {
+          method: 'PATCH',
+          body: data
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to update education')
+        }
+
+        // API returns data already in camelCase format
+        const updatedEducation = response.data
+
+        // Update in local state
+        const index = this.education.findIndex(edu => edu.id === id)
+        if (index !== -1) {
+          this.education[index] = updatedEducation
+        }
+        this.lastSaved = new Date().toISOString()
+
+        return updatedEducation
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to update education'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.6.3 Delete education entry
+    async deleteEducation(id: number) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+        }>(`/api/career-id/profile/${this.profile.id}/education/${id}`, {
+          method: 'DELETE'
+        })
+
+        if (!response.success) {
+          throw new Error('Failed to delete education')
+        }
+
+        // Remove from local state
+        this.education = this.education.filter(edu => edu.id !== id)
+        this.lastSaved = new Date().toISOString()
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to delete education'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.7.1 Add new certification entry
+    async addCertification(data: Omit<Certification, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: Certification
+        }>(`/api/career-id/profile/${this.profile.id}/certifications`, {
+          method: 'POST',
+          body: data
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to add certification')
+        }
+
+        // API returns data already in camelCase format
+        const certification = response.data
+
+        // Add to local state
+        this.certifications.push(certification)
+        this.lastSaved = new Date().toISOString()
+
+        return certification
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to add certification'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.7.2 Update existing certification entry
+    async updateCertification(id: number, data: Partial<Omit<Certification, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: Certification
+        }>(`/api/career-id/profile/${this.profile.id}/certifications/${id}`, {
+          method: 'PATCH',
+          body: data
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to update certification')
+        }
+
+        // API returns data already in camelCase format
+        const updatedCertification = response.data
+
+        // Update in local state
+        const index = this.certifications.findIndex(cert => cert.id === id)
+        if (index !== -1) {
+          this.certifications[index] = updatedCertification
+        }
+        this.lastSaved = new Date().toISOString()
+
+        return updatedCertification
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to update certification'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.7.3 Delete certification entry
+    async deleteCertification(id: number) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+        }>(`/api/career-id/profile/${this.profile.id}/certifications/${id}`, {
+          method: 'DELETE'
+        })
+
+        if (!response.success) {
+          throw new Error('Failed to delete certification')
+        }
+
+        // Remove from local state
+        this.certifications = this.certifications.filter(cert => cert.id !== id)
+        this.lastSaved = new Date().toISOString()
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to delete certification'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.9.1 Create contact info entry
+    async createContactInfo(data: Omit<ContactInfo, 'id' | 'internalId' | 'profileId' | 'createdAt' | 'updatedAt'>) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: ContactInfo
+        }>(`/api/career-id/profile/${this.profile.id}/contact`, {
+          method: 'POST',
+          body: data
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to create contact info')
+        }
+
+        // API returns data already in camelCase format
+        const contactInfo = response.data
+
+        // Set in local state
+        this.contactInfo = contactInfo
+        this.lastSaved = new Date().toISOString()
+
+        return contactInfo
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to create contact info'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.9.2 Update existing contact info entry
+    async updateContactInfo(id: string, data: Partial<Omit<ContactInfo, 'id' | 'internalId' | 'profileId' | 'createdAt' | 'updatedAt'>>) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: ContactInfo
+        }>(`/api/career-id/profile/${this.profile.id}/contact/${id}`, {
+          method: 'PATCH',
+          body: data
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to update contact info')
+        }
+
+        // API returns data already in camelCase format
+        const updatedContactInfo = response.data
+
+        // Update in local state
+        this.contactInfo = updatedContactInfo
+        this.lastSaved = new Date().toISOString()
+
+        return updatedContactInfo
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to update contact info'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.9.3 Delete contact info entry
+    async deleteContactInfo(id: string) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+        }>(`/api/career-id/profile/${this.profile.id}/contact/${id}`, {
+          method: 'DELETE'
+        })
+
+        if (!response.success) {
+          throw new Error('Failed to delete contact info')
+        }
+
+        // Remove from local state
+        this.contactInfo = null
+        this.lastSaved = new Date().toISOString()
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to delete contact info'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.8.1 Add skills (bulk operation)
+    async addSkills(skills: Array<Omit<ProfileSkill, 'id' | 'profileId' | 'skillId' | 'skill' | 'createdAt' | 'updatedAt'>>) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: ProfileSkill[]
+        }>(`/api/career-id/profile/${this.profile.id}/skills`, {
+          method: 'POST',
+          body: skills
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to add skills')
+        }
+
+        // API returns data already in camelCase format
+        const addedSkills = response.data
+
+        // Add to local state
+        this.profileSkills.push(...addedSkills)
+        this.lastSaved = new Date().toISOString()
+
+        return addedSkills
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to add skills'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.8.2 Update skills (bulk operation)
+    async updateSkills(skills: Array<{ id: number } & Partial<Pick<ProfileSkill, 'proficiencyLevel' | 'yearsExperience' | 'displayOrder'>>>) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          status: number
+          message: string
+          updated: number
+          failed: number
+          results: Array<{
+            index: number
+            id: number
+            status: number
+            success: boolean
+            data?: ProfileSkill
+            error?: { code: string, message: string }
+          }>
+        }>(`/api/career-id/profile/${this.profile.id}/skills`, {
+          method: 'PATCH',
+          body: skills
+        })
+
+        // Update successful skills in local state
+        response.results.forEach((result) => {
+          if (result.success && result.data) {
+            const index = this.profileSkills.findIndex(skill => skill.id === result.id)
+            if (index !== -1) {
+              this.profileSkills[index] = result.data
+            }
+          }
+        })
+
+        this.lastSaved = new Date().toISOString()
+
+        return response
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to update skills'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.8.3 Delete skills (bulk operation)
+    async deleteSkills(ids: number[]) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+        }>(`/api/career-id/profile/${this.profile.id}/skills`, {
+          method: 'DELETE',
+          body: { ids }
+        })
+
+        if (!response.success) {
+          throw new Error('Failed to delete skills')
+        }
+
+        // Remove from local state
+        this.profileSkills = this.profileSkills.filter(skill => !ids.includes(skill.id))
+        this.lastSaved = new Date().toISOString()
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to delete skills'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.8.4 Search skills for autocomplete
+    async searchSkills(query: string) {
+      try {
+        const response = await $fetch<{
+          success: boolean
+          data: Array<{
+            id: number
+            skill_name: string
+            category: string
+            description?: string
+          }>
+        }>(`/api/reference/skills/search?q=${encodeURIComponent(query)}`)
+
+        if (!response.success) {
+          throw new Error('Failed to search skills')
+        }
+
+        return response.data
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to search skills'
+        this.error = errorMessage
+        throw error
+      }
+    },
+
+    // 5.10.1 Add social links (bulk operation)
+    async addSocialLinks(links: Array<Omit<ProfileSocialLink, 'id' | 'profileId' | 'platformNameCache' | 'createdAt' | 'updatedAt'>>) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: ProfileSocialLink[]
+        }>(`/api/career-id/profile/${this.profile.id}/socials`, {
+          method: 'POST',
+          body: links
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to add social links')
+        }
+
+        // API returns data already in camelCase format
+        const addedLinks = response.data
+
+        // Add to local state
+        this.profileSocialLinks.push(...addedLinks)
+        this.lastSaved = new Date().toISOString()
+
+        return addedLinks
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to add social links'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.10.2 Update social link
+    async updateSocialLink(id: number, data: Partial<Pick<ProfileSocialLink, 'url' | 'displayOrder'>>) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: ProfileSocialLink
+        }>(`/api/career-id/profile/${this.profile.id}/socials/${id}`, {
+          method: 'PATCH',
+          body: data
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to update social link')
+        }
+
+        // API returns data already in camelCase format
+        const updatedLink = response.data
+
+        // Update in local state
+        const index = this.profileSocialLinks.findIndex(link => link.id === id)
+        if (index !== -1) {
+          this.profileSocialLinks[index] = updatedLink
+        }
+        this.lastSaved = new Date().toISOString()
+
+        return updatedLink
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to update social link'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.10.3 Delete social link
+    async deleteSocialLink(id: number) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+        }>(`/api/career-id/profile/${this.profile.id}/socials/${id}`, {
+          method: 'DELETE'
+        })
+
+        if (!response.success) {
+          throw new Error('Failed to delete social link')
+        }
+
+        // Remove from local state
+        this.profileSocialLinks = this.profileSocialLinks.filter(link => link.id !== id)
+        this.lastSaved = new Date().toISOString()
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to delete social link'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.10.4 Fetch social platforms for dropdown
+    async fetchSocialPlatforms() {
+      try {
+        const response = await $fetch<{
+          success: boolean
+          data: Array<{
+            id: number
+            platform_name: string
+            display_name: string
+            icon?: string
+            base_url?: string
+          }>
+        }>('/api/reference/social-platforms')
+
+        if (!response.success) {
+          throw new Error('Failed to fetch social platforms')
+        }
+
+        return response.data
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to fetch social platforms'
+        this.error = errorMessage
+        throw error
+      }
+    },
+
+    // 5.5.1 Add new experience entry
+    async addExperience(data: Omit<Experience, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: Experience
+        }>(`/api/career-id/profile/${this.profile.id}/experience`, {
+          method: 'POST',
+          body: data
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to add experience')
+        }
+
+        // API returns data already in camelCase format
+        const experience = response.data
+
+        // Add to local state
+        this.experience.push(experience)
+        this.lastSaved = new Date().toISOString()
+
+        return experience
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to add experience'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.5.2 Update existing experience entry
+    async updateExperience(id: number, data: Partial<Omit<Experience, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: Experience
+        }>(`/api/career-id/profile/${this.profile.id}/experience/${id}`, {
+          method: 'PATCH',
+          body: data
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to update experience')
+        }
+
+        // API returns data already in camelCase format
+        const updatedExperience = response.data
+
+        // Update in local state
+        const index = this.experience.findIndex(exp => exp.id === id)
+        if (index !== -1) {
+          this.experience[index] = updatedExperience
+        }
+        this.lastSaved = new Date().toISOString()
+
+        return updatedExperience
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to update experience'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    // 5.5.3 Delete experience entry
+    async deleteExperience(id: number) {
+      if (!this.profile?.id) {
+        throw new Error('No profile loaded')
+      }
+
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+        }>(`/api/career-id/profile/${this.profile.id}/experience/${id}`, {
+          method: 'DELETE'
+        })
+
+        if (!response.success) {
+          throw new Error('Failed to delete experience')
+        }
+
+        // Remove from local state
+        this.experience = this.experience.filter(exp => exp.id !== id)
+        this.lastSaved = new Date().toISOString()
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to delete experience'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    }
+  }
 })

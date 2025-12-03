@@ -9,7 +9,7 @@ CREATE TABLE career_id.certifications (
   profile_id TEXT NOT NULL REFERENCES career_id.profiles(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   issuer TEXT NOT NULL,
-  date DATE NOT NULL,
+  issue_date DATE NOT NULL,
   url TEXT,
   display_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -21,7 +21,7 @@ COMMENT ON TABLE career_id.certifications IS 'Professional certifications, licen
 COMMENT ON COLUMN career_id.certifications.profile_id IS 'Reference to parent profile (prefixed ID)';
 COMMENT ON COLUMN career_id.certifications.name IS 'Certification name (e.g., AWS Solutions Architect - Associate)';
 COMMENT ON COLUMN career_id.certifications.issuer IS 'Issuing organization (e.g., Amazon Web Services)';
-COMMENT ON COLUMN career_id.certifications.date IS 'Date obtained';
+COMMENT ON COLUMN career_id.certifications.issue_date IS 'Date obtained';
 COMMENT ON COLUMN career_id.certifications.url IS 'Certification verification URL';
 COMMENT ON COLUMN career_id.certifications.display_order IS 'Display order within profile (lower numbers appear first)';
 

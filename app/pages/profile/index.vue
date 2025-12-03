@@ -1,5 +1,17 @@
 <script setup lang="ts">
-const { isNotificationsSlideoverOpen } = useDashboard()
+const { isNotificationsSlideoverOpen: _isNotificationsSlideoverOpen } = useDashboard()
+
+const careerIDStore = useCareerIDStore()
+
+const profile = careerIDStore.profile
+
+onMounted(async () => {
+  if (!careerIDStore.isProfileLoaded) {
+    await careerIDStore.fetchProfile('prof_myf2i85se9xri4e4wgsxxim7')
+  } else {
+    console.log('Profile already loaded')
+  }
+})
 </script>
 
 <template>
@@ -9,14 +21,12 @@ const { isNotificationsSlideoverOpen } = useDashboard()
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-
-       
       </UDashboardNavbar>
     </template>
     <template #body>
       <div class="p-4">
         <p class="text-muted">
-          Profile content will be added here.
+          {{ careerIDStore.profile }}
         </p>
       </div>
     </template>

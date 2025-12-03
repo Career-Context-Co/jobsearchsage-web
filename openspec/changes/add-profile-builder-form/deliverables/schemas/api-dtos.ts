@@ -260,7 +260,7 @@ export interface CreateCertificationDTO {
   issuer: string;
   
   /** Date obtained (ISO 8601: YYYY-MM-DD) */
-  date: string;
+  issue_date: string;
   
   /** Certification verification URL */
   url?: string | null;
