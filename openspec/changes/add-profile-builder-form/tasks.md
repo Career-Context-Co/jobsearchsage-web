@@ -198,9 +198,10 @@
 
 - [x] 5.8 Create actions for Skills (bulk operations):
   - [x] 5.8.1 `addSkills(skills[])` - POST /api/career-id/profile/:profileId/skills (bulk add)
-  - [x] 5.8.2 `updateSkills(skills[])` - PATCH /api/career-id/profile/:profileId/skills (bulk update)
+  - [x] 5.8.2 `updateSkills(skills[])` - PATCH /api/career-id/profile/:profileId/skills (bulk update - supports updating name, category, proficiencyLevel, yearsExperience, displayOrder)
   - [x] 5.8.3 `deleteSkills(ids[])` - DELETE /api/career-id/profile/:profileId/skills (bulk delete)
   - [x] 5.8.4 `searchSkills(query)` - GET /api/reference/skills/search?q=query (for autocomplete, returns suggestions)
+  - **API Update**: Added `category` TEXT field to `profile_skills` table (migration 007), all endpoints (GET/POST/PATCH), and `ProfileSkill` type. This allows grouping skills into user-defined categories.
 
 - [x] 5.9 Create actions for Contact Info (one-to-one):
   - [x] 5.9.1 `createContactInfo(data)` - POST /api/career-id/profile/:profileId/contact
@@ -216,52 +217,99 @@
 ### 5.B Update Components to Match Real Data Model
 
 - [x] 5.11 Update `ContactSection.vue` to match real ContactInfo schema:
-  - [x] 5.11.1 Replace `linkedin` field with social links dropdown using `USelectMenu` component (https://ui4.nuxt.com/components/select-menu)
-    - [x] 5.11.1.1 Accept `socialPlatforms` prop from parent (fetched from `/api/reference/social-platforms`)
-    - [x] 5.11.1.2 Use `USelectMenu` with `value-key="id"` and `label-key="display_name"` to select platform
-    - [x] 5.11.1.3 Add URL input field for the selected social platform
-    - [x] 5.11.1.4 Emit social link add/update/delete events to parent (not part of ContactInfo save)
+  - [x] 5.11.1 Replace `linkedin` field with social links management using local state
+    - [x] 5.11.1.1 Accept `profileSocialLinks` prop from parent (passed from store)
+    - [x] 5.11.1.2 Use `USelectMenu` with platform options to add new social links
+    - [x] 5.11.1.3 Manage social links in local array - add/edit/delete locally without API calls
+    - [x] 5.11.1.4 On save, emit all social links with contactInfo in single event
   - [x] 5.11.2 Update interface to match `ContactInfo` type from `shared/types/careerId.ts`
-  - [x] 5.11.3 Convert component to use props + emits pattern (receive contactInfo prop, emit save/update events)
-  - [x] 5.11.4 Remove internal state management and console.log calls
+  - [x] 5.11.3 Convert component to use props + single save emit pattern: accept props as initial state, maintain local copies, emit everything on save button click
+  - [x] 5.11.4 Remove console.log calls
 
 - [x] 5.12 Update `ExperienceSection.vue` to match real Experience schema:
   - [x] 5.12.1 Add `employmentType` field (full_time, part_time, contract, freelance, internship)
   - [x] 5.12.2 Add `locationType` field (on_site, remote, hybrid)
   - [x] 5.12.3 Rename `company` to `employer` to match API
   - [x] 5.12.4 Update interface to match `Experience` type from `shared/types/careerId.ts`
-  - [x] 5.12.5 Convert component to use props + emits pattern (receive experience[] prop, emit add/update/delete events)
-  - [x] 5.12.6 Remove internal state management and console.log calls
+  - [x] 5.12.5 Convert component to use props + single save emit pattern: accept `experience` prop as initial state, maintain local array copy, emit all experiences on save button click
+  - [x] 5.12.6 Remove console.log calls
 
 - [x] 5.13 Update `EducationSection.vue` to match real Education schema:
   - [x] 5.13.1 Ensure all fields match `Education` type from `shared/types/careerId.ts`
-  - [x] 5.13.2 Convert component to use props + emits pattern (receive education[] prop, emit add/update/delete events)
-  - [x] 5.13.3 Remove internal state management and console.log calls
+  - [x] 5.13.2 Convert component to use props + single save emit pattern: accept `education` prop as initial state, maintain local array copy, emit all education items on save button click
+  - [x] 5.13.3 Remove console.log calls
 
 - [x] 5.14 Update `AdditionalSection.vue` to separate certifications and skills:
   - [x] 5.14.1 Update certifications to match `Certification` type (use `issueDate` instead of `date`)
   - [x] 5.14.2 Keep skills as categories with tags for quick entry (can be expanded with proficiency details later)
-  - [x] 5.14.4 Convert component to use props + emits pattern for both sub-sections
-  - [x] 5.14.5 Remove internal state management and console.log calls
+  - [x] 5.14.4 Convert component to use props + single save emit pattern: accept `certifications` prop as initial state, maintain local copies, emit all data on save button click
+  - [x] 5.14.5 Remove console.log calls
+  - **Implementation Note**: Skills are displayed as categories with UInputTags for quick entry. Component maintains local state and emits everything on save. Parent converts skill tags to `ProfileSkill` objects with: `name` (from tag), `category` (from category name), `proficiencyLevel='intermediate'`, `yearsExperience=2` as defaults. The `category` field was added to `profile_skills` table and all related endpoints/types.
 
 ### 5.C Parent Page Integration (Onboarding Flow)
 
-- [ ] 5.15 Update `app/pages/profile/onboarding.vue` to manage profile state:
-  - [ ] 5.15.1 Add careerIDStore instance and fetch/create profile on mount
-  - [ ] 5.15.2 Pass store data as props to each section component (contactInfo, experience[], education[], certifications[], profileSkills[], profileSocialLinks[])
-  - [ ] 5.15.3 Add event handlers for ContactSection: `@save-contact` calls `careerIDStore.createContactInfo()` or `careerIDStore.updateContactInfo()`
-  - [ ] 5.15.4 Add event handlers for ExperienceSection: `@add-experience`, `@update-experience`, `@delete-experience` call respective store actions
-  - [ ] 5.15.5 Add event handlers for EducationSection: `@add-education`, `@update-education`, `@delete-education` call respective store actions
-  - [ ] 5.15.6 Add event handlers for AdditionalSection certifications: `@add-certification`, `@update-certification`, `@delete-certification`
-  - [ ] 5.15.7 Add event handlers for AdditionalSection skills: `@add-skills`, `@update-skills`, `@delete-skills` (bulk operations)
-  - [ ] 5.15.8 Add event handlers for AdditionalSection social links: `@add-social-links`, `@update-social-link`, `@delete-social-link`
-  - [ ] 5.15.9 Fetch social platforms on mount using `careerIDStore.fetchSocialPlatforms()` and pass to AdditionalSection
+**Architecture Note**: All section components follow one-way data flow (props down, events up):
+- Each component accepts initial data via props
+- Components manage their own internal state for forms and editing
+- Components emit events for save/delete actions (parent handles API calls via store)
+- The parent page (`onboarding.vue`) passes store data as props and handles all API calls
+- No v-model or two-way binding between parent and children
+
+**Component Interfaces Quick Reference**:
+```typescript
+// ContactSection.vue
+Props: contactInfo (ContactInfo | null), profileSocialLinks (ProfileSocialLink[])
+Emits: save({ contactInfo, socialLinks }) - single event with all data
+
+// ExperienceSection.vue
+Props: experience (Experience[])
+Emits: save(experiences[]) - array of all experience items
+
+// EducationSection.vue
+Props: education (Education[])
+Emits: save(education[]) - array of all education items
+
+// AdditionalSection.vue
+Props: certifications (Certification[])
+Emits: save({ certifications, skills }) - single event with all data
+```
+
+- [x] 5.15 Update `app/pages/profile/onboarding.vue` to manage profile state:
+  - [x] 5.15.1 Add careerIDStore instance and fetch profile on mount
+  - [x] 5.15.2 Pass store data as props to each section component (one-way binding):
+    - [x] 5.15.2.1 ContactSection: `:contact-info="careerIDStore.contactInfo"`, `:profile-social-links="careerIDStore.profileSocialLinks"`
+    - [x] 5.15.2.2 ExperienceSection: `:experience="careerIDStore.experience"`
+    - [x] 5.15.2.3 EducationSection: `:education="careerIDStore.education"`
+    - [x] 5.15.2.4 AdditionalSection: `:certifications="careerIDStore.certifications"`
+  - [x] 5.15.3 Add save handler for ContactSection - single event with all data:
+    - [x] 5.15.3.1 `@save="handleSaveContact"` - receives `{ contactInfo, socialLinks }` payload
+    - [x] 5.15.3.2 Save contact info: call `careerIDStore.createContactInfo()` or `careerIDStore.updateContactInfo()` based on whether contactInfo.id exists
+    - [x] 5.15.3.3 Diff social links against store state:
+      - Links with no `id` → call `careerIDStore.addSocialLinks()` (new)
+      - Links with `id` and changed URL → call `careerIDStore.updateSocialLink()` (update)
+      - Links in store but not in payload → call `careerIDStore.deleteSocialLink()` (delete)
+  - [x] 5.15.4 Add save handler for ExperienceSection - single event with array:
+    - [x] 5.15.4.1 `@save="handleSaveExperience"` - receives array of all experience items
+    - [x] 5.15.4.2 Diff against store: add new (no id), update changed (has id), delete removed (in store but not in payload)
+  - [x] 5.15.5 Add save handler for EducationSection - single event with array:
+    - [x] 5.15.5.1 `@save="handleSaveEducation"` - receives array of all education items
+    - [x] 5.15.5.2 Diff against store: add new (no id), update changed (has id), delete removed (in store but not in payload)
+  - [x] 5.15.6 Add save handler for AdditionalSection - single event with all data:
+    - [x] 5.15.6.1 `@save="handleSaveAdditional"` - receives `{ certifications, skills }` payload
+    - [x] 5.15.6.2 Diff certifications against store: add new, update changed, delete removed
+    - [x] 5.15.6.3 Convert skill tags to ProfileSkill objects with defaults (proficiencyLevel='intermediate', yearsExperience=2, category field)
+    - [x] 5.15.6.4 Diff skills against store: add new, update changed, delete removed
 
 - [ ] 5.16 Implement autosave on step navigation:
-  - [ ] 5.16.1 Add autosave logic when user clicks "Continue" button (save current section data before advancing)
-  - [ ] 5.16.2 Add loading state during save operations
-  - [ ] 5.16.3 Display error messages if save fails
-  - [ ] 5.16.4 Update `lastSaved` timestamp display using `careerIDStore.lastSaved`
+  - [ ] 5.16.1 Add autosave logic when user clicks "Continue" button:
+    - [ ] 5.16.1.1 Components need to expose a `triggerSave()` method via template ref
+    - [ ] 5.16.1.2 On "Continue" click, call `componentRef.triggerSave()` for current step
+    - [ ] 5.16.1.3 This triggers the component's save event with all current data
+    - [ ] 5.16.1.4 Parent handler diffs and makes API calls as usual
+  - [ ] 5.16.2 Add loading state during save operations using `careerIDStore.isSaving`
+  - [ ] 5.16.3 Display error messages if save fails using `careerIDStore.error`
+  - [ ] 5.16.4 Update `lastSaved` timestamp display using `careerIDStore.lastSaved` after successful saves
+  - [ ] 5.16.5 Note: All changes are local until save button or "Continue" triggers the save event
 
 ### 5.D Parent Page Integration (Profile View/Edit)
 
@@ -269,9 +317,9 @@
   - [ ] 5.17.1 Fetch profile on mount using `careerIDStore.fetchProfile(profileId)` if not already loaded
   - [ ] 5.17.2 Create a profile view/edit UI that displays profile sections
   - [ ] 5.17.3 Allow inline editing of sections using the same section components from onboarding
-  - [ ] 5.17.4 Pass store data as props to section components for pre-filling
-  - [ ] 5.17.5 Add event handlers for all CRUD operations (same pattern as onboarding page)
-  - [ ] 5.17.6 Implement real-time save on edit (debounced autosave or explicit save button)
+  - [ ] 5.17.4 Pass store data as props to section components (one-way data flow)
+  - [ ] 5.17.5 Add single save handler per section (same pattern as onboarding page: child emits all data → parent diffs and calls store APIs)
+  - [ ] 5.17.6 Each section has a save button, no autosave (explicit saves only)
 
 ### 5.E UI/UX Enhancements
 

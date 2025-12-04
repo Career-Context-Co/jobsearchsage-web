@@ -1,10 +1,9 @@
 /**
  * PATCH /api/career-id/profile/:profileId/skills
  * 
- * Partially updates multiple existing skill associations (proficiency level, years experience, display order).
+ * Partially updates multiple existing skill associations (name, category, proficiency level, years experience, display order).
  * Accepts an array of objects with IDs to update (bulk operation for tag-like UI).
  * Only updates provided fields - true partial update semantics.
- * Cannot change the skill name itself - must delete and re-add for that.
  * 
  * Returns:
  * - 200: All items succeeded

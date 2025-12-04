@@ -3,15 +3,6 @@ const { isNotificationsSlideoverOpen: _isNotificationsSlideoverOpen } = useDashb
 
 const careerIDStore = useCareerIDStore()
 
-const profile = careerIDStore.profile
-
-onMounted(async () => {
-  if (!careerIDStore.isProfileLoaded) {
-    await careerIDStore.fetchProfile('prof_myf2i85se9xri4e4wgsxxim7')
-  } else {
-    console.log('Profile already loaded')
-  }
-})
 </script>
 
 <template>

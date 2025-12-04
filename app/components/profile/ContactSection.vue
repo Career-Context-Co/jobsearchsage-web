@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ContactInfo } from '~/shared/types/careerId'
+import type { ContactInfo, ProfileSocialLink } from '~/shared/types/careerId'
 
 interface SocialPlatform {
   id: number
@@ -7,13 +7,6 @@ interface SocialPlatform {
   display_name: string
   icon?: string
   base_url?: string
-}
-
-interface SocialLink {
-  platformId: number
-  url: string
-  platformName?: string
-  icon?: string
 }
 
 // Form data type (without server-managed fields)
@@ -32,63 +25,41 @@ interface ContactInfoFormData {
   willingToRelocate: boolean
 }
 
-// Props
-interface Props {
-  modelValue?: Partial<ContactInfoFormData>
-  socialPlatforms?: SocialPlatform[]
-}
+const props = defineProps<{
+  contactInfo: ContactInfo
+  profileSocialLinks: ProfileSocialLink[]
+}>()
 
-const props = withDefaults(defineProps<Props>(), {
-  modelValue: () => ({
-    firstName: '',
-    lastName: '',
-    jobTitle: '',
-    email: '',
-    phone: '',
-    websites: [],
-    summary: '',
-    city: '',
-    stateRegion: '',
-    country: '',
-    postalCode: '',
-    willingToRelocate: false
-  }),
-  socialPlatforms: () => [
-    // Default test data - parent will override this with real API data
-    { id: 1, platform_name: 'linkedin', display_name: 'LinkedIn', base_url: 'https://linkedin.com/in/', icon: 'i-lucide-linkedin' },
-    { id: 2, platform_name: 'github', display_name: 'GitHub', base_url: 'https://github.com/', icon: 'i-lucide-github' },
-    { id: 3, platform_name: 'twitter', display_name: 'Twitter/X', base_url: 'https://twitter.com/', icon: 'i-lucide-twitter' },
-    { id: 4, platform_name: 'instagram', display_name: 'Instagram', base_url: 'https://instagram.com/', icon: 'i-lucide-instagram' },
-    { id: 5, platform_name: 'facebook', display_name: 'Facebook', base_url: 'https://facebook.com/', icon: 'i-lucide-facebook' }
-  ]
-})
+console.log('props.contactInfo', props.contactInfo)
+console.log('props.profileSocialLinks', props.profileSocialLinks)
 
-// Emits
+const socialPlatforms = ref<SocialPlatform[]>([
+  { id: 1, platform_name: 'linkedin', display_name: 'LinkedIn', base_url: 'https://linkedin.com/in/', icon: 'i-lucide-linkedin' },
+  { id: 2, platform_name: 'github', display_name: 'GitHub', base_url: 'https://github.com/', icon: 'i-lucide-github' },
+  { id: 3, platform_name: 'twitter', display_name: 'Twitter/X', base_url: 'https://twitter.com/', icon: 'i-lucide-twitter' },
+  { id: 4, platform_name: 'instagram', display_name: 'Instagram', base_url: 'https://instagram.com/', icon: 'i-lucide-instagram' },
+  { id: 5, platform_name: 'facebook', display_name: 'Facebook', base_url: 'https://facebook.com/', icon: 'i-lucide-facebook' }
+])
+
+// Single emit on save - parent diffs against store to determine API calls
 const emit = defineEmits<{
-  'update:modelValue': [value: Partial<ContactInfoFormData>]
-  save: [data: ContactInfoFormData]
-  addSocialLink: [link: SocialLink]
-  updateSocialLink: [index: number, link: SocialLink]
-  deleteSocialLink: [index: number]
+  save: [data: { contactInfo: ContactInfoFormData, socialLinks: { id?: number, platformId: number, url: string }[] }]
 }>()
 
 // Local reactive copy for two-way binding
-const contactInfo = ref<Partial<ContactInfoFormData>>({ ...props.modelValue })
+const contactInfo = ref<ContactInfo>({ ...props.contactInfo })
 
-// Watch for external prop changes
-watch(() => props.modelValue, (newValue) => {
-  contactInfo.value = { ...newValue }
-}, { deep: true })
-
-// Emit updates when local value changes
-watch(contactInfo, (newValue) => {
-  emit('update:modelValue', newValue)
-}, { deep: true })
 
 // Social links management
-const socialLinks = ref<SocialLink[]>([])
-const selectedSocialPlatform = ref<SocialPlatform | null>(props.socialPlatforms?.[0] || null)
+const socialLinks = ref<ProfileSocialLink[]>([...props.profileSocialLinks || []])
+const showAddSocialForm = ref(socialLinks.value.length === 0) // Show form by default only if no links
+const selectedSocialPlatform = ref<SocialPlatform | undefined>(socialPlatforms.value?.[0])
 const socialLinkUrl = ref(selectedSocialPlatform.value?.base_url || '')
+
+// Helper to get platform details by platformId
+function getPlatformById(platformId: number) {
+  return socialPlatforms.value.find(p => p.id === platformId)
+}
 
 // Watch for platform changes and auto-update URL
 watch(selectedSocialPlatform, (newPlatform) => {
@@ -110,6 +81,7 @@ function removeWebsite(index: number) {
   }
 }
 
+// All changes are local until save
 function addSocialLink() {
   if (!selectedSocialPlatform.value || !socialLinkUrl.value.trim()) {
     return
@@ -120,33 +92,38 @@ function addSocialLink() {
     return
   }
   
-  const link: SocialLink = {
+  // Add to local state (no id = new link)
+  socialLinks.value.push({
     platformId: selectedSocialPlatform.value.id,
-    url: socialLinkUrl.value,
-    platformName: selectedSocialPlatform.value.display_name,
-    icon: selectedSocialPlatform.value.icon
-  }
+    url: socialLinkUrl.value
+  } as ProfileSocialLink)
   
-  socialLinks.value.push(link)
-  emit('addSocialLink', link)
-  
-  // Reset form - clear URL and reset platform to LinkedIn (first option)
-  selectedSocialPlatform.value = props.socialPlatforms?.[0] || null
+  // Reset form
+  selectedSocialPlatform.value = socialPlatforms.value?.[0]
   socialLinkUrl.value = selectedSocialPlatform.value?.base_url || ''
+  showAddSocialForm.value = false
 }
 
 function updateSocialLinkUrl(index: number, url: string) {
-  socialLinks.value[index].url = url
-  emit('updateSocialLink', index, socialLinks.value[index])
+  if (socialLinks.value[index]) {
+    socialLinks.value[index].url = url
+  }
 }
 
 function removeSocialLink(index: number) {
   socialLinks.value.splice(index, 1)
-  emit('deleteSocialLink', index)
 }
 
+// Emit everything on save - parent diffs against store
 function saveContactInfo() {
-  emit('save', contactInfo.value as ContactInfoFormData)
+  emit('save', {
+    contactInfo: contactInfo.value as ContactInfoFormData,
+    socialLinks: socialLinks.value.map((link: ProfileSocialLink) => ({
+      id: link.id,
+      platformId: link.platformId,
+      url: link.url
+    }))
+  })
 }
 </script>
 
@@ -220,8 +197,8 @@ function saveContactInfo() {
           <div v-for="(link, linkIndex) in socialLinks" :key="linkIndex" class="flex gap-2 items-start">
             <div class="flex items-center flex-1/2">
               <div class="flex items-center gap-2 min-w-[120px] text-sm font-medium text-foreground">
-                <UIcon v-if="link.icon" :name="link.icon" class="w-4 h-4 shrink-0" />
-                <span class="truncate">{{ link.platformName }}</span>
+                <UIcon v-if="getPlatformById(link.platformId)?.icon" :name="getPlatformById(link.platformId)!.icon!" class="w-4 h-4 shrink-0" />
+                <span class="truncate">{{ getPlatformById(link.platformId)?.display_name || link.platformNameCache }}</span>
               </div>
               <UInput 
                 class="flex-2"
@@ -243,39 +220,66 @@ function saveContactInfo() {
         </div>
         
         <!-- Add New Social Link Form -->
-        <div class="flex gap-2 items-start">
-          <div class="w-[200px]">
-            <USelectMenu
-              v-model="selectedSocialPlatform"
-              :items="socialPlatforms"
-              label-key="display_name"
-              placeholder="Select platform"
+        <div v-if="showAddSocialForm" class="space-y-2">
+          <div class="flex gap-2 items-start">
+            <div class="w-[200px]">
+              <USelectMenu
+                v-model="selectedSocialPlatform"
+                :items="socialPlatforms"
+                label-key="display_name"
+                placeholder="Select platform"
+                size="lg"
+              >
+                <template #leading>
+                  <UIcon name="i-lucide-share-2" class="w-4 h-4 text-muted" />
+                </template>
+              </USelectMenu>
+            </div>
+            
+            <UInput 
+              class="flex-2"
+              v-model="socialLinkUrl"
+              :placeholder="selectedSocialPlatform?.base_url ? `${selectedSocialPlatform.base_url}your-username` : 'Select a platform first'"
               size="lg"
             >
               <template #leading>
-                <UIcon name="i-lucide-share-2" class="w-4 h-4 text-muted" />
+                <UIcon name="i-lucide-link" class="w-4 h-4 text-muted" />
               </template>
-            </USelectMenu>
+            </UInput>
           </div>
-          
-          <UInput 
-            class="flex-2"
-            v-model="socialLinkUrl"
-            :placeholder="selectedSocialPlatform?.base_url ? `${selectedSocialPlatform.base_url}your-username` : 'Select a platform first'"
-            size="lg"
-          >
-            <template #leading>
-              <UIcon name="i-lucide-link" class="w-4 h-4 text-muted" />
-            </template>
-          </UInput>
+          <div class="flex gap-2">
+            <UButton
+              class="cursor-pointer" 
+              icon="i-lucide-check" 
+              color="primary" 
+              variant="solid" 
+              size="sm"
+              @click="addSocialLink"
+            >
+              Add
+            </UButton>
+            <UButton
+              class="cursor-pointer" 
+              icon="i-lucide-x" 
+              color="neutral" 
+              variant="ghost" 
+              size="sm"
+              @click="showAddSocialForm = false"
+            >
+              Cancel
+            </UButton>
+          </div>
         </div>
+        
+        <!-- Show "Add Social" button when form is hidden -->
         <UButton
+          v-if="!showAddSocialForm"
           class="cursor-pointer" 
           icon="i-lucide-plus" 
           color="primary" 
           variant="ghost" 
           size="sm"
-          @click="addSocialLink"
+          @click="showAddSocialForm = true"
         >
           Add Social
         </UButton>
