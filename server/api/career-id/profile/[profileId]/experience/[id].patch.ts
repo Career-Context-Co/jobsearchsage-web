@@ -9,7 +9,7 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { handleDatabaseError, createValidationError, createNotFoundError } from '@@/server/utils/error-handler'
-import { isRequired, requiredFieldError, validateDateRange } from '@@/server/utils/validation'
+import { isRequired, requiredFieldError, validateDateRange, convertMonthYearToDate } from '@@/server/utils/validation'
 import { transformExperience } from '@@/server/utils/career-id-transformer'
 
 const ROUTE_PATH = '/api/career-id/profile/:profileId/experience/:id'
@@ -66,8 +66,8 @@ export default eventHandler(async (event) => {
   if (body.location !== undefined) updateData.location = body.location
   if (body.locationType !== undefined) updateData.location_type = body.locationType
   if (body.url !== undefined) updateData.url = body.url
-  if (body.startDate !== undefined) updateData.start_date = body.startDate
-  if (body.endDate !== undefined) updateData.end_date = body.endDate
+  if (body.startDate !== undefined) updateData.start_date = convertMonthYearToDate(body.startDate)
+  if (body.endDate !== undefined) updateData.end_date = convertMonthYearToDate(body.endDate)
   if (body.currentPosition !== undefined) updateData.current_position = body.currentPosition
   if (body.summary !== undefined) updateData.summary = body.summary
   if (body.highlights !== undefined) updateData.highlights = body.highlights

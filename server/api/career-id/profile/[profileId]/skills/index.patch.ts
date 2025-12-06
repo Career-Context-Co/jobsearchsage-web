@@ -1,7 +1,7 @@
 /**
  * PATCH /api/career-id/profile/:profileId/skills
  * 
- * Partially updates multiple existing skill associations (name, category, proficiency level, years experience, display order).
+ * Partially updates multiple existing skill associations (name, group, proficiency level, years experience, display order).
  * Accepts an array of objects with IDs to update (bulk operation for tag-like UI).
  * Only updates provided fields - true partial update semantics.
  * 
@@ -117,7 +117,7 @@ export default eventHandler(async (event) => {
       const updateData: Record<string, any> = {}
       
       if (skill.name !== undefined) updateData.name = skill.name
-      if (skill.category !== undefined) updateData.category = skill.category
+      if (skill.group !== undefined) updateData.group = skill.group
       if (skill.proficiencyLevel !== undefined) updateData.proficiency_level = skill.proficiencyLevel
       if (skill.yearsExperience !== undefined) updateData.years_experience = skill.yearsExperience
       if (skill.displayOrder !== undefined) updateData.display_order = skill.displayOrder

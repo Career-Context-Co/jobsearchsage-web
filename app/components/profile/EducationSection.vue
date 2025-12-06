@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { Education } from '~/shared/types/careerId'
 import { vMaska } from 'maska/vue'
+import { watchDeep } from '@vueuse/core'
 
-// Form data type (without server-managed fields)
+// Form data type for local state (includes UI state like isEditing)
 interface EducationFormData {
+  id?: number
   degreeType: string
   areaOfStudy: string
   institution: string
@@ -17,45 +19,122 @@ interface EducationFormData {
   isEditing: boolean
 }
 
-// Props
-interface Props {
-  modelValue?: EducationFormData[]
+/**
+ * Convert date from YYYY-MM-DD to MM/YYYY format for UI display
+ */
+function formatDateForUI(dateString: string | null | undefined): string {
+  if (!dateString) return ''
+  
+  // If already in MM/YYYY format, return as-is
+  if (/^\d{2}\/\d{4}$/.test(dateString)) return dateString
+  
+  // Parse YYYY-MM-DD and convert to MM/YYYY
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return dateString
+  
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  
+  return `${month}/${year}`
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  modelValue: () => [{
-    degreeType: '',
-    areaOfStudy: '',
-    institution: '',
-    startDate: '',
-    endDate: '',
-    completed: true,
-    url: '',
-    creditHours: undefined,
-    coursework: [],
-    minors: [],
-    isEditing: true
-  }]
-})
-
-// Emits
-const emit = defineEmits<{
-  'update:modelValue': [value: EducationFormData[]]
-  save: [index: number, data: EducationFormData]
-  delete: [index: number]
+// Props - receive Education array from parent (store)
+const props = defineProps<{
+  education: Education[]
 }>()
 
-// Local reactive copy for two-way binding
-const educationList = ref<EducationFormData[]>([...props.modelValue])
+// Emit on save - supports both single education and bulk save
+const emit = defineEmits<{
+  save: [education: Omit<EducationFormData, 'isEditing'>] // Single education save
+  saveAll: [education: Omit<EducationFormData, 'isEditing'>[]] // Bulk save all
+}>()
 
-// Watch for external prop changes
-watch(() => props.modelValue, (newValue) => {
-  educationList.value = [...newValue]
-}, { deep: true })
+// Track which educations have been edited (by index, since new items don't have IDs yet)
+const editedEducations = ref<Set<number>>(new Set())
 
-// Emit updates when local value changes
-watch(educationList, (newValue) => {
-  emit('update:modelValue', newValue)
+// Local reactive copy for editing (convert Education to EducationFormData with isEditing state)
+const educationList = ref<EducationFormData[]>(
+  props.education.length > 0 
+    ? props.education.map(edu => ({
+        id: edu.id,
+        degreeType: edu.degreeType,
+        areaOfStudy: edu.areaOfStudy,
+        institution: edu.institution,
+        startDate: formatDateForUI(edu.startDate),
+        endDate: formatDateForUI(edu.endDate),
+        completed: edu.completed,
+        url: edu.url,
+        creditHours: edu.creditHours,
+        coursework: edu.coursework || [],
+        minors: edu.minors || [],
+        isEditing: false
+      }))
+    : [{
+        degreeType: '',
+        areaOfStudy: '',
+        institution: '',
+        startDate: '',
+        endDate: '',
+        completed: true,
+        url: '',
+        creditHours: undefined,
+        coursework: [],
+        minors: [],
+        isEditing: true
+      }]
+)
+
+// Watch each education object for deep changes
+watchDeep(educationList, () => {
+  // Mark all educations as potentially edited when any field changes
+  // We'll verify actual changes when saving
+  educationList.value.forEach((_, index) => {
+    editedEducations.value.add(index)
+  })
+})
+
+// Mark education as edited when any field changes
+function markAsEdited(index: number) {
+  editedEducations.value.add(index)
+}
+
+// Watch for external prop changes (when store updates)
+// Preserve isEditing state for items that are currently being edited
+watch(() => props.education, (newValue) => {
+  // Create a map of current isEditing states by id
+  const editingStates = new Map(
+    educationList.value.map(edu => [edu.id, edu.isEditing])
+  )
+  
+  educationList.value = newValue.length > 0
+    ? newValue.map(edu => ({
+        id: edu.id,
+        degreeType: edu.degreeType,
+        areaOfStudy: edu.areaOfStudy,
+        institution: edu.institution,
+        startDate: formatDateForUI(edu.startDate),
+        endDate: formatDateForUI(edu.endDate),
+        completed: edu.completed,
+        url: edu.url,
+        creditHours: edu.creditHours,
+        coursework: edu.coursework || [],
+        minors: edu.minors || [],
+        // Preserve isEditing state if this item was already being edited
+        isEditing: editingStates.get(edu.id) ?? false
+      }))
+    : [{
+        degreeType: '',
+        areaOfStudy: '',
+        institution: '',
+        startDate: '',
+        endDate: '',
+        completed: true,
+        url: '',
+        creditHours: undefined,
+        coursework: [],
+        minors: [],
+        isEditing: true
+      }]
 }, { deep: true })
 
 function createBlankEducation(): EducationFormData {
@@ -74,15 +153,54 @@ function createBlankEducation(): EducationFormData {
   }
 }
 
+// Save individual education - closes edit mode and emits just that education
 function saveEducation(index: number) {
   const education = educationList.value[index]
   if (!education) return
   
+  // Only save if this education was actually edited or is new (no id)
+  if (!education.id || editedEducations.value.has(index)) {
+    // Clean empty strings from arrays before emitting
+    const cleanedEducation = cleanEducationArrays(education)
+    const { isEditing, ...educationToSave } = cleanedEducation
+    emit('save', educationToSave)
+    
+    // Update local state with cleaned arrays
+    education.coursework = cleanedEducation.coursework
+    education.minors = cleanedEducation.minors
+    
+    // Clear the edited flag after saving
+    editedEducations.value.delete(index)
+  }
+  
   // Close editing mode for this education
   education.isEditing = false
+}
+
+// Emit all educations on save - only sends edited ones
+function saveAllEducations() {
+  // Only save educations that were edited or are new (no id)
+  const educationsToSave = educationList.value
+    .map((edu, index) => ({ edu, index }))
+    .filter(({ edu, index }) => !edu.id || editedEducations.value.has(index))
+    .map(({ edu, index }) => {
+      const cleaned = cleanEducationArrays(edu)
+      const { isEditing, ...rest } = cleaned
+      
+      // Update local state with cleaned arrays
+      edu.coursework = cleaned.coursework
+      edu.minors = cleaned.minors
+      
+      return rest
+    })
   
-  // Emit save event to parent
-  emit('save', index, education)
+  // Only emit if there are actually changes to save
+  if (educationsToSave.length > 0) {
+    emit('saveAll', educationsToSave)
+    
+    // Clear all edited flags after saving
+    editedEducations.value.clear()
+  }
 }
 
 function editEducation(index: number) {
@@ -90,29 +208,52 @@ function editEducation(index: number) {
   if (!education) return
   
   education.isEditing = true
+  // Don't mark as edited just by opening - only when they actually change something
 }
 
 function cancelEdit(index: number) {
   const education = educationList.value[index]
   if (!education) return
   
-  // If this is an empty unsaved education, remove it
-  if (!education.degreeType && !education.areaOfStudy && !education.institution) {
+  // If this is a new unsaved education (no id), remove it
+  if (!education.id) {
     educationList.value.splice(index, 1)
-    emit('delete', index)
-  } else {
-    education.isEditing = false
+    editedEducations.value.delete(index)
+    return
   }
+  
+  // If it has an id, reset it back to original values from props
+  const original = props.education.find(edu => edu.id === education.id)
+  if (original) {
+    // Reset all fields to original values
+    education.degreeType = original.degreeType
+    education.areaOfStudy = original.areaOfStudy
+    education.institution = original.institution
+    education.startDate = formatDateForUI(original.startDate)
+    education.endDate = formatDateForUI(original.endDate)
+    education.completed = original.completed
+    education.url = original.url
+    education.creditHours = original.creditHours
+    education.coursework = [...(original.coursework || [])]
+    education.minors = [...(original.minors || [])]
+  }
+  
+  // Clear edited flag and close edit mode
+  editedEducations.value.delete(index)
+  education.isEditing = false
 }
 
 function deleteEducation(index: number) {
+  // Remove from local state - parent will diff and call delete API if it has an id
   educationList.value.splice(index, 1)
-  emit('delete', index)
 }
 
 function addNewEducation() {
   // Add a new blank education in edit mode
+  const newIndex = educationList.value.length
   educationList.value.push(createBlankEducation())
+  // New educations are automatically considered "edited" since they need to be saved
+  editedEducations.value.add(newIndex)
 }
 
 // Coursework management
@@ -120,12 +261,14 @@ function addCoursework(educationIndex: number) {
   const education = educationList.value[educationIndex]
   if (!education) return
   education.coursework.push('')
+  // watchDeep will automatically mark as edited
 }
 
 function removeCoursework(educationIndex: number, courseworkIndex: number) {
   const education = educationList.value[educationIndex]
   if (!education) return
   education.coursework.splice(courseworkIndex, 1)
+  // watchDeep will automatically mark as edited
 }
 
 // Minor management
@@ -133,12 +276,33 @@ function addMinor(educationIndex: number) {
   const education = educationList.value[educationIndex]
   if (!education) return
   education.minors.push('')
+  // watchDeep will automatically mark as edited
 }
 
 function removeMinor(educationIndex: number, minorIndex: number) {
   const education = educationList.value[educationIndex]
   if (!education) return
   education.minors.splice(minorIndex, 1)
+  // watchDeep will automatically mark as edited
+}
+
+/**
+ * Remove empty strings from an array
+ */
+function cleanEmptyStrings(arr: string[] | undefined | null): string[] {
+  if (!arr) return []
+  return arr.filter(item => item && item.trim() !== '')
+}
+
+/**
+ * Clean empty entries from education arrays (coursework, minors)
+ */
+function cleanEducationArrays(education: EducationFormData): Omit<EducationFormData, 'isEditing'> {
+  return {
+    ...education,
+    coursework: cleanEmptyStrings(education.coursework),
+    minors: cleanEmptyStrings(education.minors)
+  }
 }
 </script>
 
@@ -413,6 +577,12 @@ function removeMinor(educationIndex: number, minorIndex: number) {
       </UButton>
     </div>
 
+    <!-- Single Save Button for all educations -->
+    <div class="flex gap-2 pt-4">
+      <UButton class="cursor-pointer" size="xl" @click="saveAllEducations">
+        Save Education
+      </UButton>
+    </div>
   </div>
 </template>
 

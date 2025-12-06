@@ -125,6 +125,20 @@ function saveContactInfo() {
     }))
   })
 }
+
+// Reset all changes back to original props values
+function cancelEdits() {
+  // Reset contact info to original props
+  contactInfo.value = { ...props.contactInfo }
+  
+  // Reset social links to original props
+  socialLinks.value = [...props.profileSocialLinks || []]
+  
+  // Reset add social form state
+  showAddSocialForm.value = socialLinks.value.length === 0
+  selectedSocialPlatform.value = socialPlatforms.value?.[0]
+  socialLinkUrl.value = selectedSocialPlatform.value?.base_url || ''
+}
 </script>
 
 <template>
@@ -382,10 +396,19 @@ function saveContactInfo() {
         <USwitch v-model="contactInfo.willingToRelocate" />
       </UFormField>
 
-      <!-- Action Button -->
+      <!-- Action Buttons -->
       <div class="flex gap-2 pt-4">
         <UButton class="cursor-pointer" size="xl" @click="saveContactInfo">
           Save Contact Information
+        </UButton>
+        <UButton 
+          class="cursor-pointer" 
+          size="xl" 
+          variant="outline" 
+          color="gray"
+          @click="cancelEdits"
+        >
+          Cancel Edits
         </UButton>
       </div>
     </UForm>

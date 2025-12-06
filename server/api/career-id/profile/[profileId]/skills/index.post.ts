@@ -114,7 +114,7 @@ export default eventHandler(async (event) => {
     profile_id: profileId,
     skill_id: null, // Will be matched later
     name: skill.name.trim(),
-    category: skill.category || null,
+    group: skill.group || null,
     proficiency_level: skill.proficiencyLevel || null,
     years_experience: skill.yearsExperience || null,
     display_order: skill.displayOrder ?? index

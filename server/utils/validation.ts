@@ -61,15 +61,56 @@ export function isValidUrl(url: string): boolean {
 }
 
 /**
- * Validate that end date is after start date
+ * Convert MM/YYYY format to YYYY-MM-DD format (first day of month)
  * 
- * @param startDate - Start date (ISO 8601 string or Date)
- * @param endDate - End date (ISO 8601 string or Date)
+ * @param dateString - Date in MM/YYYY format (e.g., "05/2025")
+ * @returns Date in YYYY-MM-DD format (e.g., "2025-05-01"), or null if invalid
+ */
+export function convertMonthYearToDate(dateString: string | undefined | null): string | null {
+  if (!dateString) return null
+  
+  // Check if it's already in YYYY-MM-DD format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return dateString
+  }
+  
+  // Parse MM/YYYY format
+  const match = dateString.match(/^(\d{2})\/(\d{4})$/)
+  if (!match) return null
+  
+  const [, month, year] = match
+  const monthNum = parseInt(month, 10)
+  const yearNum = parseInt(year, 10)
+  
+  // Validate month (1-12)
+  if (monthNum < 1 || monthNum > 12) return null
+  
+  // Validate year (reasonable range)
+  if (yearNum < 1900 || yearNum > 2100) return null
+  
+  // Return YYYY-MM-01 format (first day of the month)
+  return `${year}-${month}-01`
+}
+
+/**
+ * Validate that end date is after start date
+ * Handles both MM/YYYY and YYYY-MM-DD formats
+ * 
+ * @param startDate - Start date (MM/YYYY or YYYY-MM-DD string)
+ * @param endDate - End date (MM/YYYY or YYYY-MM-DD string)
  * @returns true if valid range, false otherwise
  */
 export function isValidDateRange(startDate: string | Date, endDate: string | Date): boolean {
-  const start = new Date(startDate)
-  const end = new Date(endDate)
+  // Convert dates if they're in MM/YYYY format
+  let startStr = typeof startDate === 'string' ? startDate : startDate.toISOString()
+  let endStr = typeof endDate === 'string' ? endDate : endDate.toISOString()
+  
+  // Convert MM/YYYY to YYYY-MM-DD for comparison
+  const convertedStart = convertMonthYearToDate(startStr)
+  const convertedEnd = convertMonthYearToDate(endStr)
+  
+  const start = new Date(convertedStart || startStr)
+  const end = new Date(convertedEnd || endStr)
   
   // Check for invalid dates
   if (isNaN(start.getTime()) || isNaN(end.getTime())) {

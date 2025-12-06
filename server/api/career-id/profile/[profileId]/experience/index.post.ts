@@ -8,7 +8,7 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { handleDatabaseError, createValidationError } from '@@/server/utils/error-handler'
-import { isRequired, requiredFieldError, validateDateRange } from '@@/server/utils/validation'
+import { isRequired, requiredFieldError, validateDateRange, convertMonthYearToDate } from '@@/server/utils/validation'
 import { transformExperience } from '@@/server/utils/career-id-transformer'
 
 const ROUTE_PATH = '/api/career-id/profile/:profileId/experience'
@@ -66,8 +66,8 @@ export default eventHandler(async (event) => {
       location: body.location || null,
       location_type: body.locationType || null,
       url: body.url || null,
-      start_date: body.startDate,
-      end_date: body.endDate || null,
+      start_date: convertMonthYearToDate(body.startDate),
+      end_date: convertMonthYearToDate(body.endDate),
       current_position: body.currentPosition || false,
       summary: body.summary || null,
       highlights: body.highlights || [],

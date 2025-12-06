@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { StepperItem } from '@nuxt/ui'
-import { ref, useTemplateRef, onMounted } from 'vue'
+import { ref, useTemplateRef, onMounted, computed } from 'vue'
 import { useCareerIDStore } from '~/stores/careerIDStore'
 
 const stepper = useTemplateRef('stepper')
@@ -68,85 +68,180 @@ async function handleSaveContact(payload: { contactInfo: any, socialLinks: { id?
       }
     }
     
-    // Find links to delete (in store but not in payload)
-    for (const existing of existingLinks) {
-      if (!newIds.has(existing.id)) {
-        await careerIDStore.deleteSocialLink(existing.id)
-      }
-    }
+    // Note: Delete is handled separately via explicit delete handler, never during save
     
   } catch (error) {
     console.error('Failed to save contact section:', error)
   }
 }
 
-// 5.15.4 Event handlers for ExperienceSection
-async function handleSaveExperience(index: number, data: any) {
+// 5.15.4 Event handler for ExperienceSection - single experience save (POST or PATCH)
+async function handleSaveExperience(experience: any) {
   try {
-    const experience = careerIDStore.experience[index]
-    if (experience?.id) {
-      // Update existing experience
-      await careerIDStore.updateExperience(experience.id, data)
+    if (experience.id) {
+      // Update existing experience (PATCH)
+      await careerIDStore.updateExperience(experience.id, experience)
     } else {
-      // Add new experience
-      await careerIDStore.addExperience(data)
+      // Add new experience (POST)
+      await careerIDStore.addExperience(experience)
     }
   } catch (error) {
     console.error('Failed to save experience:', error)
   }
 }
 
-async function handleDeleteExperience(index: number) {
+// Bulk save handler - saves all experiences
+// DELETE is handled separately via explicit delete handler, never during save
+async function handleSaveAllExperiences(experiences: any[]) {
   try {
-    const experience = careerIDStore.experience[index]
-    if (experience?.id) {
-      await careerIDStore.deleteExperience(experience.id)
+    // Just POST for new items (no id) and PATCH for existing items (has id)
+    // No delete logic - delete only happens when user explicitly clicks delete button
+    
+    for (const exp of experiences) {
+      if (exp.id) {
+        // Update existing experience
+        await careerIDStore.updateExperience(exp.id, exp)
+      } else {
+        // Add new experience
+        await careerIDStore.addExperience(exp)
+      }
     }
+    
   } catch (error) {
-    console.error('Failed to delete experience:', error)
+    console.error('Failed to save experience section:', error)
   }
 }
 
-// 5.15.5 Event handlers for EducationSection
-async function handleSaveEducation(index: number, data: any) {
+// 5.15.5 Event handler for EducationSection - single education save (POST or PATCH)
+async function handleSaveEducation(education: any) {
   try {
-    const education = careerIDStore.education[index]
-    if (education?.id) {
-      // Update existing education
-      await careerIDStore.updateEducation(education.id, data)
+    if (education.id) {
+      // Update existing education (PATCH)
+      await careerIDStore.updateEducation(education.id, education)
     } else {
-      // Add new education
-      await careerIDStore.addEducation(data)
+      // Add new education (POST)
+      await careerIDStore.addEducation(education)
     }
   } catch (error) {
     console.error('Failed to save education:', error)
   }
 }
 
-async function handleDeleteEducation(index: number) {
+// Bulk save handler - only saves edited/new items (child filters for us)
+// DELETE is handled separately via explicit delete handler, never during save
+async function handleSaveAllEducations(educations: any[]) {
   try {
-    const education = careerIDStore.education[index]
-    if (education?.id) {
-      await careerIDStore.deleteEducation(education.id)
+    // Child component only sends edited or new educations
+    // Just POST for new items (no id) and PATCH for existing items (has id)
+    
+    for (const edu of educations) {
+      if (edu.id) {
+        // Update existing education
+        await careerIDStore.updateEducation(edu.id, edu)
+      } else {
+        // Add new education
+        await careerIDStore.addEducation(edu)
+      }
     }
+    
   } catch (error) {
-    console.error('Failed to delete education:', error)
+    console.error('Failed to save education section:', error)
   }
 }
 
-// 5.15.6 Event handlers for AdditionalSection certifications
-async function handleSaveCertification(index: number, data: any) {
+// 5.15.6 Event handlers for AdditionalSection - single certification save
+async function handleSaveCertification(data: any) {
   try {
-    const certification = careerIDStore.certifications[index]
-    if (certification?.id) {
-      // Update existing certification
-      await careerIDStore.updateCertification(certification.id, data)
+    if (data.id) {
+      // Update existing certification (PATCH)
+      await careerIDStore.updateCertification(data.id, data)
     } else {
-      // Add new certification
+      // Add new certification (POST)
       await careerIDStore.addCertification(data)
     }
   } catch (error) {
     console.error('Failed to save certification:', error)
+  }
+}
+
+// Bulk save handler for all additional information (certifications and skills)
+async function handleSaveAllAdditional(payload: { certifications: any[], skillGroups: any[] }) {
+  try {
+    // 1. Save certifications - POST for new, PATCH for existing
+    for (const cert of payload.certifications) {
+      if (cert.id) {
+        await careerIDStore.updateCertification(cert.id, cert)
+      } else {
+        await careerIDStore.addCertification(cert)
+      }
+    }
+    
+    // 2. Save skills - handle add/update/delete for each group
+    for (const group of payload.skillGroups) {
+      const originalGroupValue = group.originalGroup
+      
+      // Get existing skills in the ORIGINAL group (before any name change)
+      const existingSkillsInGroup = careerIDStore.profileSkills.filter(
+        skill => skill.group === originalGroupValue
+      )
+      
+      const existingIds = new Set(existingSkillsInGroup.map(s => s.id))
+      const currentIds = new Set(group.skills.filter((s: any) => s.id).map((s: any) => s.id))
+      
+      // 1. Handle group name change - update all existing skills in this group
+      if (group.group !== originalGroupValue) {
+        const skillsToUpdateGroup = existingSkillsInGroup.map(skill => ({
+          id: skill.id,
+          group: group.group
+        }))
+        
+        if (skillsToUpdateGroup.length > 0) {
+          await careerIDStore.updateSkills(skillsToUpdateGroup)
+        }
+      }
+      
+      // 2. Find skills to add (no id)
+      const skillsToAdd = group.skills
+        .filter((skill: any) => !skill.id)
+        .map((skill: any) => ({
+          name: skill.name,
+          group: group.group,
+          proficiencyLevel: 'intermediate' as const,
+          yearsExperience: 2,
+          displayOrder: 0
+        }))
+      
+      if (skillsToAdd.length > 0) {
+        await careerIDStore.addSkills(skillsToAdd)
+      }
+      
+      // 3. Find skills to update (has id, name might have changed)
+      const skillsToUpdate = group.skills
+        .filter((skill: any) => skill.id)
+        .map((skill: any) => {
+          const existing = existingSkillsInGroup.find(s => s.id === skill.id)
+          if (existing && existing.name !== skill.name) {
+            return { id: skill.id, name: skill.name, group: group.group }
+          }
+          return null
+        })
+        .filter(Boolean)
+      
+      if (skillsToUpdate.length > 0) {
+        await careerIDStore.updateSkills(skillsToUpdate)
+      }
+      
+      // 4. Find skills to delete (in store but not in current group)
+      const skillsToDelete = existingSkillsInGroup
+        .filter(existing => !currentIds.has(existing.id))
+        .map(s => s.id)
+      
+      if (skillsToDelete.length > 0) {
+        await careerIDStore.deleteSkills(skillsToDelete)
+      }
+    }
+  } catch (error) {
+    console.error('Failed to save additional information:', error)
   }
 }
 
@@ -162,47 +257,92 @@ async function handleDeleteCertification(index: number) {
 }
 
 // 5.15.7 Event handlers for AdditionalSection skills
-async function handleSaveSkillCategory(index: number, categoryData: any) {
+async function handleSaveSkillGroup(index: number, groupData: any) {
   try {
-    // Convert category.skills array to ProfileSkill objects
-    const skills = categoryData.skills.map((skillName: string) => ({
-      name: skillName,
-      category: categoryData.name,
-      proficiencyLevel: 'intermediate' as const,
-      yearsExperience: 2,
-      displayOrder: 0
-    }))
-
-    // Get existing skills in this category
-    const existingSkillsInCategory = careerIDStore.profileSkills.filter(
-      skill => skill.category === categoryData.name
+    const originalGroupName = groupData.originalGroup
+    
+    // Get existing skills in the ORIGINAL group (before any name change)
+    const existingSkillsInGroup = careerIDStore.profileSkills.filter(
+      skill => skill.group === originalGroupName
     )
-
-    // Find skills that need to be added (not in existing skills)
-    const newSkills = skills.filter(
-      (skill: { name: string; category: string; proficiencyLevel: string; yearsExperience: number; displayOrder: number }) => 
-        !existingSkillsInCategory.some(existing => existing.name === skill.name)
-    )
-
-    if (newSkills.length > 0) {
-      await careerIDStore.addSkills(newSkills)
+    
+    const existingIds = new Set(existingSkillsInGroup.map(s => s.id))
+    const currentIds = new Set(groupData.skills.filter((s: any) => s.id).map((s: any) => s.id))
+    
+    // 1. Handle group name change - update all existing skills in this group
+    if (groupData.group !== originalGroupName) {
+      const skillsToUpdateGroup = existingSkillsInGroup.map(skill => ({
+        id: skill.id,
+        group: groupData.group
+      }))
+      
+      if (skillsToUpdateGroup.length > 0) {
+        await careerIDStore.updateSkills(skillsToUpdateGroup)
+      }
+    }
+    
+    // 2. Find skills to add (no id)
+    const skillsToAdd = groupData.skills
+      .filter((skill: any) => !skill.id)
+      .map((skill: any) => ({
+        name: skill.name,
+        group: groupData.group,
+        proficiencyLevel: 'intermediate' as const,
+        yearsExperience: 2,
+        displayOrder: 0
+      }))
+    
+    if (skillsToAdd.length > 0) {
+      await careerIDStore.addSkills(skillsToAdd)
+    }
+    
+    // 3. Find skills to update (has id, name might have changed)
+    const skillsToUpdate = groupData.skills
+      .filter((skill: any) => skill.id)
+      .map((skill: any) => {
+        const existing = existingSkillsInGroup.find(s => s.id === skill.id)
+        if (existing && existing.name !== skill.name) {
+          return { id: skill.id, name: skill.name, group: groupData.group }
+        }
+        return null
+      })
+      .filter(Boolean)
+    
+    if (skillsToUpdate.length > 0) {
+      await careerIDStore.updateSkills(skillsToUpdate)
+    }
+    
+    // 4. Find skills to delete (in store but not in current group)
+    const skillsToDelete = existingSkillsInGroup
+      .filter(existing => !currentIds.has(existing.id))
+      .map(s => s.id)
+    
+    if (skillsToDelete.length > 0) {
+      await careerIDStore.deleteSkills(skillsToDelete)
     }
   } catch (error) {
-    console.error('Failed to save skill category:', error)
+    console.error('Failed to save skill group:', error)
   }
 }
 
-async function handleDeleteSkillCategory(index: number) {
+async function handleDeleteSkillGroup(groupValue: string | null) {
   try {
-    // Component will pass the category data in the event
-    // For now, we can use the index to find skills
-    // In practice, the component should emit the category name or skills to delete
-    const skill = careerIDStore.profileSkills[index]
-    if (!skill) return
-
-    await careerIDStore.deleteSkills([skill.id])
+    // Get all skills in this group
+    const skillsInGroup = careerIDStore.profileSkills.filter(
+      skill => skill.group === groupValue
+    )
+    
+    if (skillsInGroup.length === 0) return
+    
+    // Move all skills to null group
+    const skillsToUpdate = skillsInGroup.map(skill => ({
+      id: skill.id,
+      group: null
+    }))
+    
+    await careerIDStore.updateSkills(skillsToUpdate)
   } catch (error) {
-    console.error('Failed to delete skill category:', error)
+    console.error('Failed to delete skill group:', error)
   }
 }
 
@@ -261,7 +401,7 @@ onMounted(async () => {
             v-show="activeStep === 'experience'"
             :experience="careerIDStore.experience"
             @save="handleSaveExperience"
-            @delete="handleDeleteExperience"
+            @save-all="handleSaveAllExperiences"
           />
           
           <!-- EducationSection - props down, events up -->
@@ -269,15 +409,18 @@ onMounted(async () => {
             v-show="activeStep === 'education'"
             :education="careerIDStore.education"
             @save="handleSaveEducation"
-            @delete="handleDeleteEducation"
+            @save-all="handleSaveAllEducations"
           />
           
           <!-- AdditionalSection - props down, events up -->
           <ProfileAdditionalSection 
             v-show="activeStep === 'additional'"
-            @save-skill-category="handleSaveSkillCategory"
-            @delete-skill-category="handleDeleteSkillCategory"
+            :skill-groups="careerIDStore.profileSkills"
+            :certifications="careerIDStore.certifications"
+            @save-skill-group="handleSaveSkillGroup"
+            @delete-skill-group="handleDeleteSkillGroup"
             @save-certification="handleSaveCertification"
+            @save-all="handleSaveAllAdditional"
             @delete-certification="handleDeleteCertification"
           />   
         </div>

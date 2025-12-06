@@ -80,7 +80,7 @@ export interface ProfileSkill {
   profileId: string;
   skillId: number | null;
   name: string;
-  category?: string | null;
+  group?: string | null;
   proficiencyLevel: 'beginner' | 'intermediate' | 'advanced' | 'expert';
   yearsExperience?: number | null;
   displayOrder: number;

@@ -17,7 +17,7 @@ const careerIDStore = useCareerIDStore()
     <template #body>
       <div class="p-4">
         <p class="text-muted">
-          {{ careerIDStore.profile }}
+          {{ careerIDStore.profileSkills }}
         </p>
       </div>
     </template>

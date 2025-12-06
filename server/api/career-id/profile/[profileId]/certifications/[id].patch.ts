@@ -9,7 +9,7 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { handleDatabaseError, createValidationError, createNotFoundError } from '@@/server/utils/error-handler'
-import { isRequired, requiredFieldError, validateUrl } from '@@/server/utils/validation'
+import { isRequired, requiredFieldError, validateUrl, convertMonthYearToDate } from '@@/server/utils/validation'
 import { transformCertification } from '@@/server/utils/career-id-transformer'
 
 const ROUTE_PATH = '/api/career-id/profile/:profileId/certifications/:id'
@@ -62,7 +62,7 @@ export default eventHandler(async (event) => {
   
   if (body.name !== undefined) updateData.name = body.name
   if (body.issuer !== undefined) updateData.issuer = body.issuer
-  if (body.issueDate !== undefined) updateData.issue_date = body.issueDate
+  if (body.issueDate !== undefined) updateData.issue_date = convertMonthYearToDate(body.issueDate)
   if (body.url !== undefined) updateData.url = body.url
   if (body.displayOrder !== undefined) updateData.display_order = body.displayOrder
   

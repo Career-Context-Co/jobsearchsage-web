@@ -33,7 +33,7 @@ export default eventHandler(async (event) => {
       profile_id,
       skill_id,
       name,
-      category,
+      group,
       proficiency_level,
       years_experience,
       display_order,
