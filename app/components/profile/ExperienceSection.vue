@@ -57,6 +57,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   save: [experience: Omit<ExperienceFormData, 'isEditing'>] // Single experience save
   saveAll: [experiences: Omit<ExperienceFormData, 'isEditing'>[]] // Bulk save all
+  delete: [id: number] // Delete experience by id
 }>()
 
 // Local reactive copy for editing (convert Experience to ExperienceFormData with isEditing state)
@@ -242,9 +243,15 @@ function cancelEdit(index: number) {
 }
 
 function deleteExperience(index: number) {
+  const experience = experiences.value[index]
+  if (!experience) return
+  
   // Check if already in confirm state
   if (experienceDeleteConfirm.value.has(index)) {
-    // Actually delete
+    // Actually delete - emit event if it has an id, otherwise just remove from local state
+    if (experience.id) {
+      emit('delete', experience.id)
+    }
     experiences.value.splice(index, 1)
     experienceDeleteConfirm.value.delete(index)
   } else {

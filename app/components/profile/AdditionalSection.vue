@@ -73,7 +73,7 @@ const emit = defineEmits<{
   deleteSkillGroup: [groupValue: string | null]
   saveCertification: [data: CertificationFormData & { id?: number }]
   saveAll: [data: { certifications: (CertificationFormData & { id?: number })[], skillGroups: { group: string | null, originalGroup: string | null, skills: SkillItem[] }[] }]
-  deleteCertification: [index: number]
+  deleteCertification: [id: number]
 }>()
 
 // Transform raw ProfileSkill[] into grouped format for display
@@ -502,12 +502,17 @@ function editCertification(index: number) {
 }
 
 function deleteCertification(index: number) {
+  const cert = certifications.value[index]
+  if (!cert) return
+  
   // Check if already in confirm state
   if (certificationDeleteConfirm.value.has(index)) {
-    // Actually delete
+    // Actually delete - emit event if it has an id, otherwise just remove from local state
+    if (cert.id) {
+      emit('deleteCertification', cert.id)
+    }
     certifications.value.splice(index, 1)
     certificationDeleteConfirm.value.delete(index)
-    emit('deleteCertification', index)
   } else {
     // First click: enter confirm state
     certificationDeleteConfirm.value.add(index)

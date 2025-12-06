@@ -356,14 +356,72 @@ async function handleSaveAllAdditional(payload: { certifications: any[], skillGr
   }
 }
 
-async function handleDeleteCertification(index: number) {
+async function handleDeleteExperience(id: number) {
   try {
-    const certification = careerIDStore.certifications[index]
-    if (certification?.id) {
-      await careerIDStore.deleteCertification(certification.id)
-    }
-  } catch (error) {
+    await careerIDStore.deleteExperience(id)
+    
+    toast.add({
+      title: 'Deleted',
+      description: 'Experience deleted successfully',
+      color: 'success'
+    })
+  } catch (error: any) {
+    console.error('Failed to delete experience:', error)
+    
+    toast.add({
+      title: 'Delete Failed',
+      description: error?.data?.error?.message || 'Failed to delete experience',
+      color: 'error'
+    })
+    
+    // Revert changes in child component
+    experienceSectionRef.value?.revertChanges()
+  }
+}
+
+async function handleDeleteEducation(id: number) {
+  try {
+    await careerIDStore.deleteEducation(id)
+    
+    toast.add({
+      title: 'Deleted',
+      description: 'Education deleted successfully',
+      color: 'success'
+    })
+  } catch (error: any) {
+    console.error('Failed to delete education:', error)
+    
+    toast.add({
+      title: 'Delete Failed',
+      description: error?.data?.error?.message || 'Failed to delete education',
+      color: 'error'
+    })
+    
+    // Revert changes in child component
+    educationSectionRef.value?.revertChanges()
+  }
+}
+
+async function handleDeleteCertification(id: number) {
+  try {
+    await careerIDStore.deleteCertification(id)
+    
+    toast.add({
+      title: 'Deleted',
+      description: 'Certification deleted successfully',
+      color: 'success'
+    })
+  } catch (error: any) {
     console.error('Failed to delete certification:', error)
+    
+    toast.add({
+      title: 'Delete Failed',
+      description: error?.data?.error?.message || 'Failed to delete certification',
+      color: 'error'
+    })
+    
+    // Revert changes in child component
+    additionalSectionRef.value?.revertChanges()
   }
 }
 
@@ -467,8 +525,23 @@ async function handleDeleteSkillGroup(groupValue: string | null) {
     }))
     
     await careerIDStore.updateSkills(skillsToUpdate)
-  } catch (error) {
+    
+    toast.add({
+      title: 'Deleted',
+      description: 'Skill group deleted successfully',
+      color: 'success'
+    })
+  } catch (error: any) {
     console.error('Failed to delete skill group:', error)
+    
+    toast.add({
+      title: 'Delete Failed',
+      description: error?.data?.error?.message || 'Failed to delete skill group',
+      color: 'error'
+    })
+    
+    // Revert changes in child component
+    additionalSectionRef.value?.revertChanges()
   }
 }
 
@@ -552,6 +625,7 @@ onMounted(async () => {
             :experience="careerIDStore.experience"
             @save="handleSaveExperience"
             @save-all="handleSaveAllExperiences"
+            @delete="handleDeleteExperience"
           />
           
           <!-- EducationSection - props down, events up -->
@@ -561,6 +635,7 @@ onMounted(async () => {
             :education="careerIDStore.education"
             @save="handleSaveEducation"
             @save-all="handleSaveAllEducations"
+            @delete="handleDeleteEducation"
           />
           
           <!-- AdditionalSection - props down, events up -->

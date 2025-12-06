@@ -59,6 +59,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   save: [education: Omit<EducationFormData, 'isEditing'>] // Single education save
   saveAll: [education: Omit<EducationFormData, 'isEditing'>[]] // Bulk save all
+  delete: [id: number] // Delete education by id
 }>()
 
 // Track which educations have been edited (by index, since new items don't have IDs yet)
@@ -327,9 +328,15 @@ function cancelEdit(index: number) {
 }
 
 function deleteEducation(index: number) {
+  const education = educationList.value[index]
+  if (!education) return
+  
   // Check if already in confirm state
   if (educationDeleteConfirm.value.has(index)) {
-    // Actually delete
+    // Actually delete - emit event if it has an id, otherwise just remove from local state
+    if (education.id) {
+      emit('delete', education.id)
+    }
     educationList.value.splice(index, 1)
     educationDeleteConfirm.value.delete(index)
   } else {
