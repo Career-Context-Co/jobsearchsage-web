@@ -2,6 +2,7 @@
 import type { Education } from '~/shared/types/careerId'
 import { vMaska } from 'maska/vue'
 import { watchDeep } from '@vueuse/core'
+import { validateRequired, validateUrl, validateMonthYear, validateDateRange } from '~/utils/validation'
 
 // Form data type for local state (includes UI state like isEditing)
 interface EducationFormData {
@@ -17,6 +18,17 @@ interface EducationFormData {
   coursework: string[]
   minors: string[]
   isEditing: boolean
+}
+
+// Error type matching form data structure
+interface EducationErrors {
+  degreeType?: string
+  areaOfStudy?: string
+  institution?: string
+  startDate?: string
+  endDate?: string
+  url?: string
+  creditHours?: string
 }
 
 /**
@@ -51,6 +63,12 @@ const emit = defineEmits<{
 
 // Track which educations have been edited (by index, since new items don't have IDs yet)
 const editedEducations = ref<Set<number>>(new Set())
+
+// Validation errors (keyed by education index)
+const validationErrors = ref<Record<number, EducationErrors>>({})
+
+// Track delete confirmation states
+const educationDeleteConfirm = ref<Set<number>>(new Set())
 
 // Local reactive copy for editing (convert Education to EducationFormData with isEditing state)
 const educationList = ref<EducationFormData[]>(
@@ -173,12 +191,16 @@ function saveEducation(index: number) {
   const education = educationList.value[index]
   if (!education) return
   
+  // Validate before saving
+  if (!validateEducation(education, index)) {
+    return // Stop if validation fails
+  }
+  
   // Only save if this education was actually edited or is new (no id)
   if (!education.id || editedEducations.value.has(index)) {
     // Clean empty strings from arrays before emitting
     const cleanedEducation = cleanEducationArrays(education)
-    const { isEditing, ...educationToSave } = cleanedEducation
-    emit('save', educationToSave)
+    emit('save', cleanedEducation)
     
     // Update local state with cleaned arrays
     education.coursework = cleanedEducation.coursework
@@ -190,32 +212,78 @@ function saveEducation(index: number) {
   
   // Close editing mode for this education
   education.isEditing = false
+  // Clear validation errors on successful save
+  if (validationErrors.value[index]) {
+    delete validationErrors.value[index]
+  }
 }
 
 // Emit all educations on save - only sends edited ones
 function saveAllEducations() {
+  // Validate all educations before saving
+  let allValid = true
+  const educationsToValidate = educationList.value
+    .map((edu, index) => ({ edu, index }))
+    .filter(({ edu, index }) => !edu.id || editedEducations.value.has(index))
+  
+  for (const { edu, index } of educationsToValidate) {
+    if (!validateEducation(edu, index)) {
+      allValid = false
+    }
+  }
+  
+  if (!allValid) {
+    return // Stop if any validation fails
+  }
+  
   // Only save educations that were edited or are new (no id)
   const educationsToSave = educationList.value
     .map((edu, index) => ({ edu, index }))
     .filter(({ edu, index }) => !edu.id || editedEducations.value.has(index))
     .map(({ edu, index }) => {
       const cleaned = cleanEducationArrays(edu)
-      const { isEditing, ...rest } = cleaned
       
       // Update local state with cleaned arrays
       edu.coursework = cleaned.coursework
       edu.minors = cleaned.minors
       
-      return rest
+      return cleaned
     })
   
   // Only emit if there are actually changes to save
   if (educationsToSave.length > 0) {
     emit('saveAll', educationsToSave)
     
-    // Clear all edited flags after saving
+    // Clear all edited flags and validation errors after saving
     editedEducations.value.clear()
+    validationErrors.value = {}
   }
+}
+
+// Revert all changes back to original props values
+function revertAllChanges() {
+  isUpdatingFromProps.value = true
+  
+  educationList.value = props.education.length > 0
+    ? props.education.map(edu => ({
+        id: edu.id,
+        degreeType: edu.degreeType,
+        areaOfStudy: edu.areaOfStudy,
+        institution: edu.institution,
+        startDate: formatDateForUI(edu.startDate),
+        endDate: formatDateForUI(edu.endDate),
+        completed: edu.completed,
+        url: edu.url,
+        creditHours: edu.creditHours,
+        coursework: edu.coursework || [],
+        minors: edu.minors || [],
+        isEditing: false
+      }))
+    : []
+  
+  editedEducations.value.clear()
+  validationErrors.value = {}
+  isUpdatingFromProps.value = false
 }
 
 function editEducation(index: number) {
@@ -259,8 +327,19 @@ function cancelEdit(index: number) {
 }
 
 function deleteEducation(index: number) {
-  // Remove from local state - parent will diff and call delete API if it has an id
-  educationList.value.splice(index, 1)
+  // Check if already in confirm state
+  if (educationDeleteConfirm.value.has(index)) {
+    // Actually delete
+    educationList.value.splice(index, 1)
+    educationDeleteConfirm.value.delete(index)
+  } else {
+    // First click: enter confirm state
+    educationDeleteConfirm.value.add(index)
+    // Auto-clear confirmation after 3 seconds
+    setTimeout(() => {
+      educationDeleteConfirm.value.delete(index)
+    }, 3000)
+  }
 }
 
 function addNewEducation() {
@@ -269,6 +348,62 @@ function addNewEducation() {
   educationList.value.push(createBlankEducation())
   // New educations are automatically considered "edited" since they need to be saved
   editedEducations.value.add(newIndex)
+}
+
+// Validate single education
+function validateEducation(edu: EducationFormData, index: number): boolean {
+  // Clear previous errors for this education
+  if (validationErrors.value[index]) {
+    delete validationErrors.value[index]
+  }
+  
+  const errors: EducationErrors = {}
+  let isValid = true
+  
+  // Validate required fields
+  const institutionError = validateRequired(edu.institution, 'Institution')
+  if (institutionError) {
+    errors.institution = institutionError
+    isValid = false
+  }
+  
+  // Validate start date
+  const startDateError = validateMonthYear(edu.startDate, true)
+  if (startDateError) {
+    errors.startDate = startDateError
+    isValid = false
+  }
+  
+  // Validate end date (if completed)
+  if (edu.completed && edu.endDate) {
+    const endDateError = validateMonthYear(edu.endDate, false)
+    if (endDateError) {
+      errors.endDate = endDateError
+      isValid = false
+    } else if (edu.startDate) {
+      // Validate date range
+      const rangeError = validateDateRange(edu.startDate, edu.endDate, 'End date')
+      if (rangeError) {
+        errors.endDate = rangeError
+        isValid = false
+      }
+    }
+  }
+  
+  // Validate URL if provided
+  if (edu.url && edu.url.trim()) {
+    const urlError = validateUrl(edu.url, false)
+    if (urlError) {
+      errors.url = urlError
+      isValid = false
+    }
+  }
+  
+  if (!isValid) {
+    validationErrors.value[index] = errors
+  }
+  
+  return isValid
 }
 
 // Coursework management
@@ -320,9 +455,10 @@ function cleanEducationArrays(education: EducationFormData): Omit<EducationFormD
   }
 }
 
-// Expose save method for autosave functionality
+// Expose save method for autosave functionality and revert for error handling
 defineExpose({
-  triggerSave: saveAllEducations
+  triggerSave: saveAllEducations,
+  revertChanges: revertAllChanges
 })
 </script>
 
@@ -383,9 +519,10 @@ defineExpose({
               />
               <UButton 
                 class="cursor-pointer"
-                icon="i-lucide-trash-2" 
+                :icon="educationDeleteConfirm.has(index) ? 'i-lucide-check' : 'i-lucide-trash-2'"
+                :label="educationDeleteConfirm.has(index) ? 'Sure?' : undefined"
                 color="error" 
-                variant="ghost" 
+                :variant="educationDeleteConfirm.has(index) ? 'solid' : 'ghost'"
                 size="sm"
                 @click="deleteEducation(index)"
               />
@@ -416,9 +553,10 @@ defineExpose({
               />
               <UButton 
                 class="cursor-pointer"
-                icon="i-lucide-trash-2" 
+                :icon="educationDeleteConfirm.has(index) ? 'i-lucide-check' : 'i-lucide-trash-2'"
+                :label="educationDeleteConfirm.has(index) ? 'Sure?' : undefined"
                 color="error" 
-                variant="ghost" 
+                :variant="educationDeleteConfirm.has(index) ? 'solid' : 'ghost'"
                 size="sm"
                 @click="deleteEducation(index)"
               />
@@ -449,42 +587,54 @@ defineExpose({
               </div>
 
               <!-- Institution -->
-              <UFormField size="xl" label="Institution" name="institution">
-                <UInput 
-                  class="w-full"
-                  v-model="education.institution" 
-                  placeholder="e.g., Stanford University, MIT"
-                />
-              </UFormField>
+              <div>
+                <UFormField size="xl" label="Institution" name="institution">
+                  <UInput 
+                    class="w-full"
+                    v-model="education.institution" 
+                    placeholder="e.g., Stanford University, MIT"
+                  />
+                </UFormField>
+                <p v-if="validationErrors[index]?.institution" class="text-sm text-error mt-1">{{ validationErrors[index].institution }}</p>
+              </div>
 
               <!-- Institution Website -->
-              <UFormField size="xl" label="Institution Website" name="url">
-                <UInput 
-                  class="w-full"
-                  v-model="education.url" 
-                  placeholder="e.g., https://www.stanford.edu"
-                />
-              </UFormField>
+              <div>
+                <UFormField size="xl" label="Institution Website" name="url">
+                  <UInput 
+                    class="w-full"
+                    v-model="education.url" 
+                    placeholder="e.g., https://www.stanford.edu"
+                  />
+                </UFormField>
+                <p v-if="validationErrors[index]?.url" class="text-sm text-error mt-1">{{ validationErrors[index].url }}</p>
+              </div>
 
               <!-- Start and End Date -->
               <div class="flex gap-2 w-full">
-                <UFormField class="flex-1" size="xl" label="Start Date" name="startDate">
-                  <UInput 
-                    class="w-full"
-                    v-model="education.startDate" 
-                    v-maska="'##/####'" 
-                    placeholder="MM/YYYY"
-                  />
-                </UFormField>
+                <div class="flex-1">
+                  <UFormField class="w-full" size="xl" label="Start Date" name="startDate">
+                    <UInput 
+                      class="w-full"
+                      v-model="education.startDate" 
+                      v-maska="'##/####'" 
+                      placeholder="MM/YYYY"
+                    />
+                  </UFormField>
+                  <p v-if="validationErrors[index]?.startDate" class="text-sm text-error mt-1">{{ validationErrors[index].startDate }}</p>
+                </div>
 
-                <UFormField class="flex-1" size="xl" label="End Date" name="endDate">
-                  <UInput 
-                    class="w-full"
-                    v-model="education.endDate" 
-                    v-maska="'##/####'" 
-                    placeholder="MM/YYYY"
-                  />
-                </UFormField>
+                <div class="flex-1">
+                  <UFormField class="w-full" size="xl" label="End Date" name="endDate">
+                    <UInput 
+                      class="w-full"
+                      v-model="education.endDate" 
+                      v-maska="'##/####'" 
+                      placeholder="MM/YYYY"
+                    />
+                  </UFormField>
+                  <p v-if="validationErrors[index]?.endDate" class="text-sm text-error mt-1">{{ validationErrors[index].endDate }}</p>
+                </div>
               </div>
 
               <!-- GPA (always shown) and Credit Hours (only when not completed) -->

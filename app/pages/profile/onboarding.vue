@@ -36,6 +36,7 @@ const steps: StepperItem[] = [
 ]
 
 const careerIDStore = useCareerIDStore()
+const toast = useToast()
 
 // Handle save from ContactSection - diffs against store to determine API calls
 async function handleSaveContact(payload: { contactInfo: any, socialLinks: { id?: number, platformId: number, url: string }[] }) {
@@ -76,8 +77,24 @@ async function handleSaveContact(payload: { contactInfo: any, socialLinks: { id?
     
     // Note: Delete is handled separately via explicit delete handler, never during save
     
-  } catch (error) {
+    // Show success toast
+    toast.add({
+      title: 'Saved',
+      description: 'Contact information saved successfully',
+      color: 'success'
+    })
+  } catch (error: any) {
     console.error('Failed to save contact section:', error)
+    
+    // Show error toast
+    toast.add({
+      title: 'Save Failed',
+      description: error?.data?.error?.message || 'Failed to save contact information',
+      color: 'error'
+    })
+    
+    // Revert changes in child component
+    contactSectionRef.value?.revertChanges()
   }
 }
 
@@ -91,8 +108,23 @@ async function handleSaveExperience(experience: any) {
       // Add new experience (POST)
       await careerIDStore.addExperience(experience)
     }
-  } catch (error) {
+    
+    toast.add({
+      title: 'Saved',
+      description: 'Experience saved successfully',
+      color: 'success'
+    })
+  } catch (error: any) {
     console.error('Failed to save experience:', error)
+    
+    toast.add({
+      title: 'Save Failed',
+      description: error?.data?.error?.message || 'Failed to save experience',
+      color: 'error'
+    })
+    
+    // Revert changes in child component
+    experienceSectionRef.value?.revertChanges()
   }
 }
 
@@ -113,8 +145,22 @@ async function handleSaveAllExperiences(experiences: any[]) {
       }
     }
     
-  } catch (error) {
+    toast.add({
+      title: 'Saved',
+      description: 'Work experience saved successfully',
+      color: 'success'
+    })
+  } catch (error: any) {
     console.error('Failed to save experience section:', error)
+    
+    toast.add({
+      title: 'Save Failed',
+      description: error?.data?.error?.message || 'Failed to save work experience',
+      color: 'error'
+    })
+    
+    // Revert changes in child component
+    experienceSectionRef.value?.revertChanges()
   }
 }
 
@@ -128,8 +174,23 @@ async function handleSaveEducation(education: any) {
       // Add new education (POST)
       await careerIDStore.addEducation(education)
     }
-  } catch (error) {
+    
+    toast.add({
+      title: 'Saved',
+      description: 'Education saved successfully',
+      color: 'success'
+    })
+  } catch (error: any) {
     console.error('Failed to save education:', error)
+    
+    toast.add({
+      title: 'Save Failed',
+      description: error?.data?.error?.message || 'Failed to save education',
+      color: 'error'
+    })
+    
+    // Revert changes in child component
+    educationSectionRef.value?.revertChanges()
   }
 }
 
@@ -150,8 +211,22 @@ async function handleSaveAllEducations(educations: any[]) {
       }
     }
     
-  } catch (error) {
+    toast.add({
+      title: 'Saved',
+      description: 'Education saved successfully',
+      color: 'success'
+    })
+  } catch (error: any) {
     console.error('Failed to save education section:', error)
+    
+    toast.add({
+      title: 'Save Failed',
+      description: error?.data?.error?.message || 'Failed to save education',
+      color: 'error'
+    })
+    
+    // Revert changes in child component
+    educationSectionRef.value?.revertChanges()
   }
 }
 
@@ -165,8 +240,23 @@ async function handleSaveCertification(data: any) {
       // Add new certification (POST)
       await careerIDStore.addCertification(data)
     }
-  } catch (error) {
+    
+    toast.add({
+      title: 'Saved',
+      description: 'Certification saved successfully',
+      color: 'success'
+    })
+  } catch (error: any) {
     console.error('Failed to save certification:', error)
+    
+    toast.add({
+      title: 'Save Failed',
+      description: error?.data?.error?.message || 'Failed to save certification',
+      color: 'error'
+    })
+    
+    // Revert changes in child component
+    additionalSectionRef.value?.revertChanges()
   }
 }
 
@@ -246,8 +336,23 @@ async function handleSaveAllAdditional(payload: { certifications: any[], skillGr
         await careerIDStore.deleteSkills(skillsToDelete)
       }
     }
-  } catch (error) {
+    
+    toast.add({
+      title: 'Saved',
+      description: 'Additional information saved successfully',
+      color: 'success'
+    })
+  } catch (error: any) {
     console.error('Failed to save additional information:', error)
+    
+    toast.add({
+      title: 'Save Failed',
+      description: error?.data?.error?.message || 'Failed to save additional information',
+      color: 'error'
+    })
+    
+    // Revert changes in child component
+    additionalSectionRef.value?.revertChanges()
   }
 }
 
@@ -326,8 +431,23 @@ async function handleSaveSkillGroup(index: number, groupData: any) {
     if (skillsToDelete.length > 0) {
       await careerIDStore.deleteSkills(skillsToDelete)
     }
-  } catch (error) {
+    
+    toast.add({
+      title: 'Saved',
+      description: 'Skill group saved successfully',
+      color: 'success'
+    })
+  } catch (error: any) {
     console.error('Failed to save skill group:', error)
+    
+    toast.add({
+      title: 'Save Failed',
+      description: error?.data?.error?.message || 'Failed to save skill group',
+      color: 'error'
+    })
+    
+    // Revert changes in child component
+    additionalSectionRef.value?.revertChanges()
   }
 }
 

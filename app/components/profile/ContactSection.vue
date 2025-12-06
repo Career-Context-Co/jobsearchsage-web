@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ContactInfo, ProfileSocialLink } from '~/shared/types/careerId'
+import { validateEmail, validatePhone, validateUrl, validateUrls, validateRequired } from '~/utils/validation'
 
 interface SocialPlatform {
   id: number
@@ -23,6 +24,22 @@ interface ContactInfoFormData {
   country: string
   postalCode: string
   willingToRelocate: boolean
+}
+
+// Error type matching form data structure
+interface ContactInfoErrors {
+  firstName?: string
+  lastName?: string
+  jobTitle?: string
+  email?: string
+  phone?: string
+  websites?: Record<number, string>
+  summary?: string
+  city?: string
+  stateRegion?: string
+  country?: string
+  postalCode?: string
+  socialLinks?: Record<number, string>
 }
 
 const props = defineProps<{
@@ -51,6 +68,9 @@ const contactInfo = ref<ContactInfo>({ ...props.contactInfo })
 
 // Track if data has been modified
 const hasChanges = ref(false)
+
+// Validation errors
+const validationErrors = ref<ContactInfoErrors>({})
 
 // Social links management
 const socialLinks = ref<ProfileSocialLink[]>([...props.profileSocialLinks || []])
@@ -125,11 +145,75 @@ function removeSocialLink(index: number) {
   socialLinks.value.splice(index, 1)
 }
 
+// Validate contact info before saving
+function validateContactInfo(): boolean {
+  validationErrors.value = {}
+  let isValid = true
+  
+  // Validate required fields
+  const firstNameError = validateRequired(contactInfo.value.firstName, 'First name')
+  if (firstNameError) {
+    validationErrors.value.firstName = firstNameError
+    isValid = false
+  }
+  
+  const lastNameError = validateRequired(contactInfo.value.lastName, 'Last name')
+  if (lastNameError) {
+    validationErrors.value.lastName = lastNameError
+    isValid = false
+  }
+  
+  // Validate email
+  const emailError = validateEmail(contactInfo.value.email, true)
+  if (emailError) {
+    validationErrors.value.email = emailError
+    isValid = false
+  }
+  
+  // Validate phone (optional but if provided, must be valid)
+  const phoneError = validatePhone(contactInfo.value.phone, false)
+  if (phoneError) {
+    validationErrors.value.phone = phoneError
+    isValid = false
+  }
+  
+  // Validate websites
+  if (contactInfo.value.websites && contactInfo.value.websites.length > 0) {
+    const websiteErrors = validateUrls(contactInfo.value.websites.filter((w: string) => w && w.trim()))
+    if (websiteErrors) {
+      validationErrors.value.websites = websiteErrors
+      isValid = false
+    }
+  }
+  
+  // Validate social links
+  const socialLinkErrors: Record<number, string> = {}
+  socialLinks.value.forEach((link: ProfileSocialLink, index: number) => {
+    if (link.url && link.url.trim()) {
+      const urlError = validateUrl(link.url, false)
+      if (urlError) {
+        socialLinkErrors[index] = urlError
+        isValid = false
+      }
+    }
+  })
+  if (Object.keys(socialLinkErrors).length > 0) {
+    validationErrors.value.socialLinks = socialLinkErrors
+  }
+  
+  return isValid
+}
+
 // Emit everything on save - parent diffs against store
 function saveContactInfo() {
   // Only emit if there are actual changes
   if (!hasChanges.value) {
     return
+  }
+  
+  // Validate before saving
+  if (!validateContactInfo()) {
+    return // Stop if validation fails
   }
   
   emit('save', {
@@ -141,13 +225,15 @@ function saveContactInfo() {
     }))
   })
   
-  // Reset change tracking after save
+  // Reset change tracking and errors after save
   hasChanges.value = false
+  validationErrors.value = {}
 }
 
-// Expose save method for autosave functionality
+// Expose save method for autosave functionality and revert for error handling
 defineExpose({
-  triggerSave: saveContactInfo
+  triggerSave: saveContactInfo,
+  revertChanges: cancelEdits
 })
 
 // Reset all changes back to original props values
@@ -163,8 +249,9 @@ function cancelEdits() {
   selectedSocialPlatform.value = socialPlatforms.value?.[0]
   socialLinkUrl.value = selectedSocialPlatform.value?.base_url || ''
   
-  // Reset change tracking
+  // Reset change tracking and validation errors
   hasChanges.value = false
+  validationErrors.value = {}
 }
 </script>
 
@@ -181,51 +268,66 @@ function cancelEdits() {
     <UForm :state="contactInfo" class="space-y-4">
       <!-- First Name and Last Name -->
       <div class="flex items-center justify-center gap-2 w-full">
-        <UFormField class="flex-1" size="xl" label="First Name" name="firstName">
-          <UInput 
-            class="w-full"
-            v-model="contactInfo.firstName" 
-            placeholder="John"
-          />
-        </UFormField>
+        <div class="flex-1">
+          <UFormField class="w-full" size="xl" label="First Name" name="firstName">
+            <UInput 
+              class="w-full"
+              v-model="contactInfo.firstName" 
+              placeholder="John"
+            />
+          </UFormField>
+          <p v-if="validationErrors.firstName" class="text-sm text-error mt-1">{{ validationErrors.firstName }}</p>
+        </div>
 
-        <UFormField class="flex-1" size="xl" label="Last Name" name="lastName">
-          <UInput 
-            class="w-full"
-            v-model="contactInfo.lastName" 
-            placeholder="Doe"
-          />
-        </UFormField>
+        <div class="flex-1">
+          <UFormField class="w-full" size="xl" label="Last Name" name="lastName">
+            <UInput 
+              class="w-full"
+              v-model="contactInfo.lastName" 
+              placeholder="Doe"
+            />
+          </UFormField>
+          <p v-if="validationErrors.lastName" class="text-sm text-error mt-1">{{ validationErrors.lastName }}</p>
+        </div>
       </div>
 
       <!-- Current Job Title -->
-      <UFormField size="xl" label="Current Title" name="jobTitle">
-        <UInput 
-          class="w-full"
-          v-model="contactInfo.jobTitle" 
-          placeholder="e.g., Software Engineer, Product Manager"
-        />
-      </UFormField>
+      <div>
+        <UFormField size="xl" label="Current Title" name="jobTitle">
+          <UInput 
+            class="w-full"
+            v-model="contactInfo.jobTitle" 
+            placeholder="e.g., Software Engineer, Product Manager"
+          />
+        </UFormField>
+        <p v-if="validationErrors.jobTitle" class="text-sm text-error mt-1">{{ validationErrors.jobTitle }}</p>
+      </div>
 
       <!-- Email -->
-      <UFormField size="xl" label="Email Address" name="email">
-        <UInput 
-          class="w-full"
-          v-model="contactInfo.email" 
-          type="email"
-          placeholder="john.doe@example.com"
-        />
-      </UFormField>
+      <div>
+        <UFormField size="xl" label="Email Address" name="email">
+          <UInput 
+            class="w-full"
+            v-model="contactInfo.email" 
+            type="email"
+            placeholder="john.doe@example.com"
+          />
+        </UFormField>
+        <p v-if="validationErrors.email" class="text-sm text-error mt-1">{{ validationErrors.email }}</p>
+      </div>
 
       <!-- Phone -->
-      <UFormField size="xl" label="Phone" name="phone">
-        <UInput 
-          class="w-full"
-          v-model="contactInfo.phone" 
-          type="tel"
-          placeholder="(555) 123-4567"
-        />
-      </UFormField>
+      <div>
+        <UFormField size="xl" label="Phone" name="phone">
+          <UInput 
+            class="w-full"
+            v-model="contactInfo.phone" 
+            type="tel"
+            placeholder="(555) 123-4567"
+          />
+        </UFormField>
+        <p v-if="validationErrors.phone" class="text-sm text-error mt-1">{{ validationErrors.phone }}</p>
+      </div>
 
       <!-- Social Links -->
       <div class="space-y-2">
@@ -249,6 +351,7 @@ function cancelEdits() {
                 size="lg"
               />
             </div>
+            <p v-if="validationErrors.socialLinks?.[linkIndex]" class="text-sm text-error mt-1">{{ validationErrors.socialLinks[linkIndex] }}</p>
             <UButton 
               class="cursor-pointer" 
               icon="i-lucide-trash-2" 
@@ -332,24 +435,27 @@ function cancelEdits() {
           <label class="text-sm font-medium text-foreground">Website</label>
         </div>
         <div v-if="contactInfo.websites && contactInfo.websites.length > 0" class="space-y-2">
-          <div v-for="(website, websiteIndex) in contactInfo.websites" :key="websiteIndex" class="flex gap-2 items-start">
-            <div class="flex items-center gap-2 flex-1">
-              <UIcon name="i-lucide-link" class="w-4 h-4 text-muted shrink-0" />
-              <UInput 
-                class="flex-1"
-                v-model="contactInfo.websites[websiteIndex]" 
-                placeholder="e.g. online-profile.com"
+          <div v-for="(website, websiteIndex) in contactInfo.websites" :key="websiteIndex" class="space-y-1">
+            <div class="flex gap-2 items-start">
+              <div class="flex items-center gap-2 flex-1">
+                <UIcon name="i-lucide-link" class="w-4 h-4 text-muted shrink-0" />
+                <UInput 
+                  class="flex-1"
+                  v-model="contactInfo.websites[websiteIndex]" 
+                  placeholder="e.g. online-profile.com"
+                  size="lg"
+                />
+              </div>
+              <UButton 
+                class="cursor-pointer" 
+                icon="i-lucide-trash-2" 
+                color="error" 
+                variant="ghost" 
                 size="lg"
+                @click="removeWebsite(websiteIndex)"
               />
             </div>
-            <UButton 
-              class="cursor-pointer" 
-              icon="i-lucide-trash-2" 
-              color="error" 
-              variant="ghost" 
-              size="lg"
-              @click="removeWebsite(websiteIndex)"
-            />
+            <p v-if="validationErrors.websites?.[websiteIndex]" class="text-sm text-error ml-6">{{ validationErrors.websites[websiteIndex] }}</p>
           </div>
         </div>
         <UButton 
@@ -365,15 +471,18 @@ function cancelEdits() {
       </div>
 
       <!-- Summary -->
-      <UFormField size="xl" label="Summary" name="summary">
-        <UTextarea 
-          class="w-full"
-          v-model="contactInfo.summary" 
-          :rows="6"
-          autoresize
-          placeholder="Brief professional summary..."
-        />
-      </UFormField>
+      <div>
+        <UFormField size="xl" label="Summary" name="summary">
+          <UTextarea 
+            class="w-full"
+            v-model="contactInfo.summary" 
+            :rows="6"
+            autoresize
+            placeholder="Brief professional summary..."
+          />
+        </UFormField>
+        <p v-if="validationErrors.summary" class="text-sm text-error mt-1">{{ validationErrors.summary }}</p>
+      </div>
 
       <!-- Address Section -->
       <div class="pt-4 ">
@@ -381,40 +490,52 @@ function cancelEdits() {
         
         <!-- City and State/Region -->
         <div class="flex gap-2 w-full mb-4">
-          <UFormField class="flex-1" size="xl" label="City" name="city">
-            <UInput 
-              class="w-full"
-              v-model="contactInfo.city" 
-              placeholder="e.g., San Francisco"
-            />
-          </UFormField>
+          <div class="flex-1">
+            <UFormField class="w-full" size="xl" label="City" name="city">
+              <UInput 
+                class="w-full"
+                v-model="contactInfo.city" 
+                placeholder="e.g., San Francisco"
+              />
+            </UFormField>
+            <p v-if="validationErrors.city" class="text-sm text-error mt-1">{{ validationErrors.city }}</p>
+          </div>
 
-          <UFormField class="flex-1" size="xl" label="State/Region" name="stateRegion">
-            <UInput 
-              class="w-full"
-              v-model="contactInfo.stateRegion" 
-              placeholder="e.g., CA"
-            />
-          </UFormField>
+          <div class="flex-1">
+            <UFormField class="w-full" size="xl" label="State/Region" name="stateRegion">
+              <UInput 
+                class="w-full"
+                v-model="contactInfo.stateRegion" 
+                placeholder="e.g., CA"
+              />
+            </UFormField>
+            <p v-if="validationErrors.stateRegion" class="text-sm text-error mt-1">{{ validationErrors.stateRegion }}</p>
+          </div>
         </div>
 
         <!-- Postal Code and Country -->
         <div class="flex gap-2 w-full">
-          <UFormField class="flex-1" size="xl" label="Postal Code" name="postalCode">
-            <UInput 
-              class="w-full"
-              v-model="contactInfo.postalCode" 
-              placeholder="e.g., 94102"
-            />
-          </UFormField>
+          <div class="flex-1">
+            <UFormField class="w-full" size="xl" label="Postal Code" name="postalCode">
+              <UInput 
+                class="w-full"
+                v-model="contactInfo.postalCode" 
+                placeholder="e.g., 94102"
+              />
+            </UFormField>
+            <p v-if="validationErrors.postalCode" class="text-sm text-error mt-1">{{ validationErrors.postalCode }}</p>
+          </div>
 
-          <UFormField class="flex-1" size="xl" label="Country" name="country">
-            <UInput 
-              class="w-full"
-              v-model="contactInfo.country" 
-              placeholder="e.g., United States"
-            />
-          </UFormField>
+          <div class="flex-1">
+            <UFormField class="w-full" size="xl" label="Country" name="country">
+              <UInput 
+                class="w-full"
+                v-model="contactInfo.country" 
+                placeholder="e.g., United States"
+              />
+            </UFormField>
+            <p v-if="validationErrors.country" class="text-sm text-error mt-1">{{ validationErrors.country }}</p>
+          </div>
         </div>
       </div>
 
@@ -432,7 +553,7 @@ function cancelEdits() {
           class="cursor-pointer" 
           size="xl" 
           variant="outline" 
-          color="gray"
+          color="neutral"
           @click="cancelEdits"
         >
           Cancel Edits

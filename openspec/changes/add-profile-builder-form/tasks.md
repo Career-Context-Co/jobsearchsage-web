@@ -344,30 +344,11 @@ Emits:
   - [ ] 5.16.4 Update `lastSaved` timestamp display using `careerIDStore.lastSaved` after successful saves
   - [x] 5.16.5 Note: All changes are local until save button or "Continue"/"Back" triggers the save event
 
-### 5.D Profile View/Edit Page
-
-- [ ] 5.17 Update `app/pages/profile/index.vue` for viewing/editing existing profiles:
-  - [ ] 5.17.1 Fetch profile on mount using `careerIDStore.fetchProfile(profileId)` if not already loaded
-  - [ ] 5.17.2 Create a profile view/edit UI that displays profile sections
-  - [ ] 5.17.3 Allow inline editing of sections using the same section components from onboarding
-  - [ ] 5.17.4 Pass store data as props to section components (one-way data flow)
-  - [ ] 5.17.5 Add single save handler per section (same pattern as onboarding page: child emits all data → parent diffs and calls store APIs)
-  - [ ] 5.17.6 Each section has a save button, no autosave (explicit saves only)
-
 ### 5.E UI/UX Enhancements
 
-- [ ] 5.18 Add loading states using `careerIDStore.isLoading` and section-specific `loadingStates`
-- [ ] 5.19 Add error handling with user-friendly toast notifications using `careerIDStore.error`
-- [ ] 5.20 Handle validation errors from backend and display inline in form
+- [x] 5.19 Add error handling with user-friendly toast notifications using `careerIDStore.error`
+- [x] 5.20 Handle validation errors from backend and display inline in form
 - [ ] 5.21 Add visual feedback when autosave completes using `careerIDStore.lastSaved` (e.g., "Saved" indicator)
 - [ ] 5.22 Add confirmation dialogs for destructive actions (delete entries)
 
-### 5.F Testing & Validation
-
-- [ ] 5.23 Test complete onboarding flow: create profile → add entries → autosave on step change → reload → edit → save
-- [ ] 5.24 Test validation: required fields, format validation, error messages
-- [ ] 5.25 Test skills autocomplete and junction table behavior (duplicate prevention, metadata updates)
-- [ ] 5.26 Test responsive behavior on mobile and tablet devices
-- [ ] 5.27 Run type checking: `pnpm typecheck`
-- [ ] 5.28 Run linter: `pnpm lint` and fix any issues
 

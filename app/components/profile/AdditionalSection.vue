@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Certification, ProfileSkill } from '~/shared/types/careerId'
+import { validateRequired, validateUrl } from '~/utils/validation'
 
 // Form data types (without server-managed fields)
 interface SkillItem {
@@ -21,6 +22,19 @@ interface CertificationFormData {
   issueDate: string
   url?: string | null
   isEditing: boolean
+}
+
+// Error types matching form data structures
+interface CertificationErrors {
+  name?: string
+  issuer?: string
+  issueDate?: string
+  url?: string
+}
+
+interface SkillGroupErrors {
+  name?: string
+  skills?: string
 }
 
 /**
@@ -139,6 +153,14 @@ const editedCertifications = ref<Set<number>>(new Set())
 const isUpdatingSkillsFromProps = ref(false)
 const isUpdatingCertificationsFromProps = ref(false)
 
+// Validation errors
+const certificationErrors = ref<Record<number, CertificationErrors>>({})
+const skillGroupErrors = ref<Record<number, SkillGroupErrors>>({})
+
+// Track delete confirmation states
+const certificationDeleteConfirm = ref<Set<number>>(new Set())
+const skillGroupDeleteConfirm = ref<Set<number>>(new Set())
+
 // Watch for changes - will not fire on initial setup (immediate: false by default)
 watch(skillGroups, () => {
   // Skip if we're updating from props
@@ -225,33 +247,95 @@ function updateSkillsForGroup(groupIndex: number, newSkillNames: string[]) {
   const group = skillGroups.value[groupIndex]
   if (!group) return
   
-  // Map existing skills by name to preserve IDs
-  const existingSkillsMap = new Map(group.skills.map(s => [s.name, s]))
+  // Check for duplicates (case-insensitive comparison)
+  const seen = new Set<string>()
+  const duplicates: string[] = []
+  const uniqueNames: string[] = []
+  
+  for (const name of newSkillNames) {
+    const trimmedLower = name.trim().toLowerCase()
+    if (!trimmedLower) continue
+    
+    if (seen.has(trimmedLower)) {
+      duplicates.push(name.trim())
+    } else {
+      seen.add(trimmedLower)
+      uniqueNames.push(name.trim())
+    }
+  }
+  
+  // Show error if duplicates were detected
+  if (duplicates.length > 0) {
+    if (!skillGroupErrors.value[groupIndex]) {
+      skillGroupErrors.value[groupIndex] = {}
+    }
+    skillGroupErrors.value[groupIndex].skills = `You already have "${duplicates[0]}"! Each skill can only be added once. 😅`
+  } else {
+    // Clear error if no duplicates
+    if (skillGroupErrors.value[groupIndex]?.skills) {
+      delete skillGroupErrors.value[groupIndex].skills
+      // Clean up empty error object
+      if (Object.keys(skillGroupErrors.value[groupIndex]).length === 0) {
+        delete skillGroupErrors.value[groupIndex]
+      }
+    }
+  }
+  
+  // Map existing skills by name to preserve IDs (only use unique names)
+  const existingSkillsMap = new Map(group.skills.map(s => [s.name.trim().toLowerCase(), s]))
   
   // Update skills array while preserving IDs for existing skills
-  group.skills = newSkillNames.map(name => {
-    const existing = existingSkillsMap.get(name)
+  group.skills = uniqueNames.map(name => {
+    const existing = existingSkillsMap.get(name.toLowerCase())
     if (existing) {
-      return existing // Keep existing skill with ID
+      return { ...existing, name } // Keep existing skill with ID but update name in case of capitalization change
     }
     return { name } // New skill without ID
   })
+}
+
+// Validate skill group
+function validateSkillGroup(group: SkillGroupFormData, index: number): boolean {
+  // Clear previous errors
+  if (skillGroupErrors.value[index]) {
+    delete skillGroupErrors.value[index]
+  }
+  
+  const errors: SkillGroupErrors = {}
+  let isValid = true
+  
+  // Validate group name (required if not "No Group")
+  if (group.name !== 'No Group' && !group.name.trim()) {
+    errors.name = 'Group name is required'
+    isValid = false
+  }
+  
+  if (!isValid) {
+    skillGroupErrors.value[index] = errors
+  }
+  
+  return isValid
 }
 
 function saveSkillGroup(index: number) {
   const group = skillGroups.value[index]
   if (!group) return
   
+  // Validate before saving
+  if (!validateSkillGroup(group, index)) {
+    return // Stop if validation fails
+  }
+  
   // Only save if this group was actually edited or is new (no originalName)
   if (!group.originalName || editedSkillGroups.value.has(index)) {
     // Convert display names back to raw values for API
     // "No Group" -> null, anything else stays as-is
-    const groupValue = group.name === 'No Group' ? null : group.name
-    const originalGroupValue = group.originalName === 'No Group' ? null : group.originalName
+    const groupValue = group.name === 'No Group' ? null : (group.name || null)
+    const originalGroupValue = group.originalName === 'No Group' ? null : (group.originalName || null)
     
     emit('saveSkillGroup', index, {
       group: groupValue,
-      originalGroup: originalGroupValue,
+      originalGroup: originalGroupValue ?? null,
       skills: group.skills
     })
     
@@ -260,6 +344,10 @@ function saveSkillGroup(index: number) {
   }
   
   group.isEditing = false
+  // Clear validation errors on successful save
+  if (skillGroupErrors.value[index]) {
+    delete skillGroupErrors.value[index]
+  }
 }
 
 function editSkillGroup(index: number) {
@@ -277,10 +365,21 @@ function deleteSkillGroup(index: number) {
     return
   }
   
-  // Convert display name back to raw value for API
-  const groupValue = group.originalName === 'No Group' ? null : group.originalName
-  skillGroups.value.splice(index, 1)
-  emit('deleteSkillGroup', groupValue)
+  // Check if already in confirm state
+  if (skillGroupDeleteConfirm.value.has(index)) {
+    // Actually delete
+    const groupValue: string | null = group.originalName === 'No Group' ? null : (group.originalName || null)
+    skillGroups.value.splice(index, 1)
+    skillGroupDeleteConfirm.value.delete(index)
+    emit('deleteSkillGroup', groupValue)
+  } else {
+    // First click: enter confirm state
+    skillGroupDeleteConfirm.value.add(index)
+    // Auto-clear confirmation after 3 seconds
+    setTimeout(() => {
+      skillGroupDeleteConfirm.value.delete(index)
+    }, 3000)
+  }
 }
 
 function cancelEditSkillGroup(index: number) {
@@ -307,7 +406,7 @@ function cancelEditSkillGroup(index: number) {
     }))
   
   // Reset group name and skills back to original
-  group.name = group.originalName
+  group.name = group.originalName || ''
   group.skills = originalSkills
   
   // Clear the edited flag
@@ -332,20 +431,68 @@ function addNewCertification() {
   certifications.value.push(createBlankCertification())
 }
 
+// Validate certification
+function validateCertification(cert: CertificationFormData & { id?: number }, index: number): boolean {
+  // Clear previous errors
+  if (certificationErrors.value[index]) {
+    delete certificationErrors.value[index]
+  }
+  
+  const errors: CertificationErrors = {}
+  let isValid = true
+  
+  // Validate required fields
+  const nameError = validateRequired(cert.name, 'Certification name')
+  if (nameError) {
+    errors.name = nameError
+    isValid = false
+  }
+  
+  const issuerError = validateRequired(cert.issuer, 'Issuer')
+  if (issuerError) {
+    errors.issuer = issuerError
+    isValid = false
+  }
+  
+  // Validate URL if provided
+  if (cert.url && cert.url.trim()) {
+    const urlError = validateUrl(cert.url, false)
+    if (urlError) {
+      errors.url = urlError
+      isValid = false
+    }
+  }
+  
+  if (!isValid) {
+    certificationErrors.value[index] = errors
+  }
+  
+  return isValid
+}
+
 function saveCertification(index: number) {
   const cert = certifications.value[index]
   if (!cert) return
   
+  // Validate before saving
+  if (!validateCertification(cert, index)) {
+    return // Stop if validation fails
+  }
+  
   // Only save if this certification was actually edited or is new (no id)
   if (!cert.id || editedCertifications.value.has(index)) {
     const { isEditing, ...certToSave } = cert
-    emit('saveCertification', certToSave)
+    emit('saveCertification', certToSave as CertificationFormData & { id?: number })
     
     // Clear the edited flag after saving
     editedCertifications.value.delete(index)
   }
   
   cert.isEditing = false
+  // Clear validation errors on successful save
+  if (certificationErrors.value[index]) {
+    delete certificationErrors.value[index]
+  }
 }
 
 function editCertification(index: number) {
@@ -355,8 +502,20 @@ function editCertification(index: number) {
 }
 
 function deleteCertification(index: number) {
-  certifications.value.splice(index, 1)
-  emit('deleteCertification', index)
+  // Check if already in confirm state
+  if (certificationDeleteConfirm.value.has(index)) {
+    // Actually delete
+    certifications.value.splice(index, 1)
+    certificationDeleteConfirm.value.delete(index)
+    emit('deleteCertification', index)
+  } else {
+    // First click: enter confirm state
+    certificationDeleteConfirm.value.add(index)
+    // Auto-clear confirmation after 3 seconds
+    setTimeout(() => {
+      certificationDeleteConfirm.value.delete(index)
+    }, 3000)
+  }
 }
 
 function cancelEditCertification(index: number) {
@@ -387,6 +546,33 @@ function cancelEditCertification(index: number) {
 
 // Save all certifications and skills (bulk save)
 function saveAll() {
+  // Validate all certifications before saving
+  let allValid = true
+  const certificationsToValidate = certifications.value
+    .map((cert, index) => ({ cert, index }))
+    .filter(({ cert, index }) => !cert.id || editedCertifications.value.has(index))
+  
+  for (const { cert, index } of certificationsToValidate) {
+    if (!validateCertification(cert, index)) {
+      allValid = false
+    }
+  }
+  
+  // Validate all skill groups before saving
+  const skillGroupsToValidate = skillGroups.value
+    .map((group, index) => ({ group, index }))
+    .filter(({ group, index }) => !group.originalName || editedSkillGroups.value.has(index))
+  
+  for (const { group, index } of skillGroupsToValidate) {
+    if (!validateSkillGroup(group, index)) {
+      allValid = false
+    }
+  }
+  
+  if (!allValid) {
+    return // Stop if any validation fails
+  }
+  
   // Only save certifications that were edited or are new (no id)
   const certificationsToSave = certifications.value
     .map((cert, index) => ({ cert, index }))
@@ -413,9 +599,11 @@ function saveAll() {
       skillGroups: skillGroupsToSave
     })
     
-    // Clear all edited flags after saving
+    // Clear all edited flags and validation errors after saving
     editedCertifications.value.clear()
     editedSkillGroups.value.clear()
+    certificationErrors.value = {}
+    skillGroupErrors.value = {}
   }
   
   // Close all editing states
@@ -450,14 +638,22 @@ function cancelAllEdits() {
   // Reset skill groups to original props
   skillGroups.value = transformSkillsToGroups(props.skillGroups)
   
-  // Clear all edited flags
+  // Clear all edited flags and validation errors
   editedCertifications.value.clear()
   editedSkillGroups.value.clear()
+  certificationErrors.value = {}
+  skillGroupErrors.value = {}
 }
 
-// Expose save method for autosave functionality
+// Revert all changes (alias for cancelAllEdits for API error handling)
+function revertAllChanges() {
+  cancelAllEdits()
+}
+
+// Expose save method for autosave functionality and revert for error handling
 defineExpose({
-  triggerSave: saveAll
+  triggerSave: saveAll,
+  revertChanges: revertAllChanges
 })
 </script>
 
@@ -530,9 +726,10 @@ defineExpose({
                 <UButton 
                   v-if="group.isDeletable && group.name !== 'No Group'"
                   class="cursor-pointer"
-                  icon="i-lucide-trash-2" 
+                  :icon="skillGroupDeleteConfirm.has(groupIndex) ? 'i-lucide-check' : 'i-lucide-trash-2'"
+                  :label="skillGroupDeleteConfirm.has(groupIndex) ? 'Sure?' : undefined"
                   color="error" 
-                  variant="ghost" 
+                  :variant="skillGroupDeleteConfirm.has(groupIndex) ? 'solid' : 'ghost'"
                   size="sm"
                   @click="deleteSkillGroup(groupIndex)"
                 />
@@ -558,9 +755,10 @@ defineExpose({
                 <UButton 
                   v-if="group.isDeletable && group.name !== 'No Group'"
                   class="cursor-pointer"
-                  icon="i-lucide-trash-2" 
+                  :icon="skillGroupDeleteConfirm.has(groupIndex) ? 'i-lucide-check' : 'i-lucide-trash-2'"
+                  :label="skillGroupDeleteConfirm.has(groupIndex) ? 'Sure?' : undefined"
                   color="error" 
-                  variant="ghost" 
+                  :variant="skillGroupDeleteConfirm.has(groupIndex) ? 'solid' : 'ghost'"
                   size="sm"
                   @click="deleteSkillGroup(groupIndex)"
                 />
@@ -572,27 +770,33 @@ defineExpose({
             <UCard>
               <div class="space-y-4">
                 <!-- Group Name -->
-                <UFormField size="xl" label="Group Name" name="name">
-                  <UInput 
-                    class="w-full"
-                    v-model="group.name" 
-                    placeholder="e.g., Core Skills, Programming Languages"
-                    :disabled="group.name === 'No Group' && !group.isDeletable"
-                  />
-                </UFormField>
+                <div>
+                  <UFormField size="xl" label="Group Name" name="name">
+                    <UInput 
+                      class="w-full"
+                      v-model="group.name" 
+                      placeholder="e.g., Core Skills, Programming Languages"
+                      :disabled="group.name === 'No Group' && !group.isDeletable"
+                    />
+                  </UFormField>
+                  <p v-if="skillGroupErrors[groupIndex]?.name" class="text-sm text-error mt-1">{{ skillGroupErrors[groupIndex].name }}</p>
+                </div>
 
                 <!-- Skills List -->
                 <div class="space-y-2">
-                  <UFormField size="xl" label="Skills" name="skills">
-                    <UInputTags 
-                      class="w-full"
-                      :model-value="group.skills.map((s: any) => s.name)"
-                      @update:model-value="(values: string[]) => updateSkillsForGroup(groupIndex, values)"
-                      placeholder="Press enter to add"
-                      size="xl"
-                    />
-                  </UFormField>
-
+                  <div>
+                    <UFormField size="xl" label="Skills" name="skills">
+                      <UInputTags 
+                        class="w-full"
+                        duplicate="true"
+                        :model-value="group.skills.map((s: any) => s.name)"
+                        @update:model-value="(values: string[]) => updateSkillsForGroup(groupIndex, values)"
+                        placeholder="Press enter to add"
+                        size="xl"
+                      />
+                    </UFormField>
+                    <p v-if="skillGroupErrors[groupIndex]?.skills" class="text-sm text-error mt-1">{{ skillGroupErrors[groupIndex].skills }}</p>
+                  </div>
                 </div>
 
                 <!-- Action Buttons -->
@@ -662,9 +866,10 @@ defineExpose({
                 />
                 <UButton 
                   class="cursor-pointer"
-                  icon="i-lucide-trash-2" 
+                  :icon="certificationDeleteConfirm.has(certIndex) ? 'i-lucide-check' : 'i-lucide-trash-2'"
+                  :label="certificationDeleteConfirm.has(certIndex) ? 'Sure?' : undefined"
                   color="error" 
-                  variant="ghost" 
+                  :variant="certificationDeleteConfirm.has(certIndex) ? 'solid' : 'ghost'"
                   size="sm"
                   @click="deleteCertification(certIndex)"
                 />
@@ -690,9 +895,10 @@ defineExpose({
                 />
                 <UButton 
                   class="cursor-pointer"
-                  icon="i-lucide-trash-2" 
+                  :icon="certificationDeleteConfirm.has(certIndex) ? 'i-lucide-check' : 'i-lucide-trash-2'"
+                  :label="certificationDeleteConfirm.has(certIndex) ? 'Sure?' : undefined"
                   color="error" 
-                  variant="ghost" 
+                  :variant="certificationDeleteConfirm.has(certIndex) ? 'solid' : 'ghost'"
                   size="sm"
                   @click="deleteCertification(certIndex)"
                 />
@@ -705,40 +911,52 @@ defineExpose({
               <div class="space-y-4">
                 <!-- Certification Name and Issuer -->
                 <div class="flex gap-2 w-full">
-                  <UFormField class="flex-1" size="xl" label="Certification" name="name">
-                    <UInput 
-                      class="w-full"
-                      v-model="cert.name" 
-                      placeholder="e.g., AWS Certified Solutions Architect"
-                    />
-                  </UFormField>
+                  <div class="flex-1">
+                    <UFormField class="w-full" size="xl" label="Certification" name="name">
+                      <UInput 
+                        class="w-full"
+                        v-model="cert.name" 
+                        placeholder="e.g., AWS Certified Solutions Architect"
+                      />
+                    </UFormField>
+                    <p v-if="certificationErrors[certIndex]?.name" class="text-sm text-error mt-1">{{ certificationErrors[certIndex].name }}</p>
+                  </div>
 
-                  <UFormField class="flex-1" size="xl" label="Issuer" name="issuer">
-                    <UInput 
-                      class="w-full"
-                      v-model="cert.issuer" 
-                      placeholder="e.g., Amazon Web Services"
-                    />
-                  </UFormField>
+                  <div class="flex-1">
+                    <UFormField class="w-full" size="xl" label="Issuer" name="issuer">
+                      <UInput 
+                        class="w-full"
+                        v-model="cert.issuer" 
+                        placeholder="e.g., Amazon Web Services"
+                      />
+                    </UFormField>
+                    <p v-if="certificationErrors[certIndex]?.issuer" class="text-sm text-error mt-1">{{ certificationErrors[certIndex].issuer }}</p>
+                  </div>
                 </div>
 
                 <!-- Issue Date and URL -->
                 <div class="flex gap-2 w-full">
-                  <UFormField class="flex-1" size="xl" label="Issue Date" name="issueDate">
-                    <UInput 
-                      class="w-full"
-                      v-model="cert.issueDate" 
-                      placeholder="e.g., Jan 2023"
-                    />
-                  </UFormField>
+                  <div class="flex-1">
+                    <UFormField class="w-full" size="xl" label="Issue Date" name="issueDate">
+                      <UInput 
+                        class="w-full"
+                        v-model="cert.issueDate" 
+                        placeholder="e.g., Jan 2023"
+                      />
+                    </UFormField>
+                    <p v-if="certificationErrors[certIndex]?.issueDate" class="text-sm text-error mt-1">{{ certificationErrors[certIndex].issueDate }}</p>
+                  </div>
 
-                  <UFormField class="flex-1" size="xl" label="URL (Optional)" name="url">
-                    <UInput 
-                      class="w-full"
-                      v-model="cert.url" 
-                      placeholder="e.g., https://..."
-                    />
-                  </UFormField>
+                  <div class="flex-1">
+                    <UFormField class="w-full" size="xl" label="URL (Optional)" name="url">
+                      <UInput 
+                        class="w-full"
+                        v-model="cert.url" 
+                        placeholder="e.g., https://..."
+                      />
+                    </UFormField>
+                    <p v-if="certificationErrors[certIndex]?.url" class="text-sm text-error mt-1">{{ certificationErrors[certIndex].url }}</p>
+                  </div>
                 </div>
 
                 <!-- Action Buttons -->
@@ -773,7 +991,7 @@ defineExpose({
         class="cursor-pointer" 
         size="xl" 
         variant="outline" 
-        color="gray"
+        color="neutral"
         @click="cancelAllEdits"
       >
         Cancel Edits

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Experience } from '~/shared/types/careerId'
 import { vMaska } from 'maska/vue'
+import { validateRequired, validateUrl, validateMonthYear, validateDateRange } from '~/utils/validation'
 
 // Form data type for local state (includes UI state like isEditing)
 interface ExperienceFormData {
@@ -17,6 +18,15 @@ interface ExperienceFormData {
   summary?: string | null
   highlights: string[]
   isEditing: boolean
+}
+
+// Error type matching form data structure
+interface ExperienceErrors {
+  employer?: string
+  title?: string
+  startDate?: string
+  endDate?: string
+  url?: string
 }
 
 /**
@@ -87,6 +97,12 @@ const experiences = ref<ExperienceFormData[]>(
 const editedExperiences = ref<Set<number>>(new Set())
 // Flag to temporarily disable change tracking during props updates
 const isUpdatingFromProps = ref(false)
+
+// Validation errors (keyed by experience index)
+const validationErrors = ref<Record<number, ExperienceErrors>>({})
+
+// Track delete confirmation states
+const experienceDeleteConfirm = ref<Set<number>>(new Set())
 
 // Watch for changes - will not fire on initial setup (immediate: false by default)
 watch(experiences, () => {
@@ -226,8 +242,19 @@ function cancelEdit(index: number) {
 }
 
 function deleteExperience(index: number) {
-  // Remove from local state - parent will diff and call delete API if it has an id
-  experiences.value.splice(index, 1)
+  // Check if already in confirm state
+  if (experienceDeleteConfirm.value.has(index)) {
+    // Actually delete
+    experiences.value.splice(index, 1)
+    experienceDeleteConfirm.value.delete(index)
+  } else {
+    // First click: enter confirm state
+    experienceDeleteConfirm.value.add(index)
+    // Auto-clear confirmation after 3 seconds
+    setTimeout(() => {
+      experienceDeleteConfirm.value.delete(index)
+    }, 3000)
+  }
 }
 
 function addNewExperience() {
@@ -235,10 +262,77 @@ function addNewExperience() {
   experiences.value.push(createBlankExperience())
 }
 
+// Validate single experience
+function validateExperience(exp: ExperienceFormData, index: number): boolean {
+  // Clear previous errors for this experience
+  if (validationErrors.value[index]) {
+    delete validationErrors.value[index]
+  }
+  
+  const errors: ExperienceErrors = {}
+  let isValid = true
+  
+  // Validate required fields
+  const employerError = validateRequired(exp.employer, 'Employer')
+  if (employerError) {
+    errors.employer = employerError
+    isValid = false
+  }
+  
+  const titleError = validateRequired(exp.title, 'Job title')
+  if (titleError) {
+    errors.title = titleError
+    isValid = false
+  }
+  
+  // Validate start date
+  const startDateError = validateMonthYear(exp.startDate, true)
+  if (startDateError) {
+    errors.startDate = startDateError
+    isValid = false
+  }
+  
+  // Validate end date (if not current position)
+  if (!exp.currentPosition && exp.endDate) {
+    const endDateError = validateMonthYear(exp.endDate, false)
+    if (endDateError) {
+      errors.endDate = endDateError
+      isValid = false
+    } else if (exp.startDate) {
+      // Validate date range
+      const rangeError = validateDateRange(exp.startDate, exp.endDate, 'End date')
+      if (rangeError) {
+        errors.endDate = rangeError
+        isValid = false
+      }
+    }
+  }
+  
+  // Validate URL if provided
+  if (exp.url && exp.url.trim()) {
+    const urlError = validateUrl(exp.url, false)
+    if (urlError) {
+      errors.url = urlError
+      isValid = false
+    }
+  }
+  
+  if (!isValid) {
+    validationErrors.value[index] = errors
+  }
+  
+  return isValid
+}
+
 // Save individual experience - closes edit mode and emits just that experience
 function saveExperience(index: number) {
   const experience = experiences.value[index]
   if (!experience) return
+  
+  // Validate before saving
+  if (!validateExperience(experience, index)) {
+    return // Stop if validation fails
+  }
   
   // Only save if this experience was actually edited or is new (no id)
   if (!experience.id || editedExperiences.value.has(index)) {
@@ -251,10 +345,30 @@ function saveExperience(index: number) {
   
   // Close editing mode for this experience
   experience.isEditing = false
+  // Clear validation errors on successful save
+  if (validationErrors.value[index]) {
+    delete validationErrors.value[index]
+  }
 }
 
 // Emit all experiences on save - only sends edited ones
 function saveAllExperiences() {
+  // Validate all experiences before saving
+  let allValid = true
+  const experiencesToValidate = experiences.value
+    .map((exp, index) => ({ exp, index }))
+    .filter(({ exp, index }) => !exp.id || editedExperiences.value.has(index))
+  
+  for (const { exp, index } of experiencesToValidate) {
+    if (!validateExperience(exp, index)) {
+      allValid = false
+    }
+  }
+  
+  if (!allValid) {
+    return // Stop if any validation fails
+  }
+  
   // Only save experiences that were edited or are new (no id)
   const experiencesToSave = experiences.value
     .map((exp, index) => ({ exp, index }))
@@ -268,14 +382,43 @@ function saveAllExperiences() {
   if (experiencesToSave.length > 0) {
     emit('saveAll', experiencesToSave)
     
-    // Clear all edited flags after saving
+    // Clear all edited flags and validation errors after saving
     editedExperiences.value.clear()
+    validationErrors.value = {}
   }
 }
 
-// Expose save method for autosave functionality
+// Revert all changes back to original props values
+function revertAllChanges() {
+  isUpdatingFromProps.value = true
+  
+  experiences.value = props.experience.length > 0
+    ? props.experience.map(exp => ({
+        id: exp.id,
+        employmentType: exp.employmentType,
+        employer: exp.employer,
+        title: exp.title,
+        location: exp.location,
+        locationType: exp.locationType,
+        url: exp.url,
+        startDate: formatDateForUI(exp.startDate),
+        endDate: formatDateForUI(exp.endDate),
+        currentPosition: exp.currentPosition,
+        summary: exp.summary,
+        highlights: exp.highlights || [],
+        isEditing: false
+      }))
+    : []
+  
+  editedExperiences.value.clear()
+  validationErrors.value = {}
+  isUpdatingFromProps.value = false
+}
+
+// Expose save method for autosave functionality and revert for error handling
 defineExpose({
-  triggerSave: saveAllExperiences
+  triggerSave: saveAllExperiences,
+  revertChanges: revertAllChanges
 })
 </script>
 
@@ -332,9 +475,10 @@ defineExpose({
               />
               <UButton 
                 class="cursor-pointer"
-                icon="i-lucide-trash-2" 
+                :icon="experienceDeleteConfirm.has(index) ? 'i-lucide-check' : 'i-lucide-trash-2'"
+                :label="experienceDeleteConfirm.has(index) ? 'Sure?' : undefined"
                 color="error" 
-                variant="ghost" 
+                :variant="experienceDeleteConfirm.has(index) ? 'solid' : 'ghost'"
                 size="sm"
                 @click="deleteExperience(index)"
               />
@@ -360,9 +504,10 @@ defineExpose({
               />
               <UButton 
                 class="cursor-pointer"
-                icon="i-lucide-trash-2" 
+                :icon="experienceDeleteConfirm.has(index) ? 'i-lucide-check' : 'i-lucide-trash-2'"
+                :label="experienceDeleteConfirm.has(index) ? 'Sure?' : undefined"
                 color="error" 
-                variant="ghost" 
+                :variant="experienceDeleteConfirm.has(index) ? 'solid' : 'ghost'"
                 size="sm"
                 @click="deleteExperience(index)"
               />
@@ -374,18 +519,27 @@ defineExpose({
           <UCard>
             <UForm :state="experience" class="space-y-4">
               <!-- Job Title -->
+              <div>
               <UFormField size="xl" label="Job Title" name="title">
                 <UInput class="w-full" v-model="experience.title" placeholder="e.g., Software Engineer, Project Manager" />
               </UFormField>
+                <p v-if="validationErrors[index]?.title" class="text-sm text-error mt-1">{{ validationErrors[index].title }}</p>
+              </div>
 
               <!-- Employer -->
+              <div>
               <UFormField size="xl" label="Employer" name="employer">
                 <UInput class="w-full" v-model="experience.employer" placeholder="e.g., Google, Acme Corp" />
               </UFormField>
+                <p v-if="validationErrors[index]?.employer" class="text-sm text-error mt-1">{{ validationErrors[index].employer }}</p>
+              </div>
 
+              <div>
               <UFormField size="xl" label="Employer Website" name="url">
                 <UInput class="w-full" v-model="experience.url" placeholder="e.g. https://www.google.com" />
               </UFormField>
+                <p v-if="validationErrors[index]?.url" class="text-sm text-error mt-1">{{ validationErrors[index].url }}</p>
+              </div>
 
               <!-- Employment Type -->
               <UFormField size="xl" label="Employment Type" name="employmentType">
@@ -420,13 +574,19 @@ defineExpose({
 
               <!-- Start and End Date -->
               <div class="flex gap-2 w-full"> 
-                <UFormField class="flex-1" size="xl" label="Start Date" name="startDate">
+                <div class="flex-1">
+                  <UFormField class="w-full" size="xl" label="Start Date" name="startDate">
                   <UInput class="w-full" v-model="experience.startDate" v-maska="'##/####'" placeholder="MM/YYYY" />
                 </UFormField>
+                  <p v-if="validationErrors[index]?.startDate" class="text-sm text-error mt-1">{{ validationErrors[index].startDate }}</p>
+                </div>
 
-                <UFormField class="flex-1" size="xl" label="End Date" name="endDate">
+                <div class="flex-1">
+                  <UFormField class="w-full" size="xl" label="End Date" name="endDate">
                   <UInput :disabled="experience.currentPosition" class="w-full" v-model="experience.endDate" v-maska="'##/####'" placeholder="MM/YYYY" />
                 </UFormField>
+                  <p v-if="validationErrors[index]?.endDate" class="text-sm text-error mt-1">{{ validationErrors[index].endDate }}</p>
+                </div>
               </div>
 
               <UFormField size="xl" label="Current Position?" name="currentPosition">
