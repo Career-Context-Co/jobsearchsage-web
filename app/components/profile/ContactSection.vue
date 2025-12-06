@@ -49,12 +49,23 @@ const emit = defineEmits<{
 // Local reactive copy for two-way binding
 const contactInfo = ref<ContactInfo>({ ...props.contactInfo })
 
+// Track if data has been modified
+const hasChanges = ref(false)
 
 // Social links management
 const socialLinks = ref<ProfileSocialLink[]>([...props.profileSocialLinks || []])
 const showAddSocialForm = ref(socialLinks.value.length === 0) // Show form by default only if no links
 const selectedSocialPlatform = ref<SocialPlatform | undefined>(socialPlatforms.value?.[0])
 const socialLinkUrl = ref(selectedSocialPlatform.value?.base_url || '')
+
+// Watch for changes - will not fire on initial setup (immediate: false by default)
+watch(contactInfo, () => {
+  hasChanges.value = true
+}, { deep: true })
+
+watch(socialLinks, () => {
+  hasChanges.value = true
+}, { deep: true })
 
 // Helper to get platform details by platformId
 function getPlatformById(platformId: number) {
@@ -116,6 +127,11 @@ function removeSocialLink(index: number) {
 
 // Emit everything on save - parent diffs against store
 function saveContactInfo() {
+  // Only emit if there are actual changes
+  if (!hasChanges.value) {
+    return
+  }
+  
   emit('save', {
     contactInfo: contactInfo.value as ContactInfoFormData,
     socialLinks: socialLinks.value.map((link: ProfileSocialLink) => ({
@@ -124,7 +140,15 @@ function saveContactInfo() {
       url: link.url
     }))
   })
+  
+  // Reset change tracking after save
+  hasChanges.value = false
 }
+
+// Expose save method for autosave functionality
+defineExpose({
+  triggerSave: saveContactInfo
+})
 
 // Reset all changes back to original props values
 function cancelEdits() {
@@ -138,6 +162,9 @@ function cancelEdits() {
   showAddSocialForm.value = socialLinks.value.length === 0
   selectedSocialPlatform.value = socialPlatforms.value?.[0]
   socialLinkUrl.value = selectedSocialPlatform.value?.base_url || ''
+  
+  // Reset change tracking
+  hasChanges.value = false
 }
 </script>
 

@@ -329,16 +329,20 @@ Emits:
 
 ### 5.C Autosave on Step Navigation
 
-- [ ] 5.16 Implement autosave on step navigation:
-  - [ ] 5.16.1 Add autosave logic when user clicks "Continue" button:
-    - [ ] 5.16.1.1 Components need to expose a `triggerSave()` method via template ref
-    - [ ] 5.16.1.2 On "Continue" click, call `componentRef.triggerSave()` for current step
-    - [ ] 5.16.1.3 This triggers the component's save event with all current data
-    - [ ] 5.16.1.4 Parent handler diffs and makes API calls as usual
+- [x] 5.16 Implement autosave on step navigation:
+  - [x] 5.16.1 Add autosave logic when user clicks "Continue" or "Back" button:
+    - [x] 5.16.1.1 Components expose a `triggerSave()` method via `defineExpose` (ContactSection, ExperienceSection, EducationSection, AdditionalSection)
+    - [x] 5.16.1.2 On "Continue" or "Back" click, call `autosaveCurrentStep()` which calls `componentRef.triggerSave()` for current step
+    - [x] 5.16.1.3 This triggers the component's save event with all current data
+    - [x] 5.16.1.4 Parent handler diffs and makes API calls as usual
+  - [x] 5.16.1.5 Implement change tracking to prevent unnecessary API calls:
+    - [x] 5.16.1.5.1 Add deep watchers (without `immediate`) to track user edits in all section components
+    - [x] 5.16.1.5.2 Use flags (`isUpdatingFromProps`) to prevent false positives when props update from store
+    - [x] 5.16.1.5.3 Only emit save events if items are new or have been edited
   - [ ] 5.16.2 Add loading state during save operations using `careerIDStore.isSaving`
   - [ ] 5.16.3 Display error messages if save fails using `careerIDStore.error`
   - [ ] 5.16.4 Update `lastSaved` timestamp display using `careerIDStore.lastSaved` after successful saves
-  - [ ] 5.16.5 Note: All changes are local until save button or "Continue" triggers the save event
+  - [x] 5.16.5 Note: All changes are local until save button or "Continue"/"Back" triggers the save event
 
 ### 5.D Profile View/Edit Page
 

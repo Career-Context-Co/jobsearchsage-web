@@ -84,8 +84,14 @@ const educationList = ref<EducationFormData[]>(
       }]
 )
 
+// Flag to temporarily disable change tracking during props updates
+const isUpdatingFromProps = ref(false)
+
 // Watch each education object for deep changes
 watchDeep(educationList, () => {
+  // Skip if we're updating from props
+  if (isUpdatingFromProps.value) return
+  
   // Mark all educations as potentially edited when any field changes
   // We'll verify actual changes when saving
   educationList.value.forEach((_, index) => {
@@ -101,6 +107,9 @@ function markAsEdited(index: number) {
 // Watch for external prop changes (when store updates)
 // Preserve isEditing state for items that are currently being edited
 watch(() => props.education, (newValue) => {
+  // Disable change tracking during this update
+  isUpdatingFromProps.value = true
+  
   // Create a map of current isEditing states by id
   const editingStates = new Map(
     educationList.value.map(edu => [edu.id, edu.isEditing])
@@ -135,6 +144,12 @@ watch(() => props.education, (newValue) => {
         minors: [],
         isEditing: true
       }]
+  
+  // Clear edited educations tracking when props update
+  editedEducations.value.clear()
+  
+  // Re-enable change tracking
+  isUpdatingFromProps.value = false
 }, { deep: true })
 
 function createBlankEducation(): EducationFormData {
@@ -304,6 +319,11 @@ function cleanEducationArrays(education: EducationFormData): Omit<EducationFormD
     minors: cleanEmptyStrings(education.minors)
   }
 }
+
+// Expose save method for autosave functionality
+defineExpose({
+  triggerSave: saveAllEducations
+})
 </script>
 
 <template>
@@ -560,7 +580,7 @@ function cleanEducationArrays(education: EducationFormData): Omit<EducationFormD
               <!-- Action Buttons -->
               <div class="flex gap-2">
                 <UButton class="cursor-pointer" size="lg" type="submit" @click="saveEducation(index)">
-                  Save Education
+                  Save
                 </UButton>
                 <UButton class="cursor-pointer" size="lg" color="neutral" variant="ghost" @click="cancelEdit(index)">
                   Cancel

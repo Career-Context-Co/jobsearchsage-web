@@ -6,6 +6,12 @@ import { useCareerIDStore } from '~/stores/careerIDStore'
 const stepper = useTemplateRef('stepper')
 const activeStep = ref('contact')
 
+// Template refs for section components (for autosave)
+const contactSectionRef = useTemplateRef('contactSection')
+const experienceSectionRef = useTemplateRef('experienceSection')
+const educationSectionRef = useTemplateRef('educationSection')
+const additionalSectionRef = useTemplateRef('additionalSection')
+
 const steps: StepperItem[] = [
 { 
     title: 'Contact', 
@@ -346,6 +352,28 @@ async function handleDeleteSkillGroup(groupValue: string | null) {
   }
 }
 
+// Autosave current step before navigation
+async function autosaveCurrentStep() {
+  try {
+    switch (activeStep.value) {
+      case 'contact':
+        await contactSectionRef.value?.triggerSave()
+        break
+      case 'experience':
+        await experienceSectionRef.value?.triggerSave()
+        break
+      case 'education':
+        await educationSectionRef.value?.triggerSave()
+        break
+      case 'additional':
+        await additionalSectionRef.value?.triggerSave()
+        break
+    }
+  } catch (error) {
+    console.error('Failed to autosave current step:', error)
+  }
+}
+
 // Fetch profile on mount
 onMounted(async () => {
   try {
@@ -390,6 +418,7 @@ onMounted(async () => {
         <div class="p-6 sm:p-8">
           <!-- ContactSection - single save event with all data -->
           <ProfileContactSection 
+            ref="contactSection"
             v-show="activeStep === 'contact'"
             :contact-info="careerIDStore.contactInfo"
             :profile-social-links="careerIDStore.profileSocialLinks"
@@ -398,6 +427,7 @@ onMounted(async () => {
           
           <!-- ExperienceSection - props down, events up -->
           <ProfileExperienceSection 
+            ref="experienceSection"
             v-show="activeStep === 'experience'"
             :experience="careerIDStore.experience"
             @save="handleSaveExperience"
@@ -406,6 +436,7 @@ onMounted(async () => {
           
           <!-- EducationSection - props down, events up -->
           <ProfileEducationSection 
+            ref="educationSection"
             v-show="activeStep === 'education'"
             :education="careerIDStore.education"
             @save="handleSaveEducation"
@@ -414,6 +445,7 @@ onMounted(async () => {
           
           <!-- AdditionalSection - props down, events up -->
           <ProfileAdditionalSection 
+            ref="additionalSection"
             v-show="activeStep === 'additional'"
             :skill-groups="careerIDStore.profileSkills"
             :certifications="careerIDStore.certifications"
@@ -435,7 +467,10 @@ onMounted(async () => {
             color="neutral"
             variant="subtle"
             :disabled="!stepper?.hasPrev"
-            @click="stepper?.prev()"
+            @click="async () => {
+              await autosaveCurrentStep()
+              stepper?.prev()
+            }"
           />
           
           <div class="flex gap-2">
@@ -446,7 +481,10 @@ onMounted(async () => {
               label="Continue"
               trailing-icon="i-lucide-chevron-right"
               color="primary"
-              @click="stepper?.next()"
+              @click="async () => {
+                await autosaveCurrentStep()
+                stepper?.next()
+              }"
             />
             <UButton
               v-else
@@ -455,6 +493,9 @@ onMounted(async () => {
               label="Complete Profile"
               trailing-icon="i-lucide-check"
               color="success"
+              @click="async () => {
+                await autosaveCurrentStep()
+              }"
             />
           </div>
         </div>

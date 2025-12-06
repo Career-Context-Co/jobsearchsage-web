@@ -83,9 +83,28 @@ const experiences = ref<ExperienceFormData[]>(
       }]
 )
 
+// Track which experiences have been edited
+const editedExperiences = ref<Set<number>>(new Set())
+// Flag to temporarily disable change tracking during props updates
+const isUpdatingFromProps = ref(false)
+
+// Watch for changes - will not fire on initial setup (immediate: false by default)
+watch(experiences, () => {
+  // Skip if we're updating from props
+  if (isUpdatingFromProps.value) return
+  
+  // Mark all experiences as potentially edited when any field changes
+  experiences.value.forEach((_, index) => {
+    editedExperiences.value.add(index)
+  })
+}, { deep: true })
+
 // Watch for external prop changes (when store updates)
 // Preserve isEditing state for items that are currently being edited
 watch(() => props.experience, (newValue) => {
+  // Disable change tracking during this update
+  isUpdatingFromProps.value = true
+  
   // Create a map of current isEditing states by id
   const editingStates = new Map(
     experiences.value.map(exp => [exp.id, exp.isEditing])
@@ -122,6 +141,12 @@ watch(() => props.experience, (newValue) => {
         highlights: [],
         isEditing: true
       }]
+  
+  // Clear edited experiences tracking when props update
+  editedExperiences.value.clear()
+  
+  // Re-enable change tracking
+  isUpdatingFromProps.value = false
 }, { deep: true })
 
 // Employment type options
@@ -172,6 +197,7 @@ function cancelEdit(index: number) {
   // If this is a new unsaved experience (no id), remove it
   if (!experience.id) {
     experiences.value.splice(index, 1)
+    editedExperiences.value.delete(index)
     return
   }
   
@@ -192,6 +218,9 @@ function cancelEdit(index: number) {
     experience.highlights = [...(original.highlights || [])]
   }
   
+  // Clear the edited flag
+  editedExperiences.value.delete(index)
+  
   // Close edit mode
   experience.isEditing = false
 }
@@ -211,23 +240,43 @@ function saveExperience(index: number) {
   const experience = experiences.value[index]
   if (!experience) return
   
+  // Only save if this experience was actually edited or is new (no id)
+  if (!experience.id || editedExperiences.value.has(index)) {
+    const { isEditing, ...experienceToSave } = experience
+    emit('save', experienceToSave)
+    
+    // Clear the edited flag after saving
+    editedExperiences.value.delete(index)
+  }
+  
   // Close editing mode for this experience
   experience.isEditing = false
-  
-  // Emit just this one experience - parent handles POST (new) or PATCH (existing)
-  const { isEditing, ...experienceToSave } = experience
-  emit('save', experienceToSave)
 }
 
-// Emit all experiences on save - parent diffs against store
+// Emit all experiences on save - only sends edited ones
 function saveAllExperiences() {
-  // Remove isEditing field before emitting
-  const experiencesToSave = experiences.value.map(exp => {
-    const { isEditing, ...rest } = exp
-    return rest
-  })
-  emit('saveAll', experiencesToSave)
+  // Only save experiences that were edited or are new (no id)
+  const experiencesToSave = experiences.value
+    .map((exp, index) => ({ exp, index }))
+    .filter(({ exp, index }) => !exp.id || editedExperiences.value.has(index))
+    .map(({ exp }) => {
+      const { isEditing, ...rest } = exp
+      return rest
+    })
+  
+  // Only emit if there are actually changes to save
+  if (experiencesToSave.length > 0) {
+    emit('saveAll', experiencesToSave)
+    
+    // Clear all edited flags after saving
+    editedExperiences.value.clear()
+  }
 }
+
+// Expose save method for autosave functionality
+defineExpose({
+  triggerSave: saveAllExperiences
+})
 </script>
 
 <template>
@@ -392,7 +441,7 @@ function saveAllExperiences() {
               <!-- Action Buttons -->
               <div class="flex gap-2">
                 <UButton class="cursor-pointer" size="lg" type="submit" @click="saveExperience(index)">
-                  Save Experience
+                  Save
                 </UButton>
                 <UButton class="cursor-pointer" size="lg" color="neutral" variant="ghost" @click="cancelEdit(index)">
                   Cancel

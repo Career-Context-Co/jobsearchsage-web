@@ -132,12 +132,52 @@ const certifications = ref<(CertificationFormData & { id?: number })[]>(
       }]
 )
 
+// Track which items have been edited
+const editedSkillGroups = ref<Set<number>>(new Set())
+const editedCertifications = ref<Set<number>>(new Set())
+// Flags to temporarily disable change tracking during props updates
+const isUpdatingSkillsFromProps = ref(false)
+const isUpdatingCertificationsFromProps = ref(false)
+
+// Watch for changes - will not fire on initial setup (immediate: false by default)
+watch(skillGroups, () => {
+  // Skip if we're updating from props
+  if (isUpdatingSkillsFromProps.value) return
+  
+  // Mark all skill groups as potentially edited when any field changes
+  skillGroups.value.forEach((_, index) => {
+    editedSkillGroups.value.add(index)
+  })
+}, { deep: true })
+
+watch(certifications, () => {
+  // Skip if we're updating from props
+  if (isUpdatingCertificationsFromProps.value) return
+  
+  // Mark all certifications as potentially edited when any field changes
+  certifications.value.forEach((_, index) => {
+    editedCertifications.value.add(index)
+  })
+}, { deep: true })
+
 // Watch for external prop changes
 watch(() => props.skillGroups, (newValue) => {
+  // Disable change tracking during this update
+  isUpdatingSkillsFromProps.value = true
+  
   skillGroups.value = transformSkillsToGroups(newValue)
+  
+  // Clear edited tracking when props update
+  editedSkillGroups.value.clear()
+  
+  // Re-enable change tracking
+  isUpdatingSkillsFromProps.value = false
 }, { deep: true })
 
 watch(() => props.certifications, (newValue) => {
+  // Disable change tracking during this update
+  isUpdatingCertificationsFromProps.value = true
+  
   certifications.value = newValue.length > 0
     ? newValue.map(cert => ({
         id: cert.id,
@@ -154,6 +194,12 @@ watch(() => props.certifications, (newValue) => {
         url: '',
         isEditing: true
       }]
+  
+  // Clear edited tracking when props update
+  editedCertifications.value.clear()
+  
+  // Re-enable change tracking
+  isUpdatingCertificationsFromProps.value = false
 }, { deep: true })
 
 // Top-level section visibility
@@ -195,18 +241,25 @@ function updateSkillsForGroup(groupIndex: number, newSkillNames: string[]) {
 function saveSkillGroup(index: number) {
   const group = skillGroups.value[index]
   if (!group) return
+  
+  // Only save if this group was actually edited or is new (no originalName)
+  if (!group.originalName || editedSkillGroups.value.has(index)) {
+    // Convert display names back to raw values for API
+    // "No Group" -> null, anything else stays as-is
+    const groupValue = group.name === 'No Group' ? null : group.name
+    const originalGroupValue = group.originalName === 'No Group' ? null : group.originalName
+    
+    emit('saveSkillGroup', index, {
+      group: groupValue,
+      originalGroup: originalGroupValue,
+      skills: group.skills
+    })
+    
+    // Clear the edited flag after saving
+    editedSkillGroups.value.delete(index)
+  }
+  
   group.isEditing = false
-  
-  // Convert display names back to raw values for API
-  // "No Group" -> null, anything else stays as-is
-  const groupValue = group.name === 'No Group' ? null : group.name
-  const originalGroupValue = group.originalName === 'No Group' ? null : group.originalName
-  
-  emit('saveSkillGroup', index, {
-    group: groupValue,
-    originalGroup: originalGroupValue,
-    skills: group.skills
-  })
 }
 
 function editSkillGroup(index: number) {
@@ -237,6 +290,7 @@ function cancelEditSkillGroup(index: number) {
   // If this is a new unsaved group (no originalName or empty), remove it (unless it's No Group)
   if ((!group.originalName || (!group.name && group.skills.length === 0)) && group.isDeletable) {
     skillGroups.value.splice(index, 1)
+    editedSkillGroups.value.delete(index)
     return
   }
   
@@ -255,6 +309,9 @@ function cancelEditSkillGroup(index: number) {
   // Reset group name and skills back to original
   group.name = group.originalName
   group.skills = originalSkills
+  
+  // Clear the edited flag
+  editedSkillGroups.value.delete(index)
   
   // Close edit mode
   group.isEditing = false
@@ -279,8 +336,15 @@ function saveCertification(index: number) {
   const cert = certifications.value[index]
   if (!cert) return
   
-  const { isEditing, ...certToSave } = cert
-  emit('saveCertification', certToSave)
+  // Only save if this certification was actually edited or is new (no id)
+  if (!cert.id || editedCertifications.value.has(index)) {
+    const { isEditing, ...certToSave } = cert
+    emit('saveCertification', certToSave)
+    
+    // Clear the edited flag after saving
+    editedCertifications.value.delete(index)
+  }
+  
   cert.isEditing = false
 }
 
@@ -302,6 +366,7 @@ function cancelEditCertification(index: number) {
   // If this is a new unsaved certification (no id), remove it
   if (!cert.id) {
     certifications.value.splice(index, 1)
+    editedCertifications.value.delete(index)
     return
   }
   
@@ -314,27 +379,44 @@ function cancelEditCertification(index: number) {
     cert.url = original.url
   }
   
+  // Clear the edited flag
+  editedCertifications.value.delete(index)
+  
   cert.isEditing = false
 }
 
 // Save all certifications and skills (bulk save)
 function saveAll() {
-  const certificationsToSave = certifications.value.map(cert => {
-    const { isEditing, ...rest } = cert
-    return rest
-  })
+  // Only save certifications that were edited or are new (no id)
+  const certificationsToSave = certifications.value
+    .map((cert, index) => ({ cert, index }))
+    .filter(({ cert, index }) => !cert.id || editedCertifications.value.has(index))
+    .map(({ cert }) => {
+      const { isEditing, ...rest } = cert
+      return rest
+    })
   
-  // Convert display names back to raw values for API
-  const skillGroupsToSave = skillGroups.value.map(group => ({
-    group: group.name === 'No Group' ? null : group.name,
-    originalGroup: group.originalName === 'No Group' ? null : group.originalName,
-    skills: group.skills
-  }))
+  // Only save skill groups that were edited or are new (no originalName)
+  const skillGroupsToSave = skillGroups.value
+    .map((group, index) => ({ group, index }))
+    .filter(({ group, index }) => !group.originalName || editedSkillGroups.value.has(index))
+    .map(({ group }) => ({
+      group: group.name === 'No Group' ? null : group.name,
+      originalGroup: group.originalName === 'No Group' ? null : group.originalName,
+      skills: group.skills
+    }))
   
-  emit('saveAll', {
-    certifications: certificationsToSave,
-    skillGroups: skillGroupsToSave
-  })
+  // Only emit if there are actually changes to save
+  if (certificationsToSave.length > 0 || skillGroupsToSave.length > 0) {
+    emit('saveAll', {
+      certifications: certificationsToSave,
+      skillGroups: skillGroupsToSave
+    })
+    
+    // Clear all edited flags after saving
+    editedCertifications.value.clear()
+    editedSkillGroups.value.clear()
+  }
   
   // Close all editing states
   certifications.value.forEach(cert => {
@@ -367,7 +449,16 @@ function cancelAllEdits() {
   
   // Reset skill groups to original props
   skillGroups.value = transformSkillsToGroups(props.skillGroups)
+  
+  // Clear all edited flags
+  editedCertifications.value.clear()
+  editedSkillGroups.value.clear()
 }
+
+// Expose save method for autosave functionality
+defineExpose({
+  triggerSave: saveAll
+})
 </script>
 
 <template>
@@ -653,7 +744,7 @@ function cancelAllEdits() {
                 <!-- Action Buttons -->
                 <div class="flex gap-2">
                   <UButton class="cursor-pointer" size="lg" @click="saveCertification(certIndex)">
-                    Save Certification
+                    Save
                   </UButton>
                   <UButton class="cursor-pointer" size="lg" color="neutral" variant="ghost" @click="cancelEditCertification(certIndex)">
                     Cancel
