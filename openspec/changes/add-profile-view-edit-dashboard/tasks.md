@@ -271,30 +271,29 @@
 
 ### Frontend
 
-- [ ] 6.1 Add contact info form to profile index page
-  - [ ] Update `pages/profile/index.vue` (already created in Story 1)
-  - [ ] Add UForm with Zod schema for contact info
-  - [ ] Use UPageCard with "Contact Information" title
+- [x] 6.1 Add contact info form to profile index page
+  - [x] Update `pages/profile/index.vue` (already created in Story 1)
+  - [x] Use UPageCard with "Contact Information" title
 
-- [ ] 6.2 Display contact information fields
-  - [ ] Pre-populate form with `careerIDStore.contactInfo` data
-  - [ ] Include fields: firstName, lastName, jobTitle, email, phone, linkedin, websites (array), city, stateRegion, country, postalCode, willingToRelocate
-  - [ ] Use UFormField with appropriate input types
-  - [ ] Add USeparator between field groups
+- [x] 6.2 Display contact information fields
+  - [x] Pre-populate form with `careerIDStore.contactInfo` data
+  - [x] Include fields: firstName, lastName, jobTitle, email, phone, linkedin, websites (array), city, stateRegion, country, postalCode, willingToRelocate
+  - [x] Use UInput with appropriate input types
+  - [x] Add USeparator between field groups
 
-- [ ] 6.3 Add client-side validation
-  - [ ] Validate required fields: firstName, lastName, jobTitle, email, phone, city, stateRegion, country, postalCode
-  - [ ] Validate email format
-  - [ ] Validate phone format
-  - [ ] Validate URL format for linkedin and websites
-  - [ ] Display validation errors inline with fields
+- [x] 6.3 Add client-side validation
+  - [x] Validate required fields: firstName, lastName, jobTitle, email, phone, city, stateRegion, country, postalCode
+  - [x] Validate email format
+  - [x] Validate phone format
+  - [x] Validate URL format for linkedin and websites
+  - [x] Display validation errors inline with fields
 
-- [ ] 6.4 Add save functionality
-  - [ ] Add "Save Changes" button in header
-  - [ ] Call `careerIDStore.updateContactInfo(id, data)` on submit
-  - [ ] Show loading state during save (`careerIDStore.isSaving`)
-  - [ ] Show toast notification on success
-  - [ ] Handle errors and display error toast
+- [x] 6.4 Add save functionality
+  - [x] Add "Save Changes" button in header
+  - [x] Call `careerIDStore.updateContactInfo(id, data)` on submit
+  - [x] Show loading state during save (`careerIDStore.isSaving`)
+  - [x] Show toast notification on success
+  - [x] Handle errors and display error toast
 
 ---
 
@@ -309,26 +308,25 @@
 
 ### Frontend
 
-- [ ] 7.1 Add professional summary to profile index page
-  - [ ] Update `pages/profile/index.vue` (part of contact form)
-  - [ ] Add textarea field for summary within UForm
+- [x] 7.1 Add professional summary to profile index page
+  - [x] Update `pages/profile/index.vue` (separate edit section)
+  - [x] Add textarea field for summary with separate edit mode
 
-- [ ] 7.2 Display professional summary field
-  - [ ] Add UFormField with name="summary"
-  - [ ] Use UTextarea component with autoresize
-  - [ ] Pre-populate with `careerIDStore.contactInfo.summary`
-  - [ ] Set max length to 5000 characters (per API spec)
+- [x] 7.2 Display professional summary field
+  - [x] Use UTextarea component with autoresize
+  - [x] Pre-populate with `careerIDStore.contactInfo.summary`
+  - [x] Set max length to 5000 characters (per API spec)
 
-- [ ] 7.3 Add validation
-  - [ ] Validate summary is required (per API spec)
-  - [ ] Validate max length (5000 characters)
-  - [ ] Display character count indicator
-  - [ ] Display validation errors inline
+- [x] 7.3 Add validation
+  - [x] Validate summary is required (per API spec)
+  - [x] Validate max length (5000 characters)
+  - [x] Display character count indicator
+  - [x] Display validation errors inline
 
-- [ ] 7.4 Save with contact info
-  - [ ] Professional summary saves with contact info form (same submit handler)
-  - [ ] Call `careerIDStore.updateContactInfo(id, data)` including summary field
-  - [ ] Show toast notification on success
+- [x] 7.4 Save with contact info
+  - [x] Professional summary has separate save handler
+  - [x] Call `careerIDStore.updateContactInfo(id, data)` with summary field
+  - [x] Show toast notification on success
 
 ---
 
@@ -347,28 +345,28 @@
 
 ### Frontend
 
-- [ ] 8.1 Add social links section to profile index page
-  - [ ] Display social links in `pages/profile/index.vue`
-  - [ ] Show existing links from `careerIDStore.profileSocialLinks`
-  - [ ] Display each link with platform icon and URL
+- [x] 8.1 Add social links section to profile index page
+  - [x] Display social links in `pages/profile/index.vue`
+  - [x] Show existing links from `careerIDStore.profileSocialLinks`
+  - [x] Display each link with platform icon and URL
 
-- [ ] 8.2 Add "Add Social Link" functionality
-  - [ ] Add "Add Social Link" button
-  - [ ] Fetch available platforms using `careerIDStore.fetchSocialPlatforms()`
-  - [ ] Create inline form with platform selector and URL field
-  - [ ] Call `careerIDStore.addSocialLinks([linkData])` on submit
-  - [ ] Show toast notification on success
+- [x] 8.2 Add "Add Social Link" functionality
+  - [x] Add "Add Social Link" button
+  - [x] Fetch available platforms using `careerIDStore.fetchSocialPlatforms()`
+  - [x] Create inline form with platform selector and URL field
+  - [x] Call `careerIDStore.addSocialLinks([linkData])` on submit
+  - [x] Show toast notification on success
 
-- [ ] 8.3 Add "Edit" functionality for social links
-  - [ ] Add edit button for each social link
-  - [ ] Allow editing URL only (platform is fixed)
-  - [ ] Call `careerIDStore.updateSocialLink(id, {url})` on save
-  - [ ] Show toast notification on success
+- [x] 8.3 Add "Edit" functionality for social links
+  - [x] Add edit button for each social link
+  - [x] Allow editing URL only (platform is fixed)
+  - [x] Call `careerIDStore.updateSocialLink(id, {url})` on save
+  - [x] Show toast notification on success
 
-- [ ] 8.4 Add "Delete" functionality for social links
-  - [ ] Add delete button for each social link
-  - [ ] Call `careerIDStore.deleteSocialLink(id)` on click
-  - [ ] Show toast notification on success
+- [x] 8.4 Add "Delete" functionality for social links
+  - [x] Add delete button for each social link
+  - [x] Call `careerIDStore.deleteSocialLink(id)` on click
+  - [x] Show toast notification on success
 
 ---
 
