@@ -219,41 +219,41 @@
 
 ### Frontend
 
-- [ ] 5.1 Create certifications page
-  - [ ] Create `pages/profile/certifications.vue`
-  - [ ] Add UPageCard with title "Certifications"
-  - [ ] Display loading state while fetching
+- [x] 5.1 Create certifications page
+  - [x] Create `pages/profile/certifications.vue`
+  - [x] Add UPageCard with title "Certifications"
+  - [x] Display loading state while fetching
 
-- [ ] 5.2 Display existing certification entries
-  - [ ] Iterate over `careerIDStore.certifications` array
-  - [ ] Display each entry with name, issuer, date, url
-  - [ ] Order entries by date (most recent first)
-  - [ ] Show empty state with "Add Certification" button if no entries
+- [x] 5.2 Display existing certification entries
+  - [x] Iterate over `careerIDStore.certifications` array
+  - [x] Display each entry with name, issuer, date, url
+  - [x] Order entries by date (most recent first)
+  - [x] Show empty state with "Add Certification" button if no entries
 
-- [ ] 5.3 Add "Add Certification" functionality
-  - [ ] Add "Add Certification" button in header or empty state
-  - [ ] Create inline form with UForm and Zod schema
-  - [ ] Include fields: name, issuer, date, url (optional)
-  - [ ] Call `careerIDStore.addCertification()` on submit
-  - [ ] Show toast notification on success
+- [x] 5.3 Add "Add Certification" functionality
+  - [x] Add "Add Certification" button in header or empty state
+  - [x] Create inline form with TypeScript validation
+  - [x] Include fields: name, issuer, date, url (optional)
+  - [x] Call `careerIDStore.addCertification()` on submit
+  - [x] Show toast notification on success
 
-- [ ] 5.4 Add "Edit" functionality for existing entries
-  - [ ] Add edit button/icon for each certification entry
-  - [ ] Toggle inline form pre-populated with entry data
-  - [ ] Call `careerIDStore.updateCertification(id, data)` on submit
-  - [ ] Show toast notification on success
+- [x] 5.4 Add "Edit" functionality for existing entries
+  - [x] Add edit button/icon for each certification entry
+  - [x] Toggle inline form pre-populated with entry data
+  - [x] Call `careerIDStore.updateCertification(id, data)` on submit
+  - [x] Show toast notification on success
 
-- [ ] 5.5 Add "Delete" functionality for entries
-  - [ ] Add delete button/icon for each certification entry
-  - [ ] Show confirmation dialog before deleting
-  - [ ] Call `careerIDStore.deleteCertification(id)` on confirm
-  - [ ] Show toast notification on success
+- [x] 5.5 Add "Delete" functionality for entries
+  - [x] Add delete button/icon for each certification entry
+  - [x] Show confirmation dialog before deleting
+  - [x] Call `careerIDStore.deleteCertification(id)` on confirm
+  - [x] Show toast notification on success
 
-- [ ] 5.6 Add client-side validation
-  - [ ] Validate required fields: name, issuer, date
-  - [ ] Validate URL format if provided
-  - [ ] Validate date format (ISO 8601)
-  - [ ] Display validation errors inline
+- [x] 5.6 Add client-side validation
+  - [x] Validate required fields: name, issuer, date
+  - [x] Validate URL format if provided
+  - [x] Validate date format (MM/YYYY)
+  - [x] Display validation errors inline
 
 ---
 
