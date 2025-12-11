@@ -169,39 +169,46 @@
 
 ### Frontend
 
-- [ ] 4.1 Create skills page
-  - [ ] Create `pages/profile/skills.vue`
-  - [ ] Add UPageCard with title "Skills"
-  - [ ] Display loading state while fetching
+- [x] 4.1 Create skills page
+  - [x] Create `pages/profile/skills.vue`
+  - [x] Use collapsible group layout similar to AdditionalSection
+  - [x] Display loading state while fetching
 
-- [ ] 4.2 Display existing skills
-  - [ ] Iterate over `careerIDStore.profileSkills` array
-  - [ ] Display skills as tags/chips with remove button
-  - [ ] Group skills by proficiency level or category if applicable
-  - [ ] Show empty state with "Add Skills" button if no entries
+- [x] 4.2 Display existing skills
+  - [x] Iterate over `careerIDStore.profileSkills` array
+  - [x] Group skills by group/category (with "No Group" default)
+  - [x] Display collapsed view with skill badges
+  - [x] Display expanded view with clean skill list
+  - [x] Show empty state with "Add Skill Group" button if no entries
 
-- [ ] 4.3 Add "Add Skill" functionality (inline)
-  - [ ] Add input field with autocomplete for skill search
-  - [ ] Call `careerIDStore.searchSkills(query)` for autocomplete suggestions
-  - [ ] Allow user to select from suggestions or add custom skill
-  - [ ] Include proficiency level selector (beginner, intermediate, advanced, expert)
-  - [ ] Call `careerIDStore.addSkills([skillData])` on add
-  - [ ] Display new skill immediately as a tag
+- [x] 4.3 Add "Add Skill" functionality
+  - [x] Add skill rows with "Add Skill" button
+  - [x] Include click-to-search autocomplete for skill names
+  - [x] Call `careerIDStore.searchSkills(query)` for autocomplete suggestions
+  - [x] Inline proficiency level selector (dropdown with 4 levels)
+  - [x] Inline years of experience input (number)
+  - [x] Single Save/Cancel buttons at bottom of group
+  - [x] Call `careerIDStore.addSkills([skillData])` on save
 
-- [ ] 4.4 Add "Edit" functionality for skills
-  - [ ] Allow inline editing of proficiency level (click to edit)
-  - [ ] Call `careerIDStore.updateSkills([{id, proficiencyLevel}])` on save
-  - [ ] Show toast notification on success
+- [x] 4.4 Add "Edit" functionality for skills
+  - [x] Edit entire group with all skills at once
+  - [x] Edit skill name, proficiency level, and years for each skill
+  - [x] Edit group name separately
+  - [x] Call `careerIDStore.updateSkills()` on save
+  - [x] Show toast notification on success
 
-- [ ] 4.5 Add "Delete" functionality for skills
-  - [ ] Add remove button (X) on each skill tag
-  - [ ] Call `careerIDStore.deleteSkills([id])` on click
-  - [ ] Remove skill tag from UI immediately
-  - [ ] Show toast notification on success
+- [x] 4.5 Add "Delete" functionality for skills
+  - [x] Remove individual skills with trash icon button
+  - [x] Delete entire group with confirmation
+  - [x] Call `careerIDStore.deleteSkills([ids])` on delete
+  - [x] Show toast notification on success
 
-- [ ] 4.6 Add bulk operations (optional)
-  - [ ] Allow selecting multiple skills for bulk delete
-  - [ ] Add "Add Multiple Skills" option if needed
+- [x] 4.6 Add group management
+  - [x] Add new groups with "Add Skill Group" button
+  - [x] Rename groups (except "No Group")
+  - [x] Handle group changes (move skills between groups)
+  - [x] Validate group names and skill data
+  - [x] Keep group open after save for quick skill additions
 
 ---
 

@@ -35,9 +35,9 @@ export default eventHandler(async (event) => {
   const { data, error } = await supabase
     .schema('reference')
     .from('skills')
-    .select('id, skill_name, category, description')
-    .or(`skill_name.ilike.%${searchQuery}%,category.ilike.%${searchQuery}%`)
-    .order('skill_name', { ascending: true })
+    .select('id, name, category, description')
+    .or(`name.ilike.%${searchQuery}%,category.ilike.%${searchQuery}%`)
+    .order('name', { ascending: true })
     .limit(limit)
   
   if (error) {
