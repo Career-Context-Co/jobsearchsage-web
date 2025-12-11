@@ -113,44 +113,44 @@
 
 ### Frontend
 
-- [ ] 3.1 Create education page
-  - [ ] Create `pages/profile/education.vue`
-  - [ ] Add UPageCard with title "Education"
-  - [ ] Display loading state while fetching
+- [x] 3.1 Create education page
+  - [x] Create `pages/profile/education.vue`
+  - [x] Add UPageCard with title "Education"
+  - [x] Display loading state while fetching
 
-- [ ] 3.2 Display existing education entries
-  - [ ] Iterate over `careerIDStore.education` array
-  - [ ] Display each entry with degree, institution, dates, field of study
-  - [ ] Display coursework and minors if present
-  - [ ] Order entries by end date (most recent first)
-  - [ ] Show empty state with "Add Education" button if no entries
+- [x] 3.2 Display existing education entries
+  - [x] Iterate over `careerIDStore.education` array
+  - [x] Display each entry with degree, institution, dates, field of study
+  - [x] Display coursework and minors if present
+  - [x] Order entries by end date (most recent first)
+  - [x] Show empty state with "Add Education" button if no entries
 
-- [ ] 3.3 Add "Add Education" functionality
-  - [ ] Add "Add Education" button in header or empty state
-  - [ ] Create inline form with UForm and Zod schema
-  - [ ] Include fields: degreeType, areaOfStudy, institution, startDate, endDate, completed, url, creditHours, coursework (array), minors (array)
-  - [ ] Add dynamic coursework field (add/remove items)
-  - [ ] Add dynamic minors field (add/remove items)
-  - [ ] Call `careerIDStore.addEducation()` on submit
-  - [ ] Show toast notification on success
+- [x] 3.3 Add "Add Education" functionality
+  - [x] Add "Add Education" button in header or empty state
+  - [x] Create inline form with TypeScript validation
+  - [x] Include fields: degreeType, areaOfStudy, institution, startDate, endDate, completed, url, creditHours, coursework (array), minors (array)
+  - [x] Add dynamic coursework field (add/remove items)
+  - [x] Add dynamic minors field (add/remove items)
+  - [x] Call `careerIDStore.addEducation()` on submit
+  - [x] Show toast notification on success
 
-- [ ] 3.4 Add "Edit" functionality for existing entries
-  - [ ] Add edit button/icon for each education entry
-  - [ ] Toggle inline form pre-populated with entry data
-  - [ ] Call `careerIDStore.updateEducation(id, data)` on submit
-  - [ ] Show toast notification on success
+- [x] 3.4 Add "Edit" functionality for existing entries
+  - [x] Add edit button/icon for each education entry
+  - [x] Toggle inline form pre-populated with entry data
+  - [x] Call `careerIDStore.updateEducation(id, data)` on submit
+  - [x] Show toast notification on success
 
-- [ ] 3.5 Add "Delete" functionality for entries
-  - [ ] Add delete button/icon for each education entry
-  - [ ] Show confirmation dialog before deleting
-  - [ ] Call `careerIDStore.deleteEducation(id)` on confirm
-  - [ ] Show toast notification on success
+- [x] 3.5 Add "Delete" functionality for entries
+  - [x] Add delete button/icon for each education entry
+  - [x] Show confirmation dialog before deleting
+  - [x] Call `careerIDStore.deleteEducation(id)` on confirm
+  - [x] Show toast notification on success
 
-- [ ] 3.6 Add client-side validation
-  - [ ] Validate required fields: degreeType, areaOfStudy, institution, startDate, endDate
-  - [ ] Validate date range (endDate >= startDate)
-  - [ ] Validate URL format if provided
-  - [ ] Display validation errors inline
+- [x] 3.6 Add client-side validation
+  - [x] Validate required fields: degreeType, areaOfStudy, institution, startDate, endDate
+  - [x] Validate date range (endDate >= startDate)
+  - [x] Validate URL format if provided
+  - [x] Display validation errors inline
 
 ---
 
