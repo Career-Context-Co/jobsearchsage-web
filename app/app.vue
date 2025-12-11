@@ -1,6 +1,13 @@
 <script setup lang="ts">
-const colorMode = useColorMode()
+const careerIDStore = useCareerIDStore()
 
+if (!careerIDStore.isProfileLoaded) {
+  await careerIDStore.fetchProfile('prof_myf2i85se9xri4e4wgsxxim7')
+} else {
+  console.log('Profile already loaded')
+}
+
+const colorMode = useColorMode()
 const color = computed(() => colorMode.value === 'dark' ? '#1b1718' : 'white')
 
 useHead({
@@ -17,8 +24,8 @@ useHead({
   }
 })
 
-const title = 'Nuxt Dashboard Template'
-const description = 'A professional dashboard template built with Nuxt UI, featuring multiple pages, data visualization, and comprehensive management capabilities for creating powerful admin interfaces.'
+const title = 'JobSearchSage - AI Job Search Coach & Interview Prep'
+const description = 'Master your job search with AI coaching, application tracking, interview prep, and proven career frameworks. Transform your job search from chaos to clarity and confidence.'
 
 useSeoMeta({
   title,

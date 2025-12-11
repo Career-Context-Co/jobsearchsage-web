@@ -104,7 +104,7 @@ export function transformSkill(data: any): Skill {
   return {
     id: data.id,
     name: data.name,
-    category: data.category,
+    group: data.group,
   }
 }
 
@@ -117,6 +117,7 @@ export function transformProfileSkill(data: any): ProfileSkill {
     profileId: data.profile_id,
     skillId: data.skill_id,
     name: data.name,
+    group: data.group || null,
     proficiencyLevel: data.proficiency_level,
     yearsExperience: data.years_experience,
     displayOrder: data.display_order,

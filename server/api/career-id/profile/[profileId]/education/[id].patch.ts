@@ -9,7 +9,7 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { handleDatabaseError, createValidationError, createNotFoundError } from '@@/server/utils/error-handler'
-import { isRequired, requiredFieldError, validateDateRange } from '@@/server/utils/validation'
+import { isRequired, requiredFieldError, validateDateRange, convertMonthYearToDate } from '@@/server/utils/validation'
 import { transformEducation } from '@@/server/utils/career-id-transformer'
 
 const ROUTE_PATH = '/api/career-id/profile/:profileId/education/:id'
@@ -63,8 +63,8 @@ export default eventHandler(async (event) => {
   if (body.degreeType !== undefined) updateData.degree_type = body.degreeType
   if (body.areaOfStudy !== undefined) updateData.area_of_study = body.areaOfStudy
   if (body.institution !== undefined) updateData.institution = body.institution
-  if (body.startDate !== undefined) updateData.start_date = body.startDate
-  if (body.endDate !== undefined) updateData.end_date = body.endDate
+  if (body.startDate !== undefined) updateData.start_date = convertMonthYearToDate(body.startDate)
+  if (body.endDate !== undefined) updateData.end_date = convertMonthYearToDate(body.endDate)
   if (body.completed !== undefined) updateData.completed = body.completed
   if (body.url !== undefined) updateData.url = body.url
   if (body.creditHours !== undefined) updateData.credit_hours = body.creditHours

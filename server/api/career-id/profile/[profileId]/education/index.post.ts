@@ -8,7 +8,7 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { handleDatabaseError, createValidationError } from '@@/server/utils/error-handler'
-import { isRequired, requiredFieldError, validateDateRange } from '@@/server/utils/validation'
+import { isRequired, requiredFieldError, validateDateRange, convertMonthYearToDate } from '@@/server/utils/validation'
 import { transformEducation } from '@@/server/utils/career-id-transformer'
 
 const ROUTE_PATH = '/api/career-id/profile/:profileId/education'
@@ -67,8 +67,8 @@ export default eventHandler(async (event) => {
       degree_type: body.degreeType,
       area_of_study: body.areaOfStudy,
       institution: body.institution,
-      start_date: body.startDate,
-      end_date: body.endDate,
+      start_date: convertMonthYearToDate(body.startDate),
+      end_date: convertMonthYearToDate(body.endDate),
       completed: body.completed ?? true,
       url: body.url || null,
       credit_hours: body.creditHours || null,

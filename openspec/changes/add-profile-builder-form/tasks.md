@@ -198,9 +198,10 @@
 
 - [x] 5.8 Create actions for Skills (bulk operations):
   - [x] 5.8.1 `addSkills(skills[])` - POST /api/career-id/profile/:profileId/skills (bulk add)
-  - [x] 5.8.2 `updateSkills(skills[])` - PATCH /api/career-id/profile/:profileId/skills (bulk update)
+  - [x] 5.8.2 `updateSkills(skills[])` - PATCH /api/career-id/profile/:profileId/skills (bulk update - supports updating name, category, proficiencyLevel, yearsExperience, displayOrder)
   - [x] 5.8.3 `deleteSkills(ids[])` - DELETE /api/career-id/profile/:profileId/skills (bulk delete)
   - [x] 5.8.4 `searchSkills(query)` - GET /api/reference/skills/search?q=query (for autocomplete, returns suggestions)
+  - **API Update**: Added `category` TEXT field to `profile_skills` table (migration 007), all endpoints (GET/POST/PATCH), and `ProfileSkill` type. This allows grouping skills into user-defined categories.
 
 - [x] 5.9 Create actions for Contact Info (one-to-one):
   - [x] 5.9.1 `createContactInfo(data)` - POST /api/career-id/profile/:profileId/contact
@@ -213,41 +214,141 @@
   - [x] 5.10.3 `deleteSocialLink(id)` - DELETE /api/career-id/profile/:profileId/socials/:id
   - [x] 5.10.4 `fetchSocialPlatforms()` - GET /api/reference/social-platforms (for dropdown options)
 
-### 5.B Frontend Integration with Pinia Store
+### 5.B Component Integration (Onboarding Flow)
 
-- [ ] 5.11 Replace mock data in onboarding form with `careerIDStore.fetchProfile(profileId)` call on mount
-- [ ] 5.12 Implement initial profile creation: call `careerIDStore.createProfile(userId)` to get profileId for new users
-- [ ] 5.13 Implement autosave on step navigation using store actions (save current section before moving to next step)
-- [ ] 5.14 Wire up ExperienceSection.vue to use store actions:
-  - [ ] 5.14.2 Call `careerIDStore.addExperience()` for new entries
-  - [ ] 5.14.3 Call `careerIDStore.updateExperience()` for edits
-  - [ ] 5.14.4 Call `careerIDStore.deleteExperience()` for removals
-- [ ] 5.15 Wire up EducationSection.vue to use store actions (same pattern as experience)
-- [ ] 5.16 Wire up CertificationsSection.vue to use store actions (same pattern as experience)
-- [ ] 5.17 Wire up ContactSection.vue to use store actions:
-  - [ ] 5.17.1 Use `careerIDStore.hasContactInfo` getter to determine create vs update
-  - [ ] 5.17.2 Call `createContactInfo()` or `updateContactInfo()` accordingly
-- [ ] 5.18 Wire up SkillsSection.vue to use store actions:
-  - [ ] 5.18.1 Use `careerIDStore.searchSkills()` for autocomplete suggestions
-  - [ ] 5.18.2 Use bulk operations for add/update/delete
-- [ ] 5.19 Wire up SocialsSection.vue to use store actions:
-  - [ ] 5.19.1 Call `careerIDStore.fetchSocialPlatforms()` on mount for dropdown
-  - [ ] 5.19.2 Use store actions for CRUD operations
+**Architecture Note**: All section components follow one-way data flow (props down, events up):
+- Each component accepts initial data via props
+- Components manage their own internal state for forms and editing
+- Components emit a single save event with all data (parent handles diffing and API calls)
+- The parent page (`onboarding.vue`) passes store data as props and handles all API calls
+- No v-model or two-way binding between parent and children
 
-### 5.C UI/UX Enhancements
+#### 5.11 ContactSection Component ✅ COMPLETE
 
-- [ ] 5.20 Add loading states using `careerIDStore.isLoading` and section-specific `loadingStates`
-- [ ] 5.21 Add error handling with user-friendly toast notifications using `careerIDStore.error`
-- [ ] 5.22 Handle validation errors from backend and display inline in form
-- [ ] 5.23 Add visual feedback when autosave completes using `careerIDStore.lastSaved` (e.g., "Saved" indicator)
-- [ ] 5.24 Add confirmation dialogs for destructive actions (delete entries)
+**Component Interface**:
+```typescript
+Props: contactInfo (ContactInfo | null), profileSocialLinks (ProfileSocialLink[])
+Emits: save({ contactInfo, socialLinks }) - single event with all data
+```
 
-### 5.D Testing & Validation
+**Component Updates**:
+- [x] 5.11.1 Replace `linkedin` field with social links management using local state
+  - [x] 5.11.1.1 Accept `profileSocialLinks` prop from parent (passed from store)
+  - [x] 5.11.1.2 Use `USelectMenu` with platform options to add new social links
+  - [x] 5.11.1.3 Manage social links in local array - add/edit/delete locally without API calls
+  - [x] 5.11.1.4 On save, emit all social links with contactInfo in single event
+- [x] 5.11.2 Update interface to match `ContactInfo` type from `shared/types/careerId.ts`
+- [x] 5.11.3 Convert component to single save emit pattern: maintain local copies, emit everything on save button click
+- [x] 5.11.4 Remove console.log calls
 
-- [ ] 5.25 Test complete onboarding flow: create profile → add entries → autosave on step change → reload → edit → save
-- [ ] 5.26 Test validation: required fields, format validation, error messages
-- [ ] 5.27 Test skills autocomplete and junction table behavior (duplicate prevention, metadata updates)
-- [ ] 5.28 Test responsive behavior on mobile and tablet devices
-- [ ] 5.29 Run type checking: `pnpm typecheck`
-- [ ] 5.30 Run linter: `pnpm lint` and fix any issues
+**Parent Integration** (`onboarding.vue`):
+- [x] 5.11.5 Pass props: `:contact-info="careerIDStore.contactInfo"`, `:profile-social-links="careerIDStore.profileSocialLinks"`
+- [x] 5.11.6 Add save handler `@save="handleSaveContact"` that:
+  - [x] 5.11.6.1 Receives `{ contactInfo, socialLinks }` payload
+  - [x] 5.11.6.2 Saves contact info: calls `careerIDStore.createContactInfo()` or `updateContactInfo()`
+  - [x] 5.11.6.3 Diffs social links and calls `addSocialLinks()`, `updateSocialLink()`, `deleteSocialLink()` as needed
+
+---
+
+#### 5.12 ExperienceSection Component ✅ COMPLETE
+
+**Component Interface**:
+```typescript
+Props: experience (Experience[])
+Emits: save(experiences[]) - array of all experience items
+```
+
+**Component Updates**:
+- [x] 5.12.1 Add `employmentType` field (full_time, part_time, contract, freelance, internship)
+- [x] 5.12.2 Add `locationType` field (on_site, remote, hybrid)
+- [x] 5.12.3 Rename `company` to `employer` to match API
+- [x] 5.12.4 Update interface to match `Experience` type from `shared/types/careerId.ts`
+- [x] 5.12.5 Convert component to single save emit pattern: maintain local array copy, emit all experiences on save button click
+- [x] 5.12.6 Remove console.log calls
+
+**Parent Integration** (`onboarding.vue`):
+- [x] 5.12.7 Pass props: `:experience="careerIDStore.experience"`
+- [x] 5.12.8 Add save handler `@save="handleSaveExperience"` that:
+  - [x] 5.12.8.1 Receives array of all experience items
+  - [x] 5.12.8.2 Diffs against store: add new (no id), update changed (has id), delete removed (in store but not in payload)
+
+---
+
+#### 5.13 EducationSection Component ✅ COMPLETE
+
+**Component Interface**:
+```typescript
+Props: education (Education[])
+Emits: save(education) - single education save, saveAll(education[]) - bulk save all
+```
+
+**Component Updates**:
+- [x] 5.13.1 Ensure all fields match `Education` type from `shared/types/careerId.ts`
+- [x] 5.13.2 Convert component to single save emit pattern: maintain local array copy, emit all education items on save button click
+- [x] 5.13.3 Remove console.log calls
+
+**Parent Integration** (`onboarding.vue`):
+- [x] 5.13.4 Pass props: `:education="careerIDStore.education"`
+- [x] 5.13.5 Add save handler `@save="handleSaveEducation"` that:
+  - [x] 5.13.5.1 Receives single education item (POST if new, PATCH if existing)
+  - [x] 5.13.5.2 Add bulk save handler `@save-all="handleSaveAllEducations"` that diffs against store: add new (no id), update changed (has id), delete removed (in store but not in payload)
+
+---
+
+#### 5.14 AdditionalSection Component ✅ COMPLETE
+
+**Component Interface**:
+```typescript
+Props: certifications (Certification[])
+Emits: 
+  - saveCertification(data) - single certification save
+  - saveAll({ certifications, skillCategories }) - bulk save all
+```
+
+**Component Updates**:
+- [x] 5.14.1 Update certifications to match `Certification` type (use `issueDate` instead of `date`)
+- [x] 5.14.2 Keep skills as categories with tags for quick entry (can be expanded with proficiency details later)
+- [x] 5.14.3 Convert component to dual save emit pattern: individual saves + bulk save button
+- [x] 5.14.4 Remove console.log calls
+- [x] 5.14.5 Add cancel functionality to reset changes back to props
+- **Implementation Note**: Skills are displayed as categories with UInputTags for quick entry. Component maintains local state and emits everything on save. Parent converts skill tags to `ProfileSkill` objects with: `name` (from tag), `category` (from category name), `proficiencyLevel='intermediate'`, `yearsExperience=2` as defaults.
+
+**Parent Integration** (`onboarding.vue`):
+- [x] 5.14.5 Pass props: `:certifications="careerIDStore.certifications"`
+- [x] 5.14.6 Add save handler `@save-all="handleSaveAllAdditional"` that:
+  - [x] 5.14.6.1 Receives `{ certifications, skillCategories }` payload
+  - [x] 5.14.6.2 Saves certifications: POST for new, PATCH for existing (no delete during save)
+  - [x] 5.14.6.3 Converts skill tags to ProfileSkill objects with defaults
+  - [x] 5.14.6.4 Adds new skills (only adds, no delete during save)
+
+---
+
+#### 5.15 Parent Page Setup
+
+- [x] 5.15.1 Add careerIDStore instance and fetch profile on mount in `onboarding.vue`
+
+### 5.C Autosave on Step Navigation
+
+- [x] 5.16 Implement autosave on step navigation:
+  - [x] 5.16.1 Add autosave logic when user clicks "Continue" or "Back" button:
+    - [x] 5.16.1.1 Components expose a `triggerSave()` method via `defineExpose` (ContactSection, ExperienceSection, EducationSection, AdditionalSection)
+    - [x] 5.16.1.2 On "Continue" or "Back" click, call `autosaveCurrentStep()` which calls `componentRef.triggerSave()` for current step
+    - [x] 5.16.1.3 This triggers the component's save event with all current data
+    - [x] 5.16.1.4 Parent handler diffs and makes API calls as usual
+  - [x] 5.16.1.5 Implement change tracking to prevent unnecessary API calls:
+    - [x] 5.16.1.5.1 Add deep watchers (without `immediate`) to track user edits in all section components
+    - [x] 5.16.1.5.2 Use flags (`isUpdatingFromProps`) to prevent false positives when props update from store
+    - [x] 5.16.1.5.3 Only emit save events if items are new or have been edited
+  - [ ] 5.16.2 Add loading state during save operations using `careerIDStore.isSaving`
+  - [ ] 5.16.3 Display error messages if save fails using `careerIDStore.error`
+  - [ ] 5.16.4 Update `lastSaved` timestamp display using `careerIDStore.lastSaved` after successful saves
+  - [x] 5.16.5 Note: All changes are local until save button or "Continue"/"Back" triggers the save event
+
+### 5.E UI/UX Enhancements
+
+- [x] 5.19 Add error handling with user-friendly toast notifications using `careerIDStore.error`
+- [x] 5.20 Handle validation errors from backend and display inline in form
+- [ ] 5.21 Add visual feedback when autosave completes using `careerIDStore.lastSaved` (e.g., "Saved" indicator)
+- [ ] 5.22 Add confirmation dialogs for destructive actions (delete entries)
+
 

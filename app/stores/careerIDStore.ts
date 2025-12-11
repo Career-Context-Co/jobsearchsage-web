@@ -560,7 +560,7 @@ export const useCareerIDStore = defineStore('careerID', {
     },
 
     // 5.8.2 Update skills (bulk operation)
-    async updateSkills(skills: Array<{ id: number } & Partial<Pick<ProfileSkill, 'proficiencyLevel' | 'yearsExperience' | 'displayOrder'>>>) {
+    async updateSkills(skills: Array<{ id: number } & Partial<Pick<ProfileSkill, 'name' | 'group' | 'proficiencyLevel' | 'yearsExperience' | 'displayOrder'>>>) {
       if (!this.profile?.id) {
         throw new Error('No profile loaded')
       }
