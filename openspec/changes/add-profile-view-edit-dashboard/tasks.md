@@ -51,52 +51,51 @@
 
 ### Frontend
 
-- [ ] 2.1 Create experience page
-  - [ ] Create `pages/profile/experience.vue`
-  - [ ] Add UPageCard with title "Work Experience"
-  - [ ] Display loading state while fetching
+- [x] 2.1 Create experience page
+  - [x] Create `pages/profile/experience.vue`
+  - [x] Add UPageCard with title "Work Experience"
+  - [x] Display loading state while fetching
 
-- [ ] 2.2 Display existing work experience entries
-  - [ ] Iterate over `careerIDStore.experience` array
-  - [ ] Display each entry with company, title, dates, location, highlights
-  - [ ] Show "Present" for current positions (where `endDate` is null)
-  - [ ] Order entries by start date (most recent first)
-  - [ ] Show empty state with "Add Experience" button if no entries
+- [x] 2.2 Display existing work experience entries
+  - [x] Iterate over `careerIDStore.experience` array
+  - [x] Display each entry with company, title, dates, location, highlights
+  - [x] Show "Present" for current positions (where `endDate` is null)
+  - [x] Order entries by start date (most recent first)
+  - [x] Show empty state with "Add Experience" button if no entries
 
-- [ ] 2.3 Add "Add Experience" functionality
-  - [ ] Add "Add Experience" button in header or empty state
-  - [ ] Create inline form with UForm and Zod schema
-  - [ ] Include fields: company, title, location, url, startDate, endDate, currentPosition checkbox, summary, highlights (array)
-  - [ ] Add dynamic highlights field (add/remove bullet points)
-  - [ ] Call `careerIDStore.addExperience()` on submit
-  - [ ] Show toast notification on success
-  - [ ] Clear form after successful add
+- [x] 2.3 Add "Add Experience" functionality
+  - [x] Add "Add Experience" button in header or empty state
+  - [x] Create inline form with TypeScript validation
+  - [x] Include fields: employmentType, employer, title, location, locationType, url, startDate, endDate, currentPosition checkbox, summary, highlights (array)
+  - [x] Add dynamic highlights field (add/remove bullet points)
+  - [x] Call `careerIDStore.addExperience()` on submit
+  - [x] Show toast notification on success
+  - [x] Clear form after successful add
 
-- [ ] 2.4 Add "Edit" functionality for existing entries
-  - [ ] Add edit button/icon for each experience entry
-  - [ ] Toggle inline form pre-populated with entry data
-  - [ ] Use same form fields as add
-  - [ ] Call `careerIDStore.updateExperience(id, data)` on submit
-  - [ ] Show toast notification on success
+- [x] 2.4 Add "Edit" functionality for existing entries
+  - [x] Add edit button/icon for each experience entry
+  - [x] Toggle inline form pre-populated with entry data
+  - [x] Use same form fields as add
+  - [x] Call `careerIDStore.updateExperience(id, data)` on submit
+  - [x] Show toast notification on success
 
-- [ ] 2.5 Add "Delete" functionality for entries
-  - [ ] Add delete button/icon for each experience entry
-  - [ ] Show confirmation dialog before deleting
-  - [ ] Call `careerIDStore.deleteExperience(id)` on confirm
-  - [ ] Show toast notification on success
-  - [ ] Update UI to show empty state if last entry deleted
+- [x] 2.5 Add "Delete" functionality for entries
+  - [x] Add delete button/icon for each experience entry
+  - [x] Show confirmation dialog before deleting
+  - [x] Call `careerIDStore.deleteExperience(id)` on confirm
+  - [x] Show toast notification on success
+  - [x] Update UI to show empty state if last entry deleted
 
-- [ ] 2.6 Add client-side validation
-  - [ ] Validate required fields: company, title, startDate, at least 1 highlight
-  - [ ] Validate date range (endDate >= startDate)
-  - [ ] Validate URL format for company website
-  - [ ] Display validation errors inline with fields
+- [x] 2.6 Add client-side validation
+  - [x] Validate required fields: employer, title, startDate, at least 1 highlight
+  - [x] Validate date range (endDate >= startDate)
+  - [x] Validate URL format for company website
+  - [x] Display validation errors inline with fields
 
-- [ ] 2.7 Add save button and form submission
-  - [ ] Add "Save Changes" button in page header or footer
-  - [ ] Use UForm's submit handler
-  - [ ] Show loading state during save (`careerIDStore.isSaving`)
-  - [ ] Handle errors from API and display error toast
+- [x] 2.7 Add save button and form submission
+  - [x] Add "Save Experience" button in form
+  - [x] Show loading state during save (`careerIDStore.isSaving`)
+  - [x] Handle errors from API and display error toast
 
 ---
 
