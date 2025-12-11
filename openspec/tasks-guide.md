@@ -1,16 +1,47 @@
 # Task Grouping Guide for AI Agents
 
 ## Overview
-When breaking down feature specifications into implementation tasks, group tasks by **team responsibility** and **workflow phase**. Our development process follows a 5-phase sequential handoff pipeline.
+When breaking down feature specifications into implementation tasks, group tasks by **team responsibility** and **workflow phase**. Our development process follows a 3-phase sequential pipeline: Database → Backend → Frontend.
+
+## Before Starting: Check for User Stories
+
+**ALWAYS check for existing user stories or epics first:**
+
+1. Look in `openspec/changes/[change-id]/context/` for user story files
+2. Common filenames: `stories.txt`, `epics.md`, `user-stories.md`, `acceptance-criteria.md`
+3. If user stories exist, structure tasks around them (one task group per user story)
+4. Each user story group should follow the Database → Backend → Frontend pattern
+5. If stories do not exist, ask the user for them explicicty before proceeding.
+
+**Example:**
+```markdown
+## USER STORY 1: View Profile Dashboard
+### Database
+- [x] ✅ Already complete (mark what's done)
+### Backend (API)
+- [x] ✅ Already complete (mark what's done)
+### Frontend
+- [ ] Task 1
+- [ ] Task 2
+
+## USER STORY 2: Edit Work Experience
+### Database
+- [ ] Create experience table
+### Backend (API)
+- [ ] Create CRUD endpoints
+### Frontend
+- [ ] Build UI components
+- [ ] Integrate with API via store
+```
 
 ## ⚠️ Critical: Sequential Implementation Required
 
-**Features using this guide CANNOT be implemented all at once.** This is a phased, collaborative workflow:
+**Features using this guide follow a strict order:** Database → Backend → Frontend
 
-1. **Stop and wait between phases** - Complete the current phase, provide deliverables, and WAIT for approval before proceeding
-2. **Database work is human-only** - AI agents can generate migration files and schema definitions but MUST wait for human review and execution before Phase 4
-3. **Provide clear handoffs** - Each phase ends with specific deliverables for the next team
-4. **Request approval explicitly** - After completing a phase, state what was delivered and ask "Ready to proceed to Phase X?"
+1. **Database first** - Create tables, functions, migrations before API work
+2. **Backend second** - Build API endpoints that consume database structures
+3. **Frontend last** - Mock UI first, then integrate with API via store
+4. **Mark completed work** - Use `[x] ✅` for work already done (especially database/backend in existing features)
 
 **When to use this guide:**
 - Full-stack features involving frontend, backend, AND database
@@ -22,142 +53,167 @@ When breaking down feature specifications into implementation tasks, group tasks
 - Backend-only endpoint additions using existing tables
 - Configuration or styling updates
 
-## Development Workflow (5 Phases)
+## Development Workflow (3 Phases)
 
-Work flows in a **top-down and back-up pattern**:
+Work flows in a **bottom-up pattern**:
 ```
-Frontend → Backend → Database → Backend → Frontend
-(Phase 1)  (Phase 2)  (Phase 3)   (Phase 4)  (Phase 5)
+Database → Backend → Frontend
+(Phase 1)  (Phase 2)  (Phase 3)
 ```
 
-### Phase 1: Frontend - UI Mock + Initial Data Shapes
-**Goal:** Establish user experience and identify required data
+### Phase 1: Database - Schema, Tables, Functions, Migrations
+**Goal:** Create all database structures needed for the feature
 
 **Responsibilities:**
-- Create UI mockups or working prototypes with placeholder data
-- Define loose data shapes based on screen requirements
-- List expected interactions (create/update, filters, buttons, navigation)
-- Identify required API calls at high level
-
-**Deliverables to Backend:**
-- UI mock/prototype
-- Draft data shapes (JS/TS interfaces)
-- List of required API endpoints
-
----
-
-### Phase 2: Backend - API Contract + Mock Endpoints
-**Goal:** Formalize request/response models and provide mocked APIs
-
-**Responsibilities:**
-- Convert frontend's loose data shapes into typed domain models
-- Define API contract (endpoints, request/response objects, errors, auth)
-- Create mock endpoints returning static JSON or in-memory data
-- Validate contract with frontend
-
-**Deliverables to Database:**
-Place in `openspec/changes/[change-id]/deliverables/`:
-- **API contract/spec** → `deliverables/schemas/api-contract.yaml` (OpenAPI) or `deliverables/schemas/api-spec.md`
-- **Mocked API endpoints** → Implemented in `server/api/` (actual code)
-- **Agreed-upon domain + DTO models** → `deliverables/schemas/domain-models.ts` or documented in API spec
-
----
-
-### Phase 3: Database - Schema + Data Layer Structures
-**Goal:** Translate API contract into real database structures
-
-**⚠️ HUMAN-ONLY PHASE - AI agents STOP here and wait**
-
-**AI Agent Responsibilities:**
-- Generate migration file scripts
 - Design table schemas with columns, types, relationships
+- Create database functions or stored procedures if needed
+- Generate migration file scripts
 - Suggest indexes and constraints
-- Provide sample seed data scripts
+- Provide sample seed data scripts (optional)
 - Document ERD changes
 
-**AI Agent Deliverables (for human review):**
+**Deliverables:**
 All files should be placed in `openspec/changes/[change-id]/deliverables/`:
 - **Migration files** → `deliverables/migrations/`
-  - e.g., `001_create_profiles.sql`, `002_add_indexes.sql`
+  - e.g., `001_create_profiles.sql`, `002_create_experience.sql`, `003_add_indexes.sql`
 - **Schema documentation** → `deliverables/schemas/`
-  - ERD diagrams, table definitions, relationship docs
-- **Suggested indexes and constraints** → Include in schema docs
+  - ERD diagrams (if complex), table definitions, relationship docs
+  - File: `SCHEMA_DESIGN.md` or `schema-overview.md`
+- **Domain models** → `deliverables/schemas/domain-models.ts`
+  - TypeScript types matching database tables
 - **Sample seed data** (optional) → `deliverables/seeds/`
+  - e.g., `profile_seeds.sql`
 
-**Human Responsibilities:**
-- Review and approve migration files
-- Execute migrations against database
-- Verify schema is correctly applied
-- Confirm database is ready for Phase 4
-
-**🛑 AI agents MUST wait for explicit approval and confirmation that database changes are applied before proceeding to Phase 4.**
+**Important Notes:**
+- ✅ If database work is already complete, mark tasks as `[x] ✅ Already complete`
+- Document which migrations have been applied
+- Ensure domain models are exported for backend use
 
 ---
 
-### Phase 4: Backend - Integrate API With Real DB
-**Goal:** Replace mock data with real database queries and business logic
+### Phase 2: Backend (API) - Create Endpoints
+**Goal:** Build REST API endpoints that interact with database
 
 **Responsibilities:**
-- Connect repositories/services to real database tables
-- Implement CRUD operations according to API contract
-- Apply business rules, validation, authorization
-- Ensure stable, production-ready API behavior
-
-**Deliverables to Frontend:**
-- Fully functional API endpoints backed by DB
-- Updated documentation (if API changed)
-
----
-
-### Phase 5: Frontend - Final Integration + QA
-**Goal:** Consume real backend data and complete the feature
-
-**Responsibilities:**
-- Replace mock calls with real API calls
-- Handle loading/error states
-- Finalize UI logic and polish interactions
-- End-to-end testing with backend + QA team
-- Fix UX/data issues raised during testing
+- Create API endpoints in `server/api/` following Nuxt conventions
+- Implement CRUD operations (GET, POST, PATCH, DELETE)
+- Connect to database tables/functions
+- Add validation using Zod schemas
+- Add error handling and proper HTTP status codes
+- Create DTOs (Data Transfer Objects) for API requests/responses
 
 **Deliverables:**
-- Production-ready UI integrated with backend
-- Released feature
+All files should be placed in `openspec/changes/[change-id]/deliverables/schemas/`:
+- **API specification** → `deliverables/schemas/api-spec.md`
+  - Document all endpoints, request/response formats, error codes
+  - Include example requests and responses
+- **API DTOs** → `deliverables/schemas/api-dtos.ts`
+  - Request and response type definitions
+- **Functional endpoints** → Implemented in `server/api/`
+  - All CRUD endpoints working with real database
+
+**Important Notes:**
+- ✅ If API endpoints are already complete, mark tasks as `[x] ✅ Already complete`
+- List which endpoints exist and their paths
+- Ensure all endpoints are tested and return proper responses
+
+---
+
+### Phase 3: Frontend - Mock UI, Then Integrate via Store
+**Goal:** Build user interface and connect to backend APIs
+
+**Sub-Phase 3A: Mock UI**
+**Responsibilities:**
+- Create page components (`pages/`)
+- Create reusable components (`components/`)
+- Build forms with validation schemas
+- Use placeholder/mock data initially
+- Ensure UI matches design requirements
+- Test UX flow without backend calls
+
+**Sub-Phase 3B: Integration via Store**
+**Responsibilities:**
+- Connect UI to Pinia store (e.g., `careerIDStore`)
+- Update store actions to call real API endpoints
+- Replace mock data with store state
+- Handle loading states (use store's `isLoading`, `isSaving`)
+- Handle error states and display user feedback
+- Add toast notifications for success/error
+- Test complete flow with real API calls
+
+**Deliverables:**
+- Fully functional UI components
+- Store integrated with API endpoints
+- Working end-to-end feature
+- Error handling and loading states
+- User feedback (toasts, validation messages)
+
+**Important Notes:**
+- Always use the Pinia store as the data layer (don't call APIs directly from components)
+- Store updates automatically propagate to other features
+- Follow existing patterns in the codebase (check `pages/settings/` for examples)
 
 ---
 
 ## Task Grouping Structure
 
-Group all tasks into these 5 phases:
+**If user stories exist in `context/` folder, use this structure:**
 ```markdown
-## 1. Frontend: UI Mock + Data Shapes
-- [UI components and mockups]
-- [Draft data interfaces]
-- [API endpoint requirements]
-- [Interaction specifications]
+## USER STORY 1: [Story Title]
 
-## 2. Backend: API Contract + Mocks
-- [Domain model definitions]
-- [API contract/spec creation]
-- [Mock endpoint implementation]
-- [Contract validation with frontend]
+### Database
+- [x] ✅ [Completed work]
+- [ ] [Pending work, if any]
 
-## 3. Database: Schema + Migrations
-- [Table design]
-- [Migration scripts]
-- [Stored procedures/functions]
-- [Constraints and indexes]
+### Backend (API)
+- [x] ✅ [Completed endpoints]
+- [ ] [Pending endpoints, if any]
 
-## 4. Backend: Real DB Integration
-- [Repository/service implementation]
-- [CRUD operations]
-- [Business logic and validation]
-- [Authorization rules]
+### Frontend
+- [ ] [UI components]
+- [ ] [Store integration]
+- [ ] [Error handling]
 
-## 5. Frontend: Real API Integration
-- [Replace mocks with real calls]
-- [Error and loading states]
-- [UI polish and finalization]
-- [End-to-end testing]
+## USER STORY 2: [Story Title]
+[Repeat structure]
+```
+
+**If no user stories, use standard 3-phase structure:**
+```markdown
+## 1. Database: Schema + Tables + Functions
+
+- [ ] Design table schemas
+- [ ] Create migration scripts
+- [ ] Create database functions/procedures (if needed)
+- [ ] Document schema in deliverables/schemas/
+- [ ] Create domain models (TypeScript types)
+
+## 2. Backend (API): Create Endpoints
+
+- [ ] Define API specification
+- [ ] Create DTOs for requests/responses
+- [ ] Implement GET endpoints
+- [ ] Implement POST endpoints
+- [ ] Implement PATCH/PUT endpoints
+- [ ] Implement DELETE endpoints
+- [ ] Add validation and error handling
+
+## 3. Frontend: Mock UI + Store Integration
+
+### 3A. Mock UI
+- [ ] Create page components
+- [ ] Create reusable components
+- [ ] Build forms with validation
+- [ ] Use placeholder data
+- [ ] Test UX flow
+
+### 3B. Store Integration
+- [ ] Connect UI to Pinia store
+- [ ] Update store actions to call APIs
+- [ ] Replace mock data with store state
+- [ ] Add loading and error states
+- [ ] Add toast notifications
+- [ ] Test end-to-end with real API
 ```
 
 ---
@@ -180,40 +236,84 @@ Group all tasks into these 5 phases:
 - Add migrations
 ```
 
-### After (Correct Grouping):
+### After (Correct Grouping with User Stories):
 ```markdown
-## 1. Frontend: UI Mock + Data Shapes
-- Create profile.vue page component with navbar and content areas
-- Define ProfileData interface (name, email, bio, avatar)
-- Specify required endpoints: GET /api/profile, PUT /api/profile
-- Document expected interactions: edit mode toggle, save button, cancel button
+## USER STORY 1: View Profile Dashboard
 
-## 2. Backend: API Contract + Mocks
-- Define Profile domain model and ProfileDTO (save to `deliverables/schemas/domain-models.ts`)
-- Create API contract in `deliverables/schemas/api-spec.yaml`: GET /api/profile returns ProfileDTO, PUT /api/profile accepts ProfileUpdateRequest
-- Implement mock GET endpoint in `server/api/profile.get.ts` returning sample profile JSON
-- Implement mock PUT endpoint in `server/api/profile.put.ts` accepting updates and returning success
-- Share API spec with frontend for validation
+### Database
+- [x] ✅ user_profiles table already exists
+- [x] ✅ Migration 001_create_user_profiles.sql applied
+- [x] ✅ Indexes on user_id and email exist
 
-## 3. Database: Schema + Migrations
-- Design user_profiles table (id, user_id, name, email, bio, avatar_url, updated_at)
-- Create migration script in `deliverables/migrations/001_create_user_profiles.sql`
-- Add indexes on user_id and email (in migration)
-- Document schema in `deliverables/schemas/user_profiles_schema.md`
-- Create sample seed data in `deliverables/seeds/user_profiles_seeds.sql` (optional)
+### Backend (API)
+- [x] ✅ GET /api/career-id/profile/:profileId exists
+- [x] ✅ Returns complete profile with all sections
 
-## 4. Backend: Real DB Integration
-- Connect ProfileRepository to user_profiles table
-- Implement getProfile and updateProfile methods with real queries
-- Add validation: email format, bio length limits
-- Add authorization: users can only update their own profiles
+### Frontend
+- [ ] Create pages/profile/index.vue with navigation
+- [ ] Fetch profile using careerIDStore.fetchProfile()
+- [ ] Display contact info, summary, social links
+- [ ] Handle loading state with skeleton
+- [ ] Handle error state (redirect to onboarding if no profile)
 
-## 5. Frontend: Real API Integration
-- Replace mock profile data with real GET /api/profile call
-- Connect save button to real PUT /api/profile call
-- Add loading spinner during save operations
-- Add error toast for failed updates
-- Handle 401/403 authorization errors
+## USER STORY 2: Edit Contact Information
+
+### Database
+- [x] ✅ contact_info table already exists
+- [x] ✅ All fields present (email, phone, linkedin, etc.)
+
+### Backend (API)
+- [x] ✅ GET /api/career-id/profile/:profileId/contact exists
+- [x] ✅ PATCH /api/career-id/profile/:profileId/contact/:id exists
+- [x] ✅ careerIDStore.updateContactInfo() method exists
+
+### Frontend
+- [ ] Add contact info form to pages/profile/index.vue
+- [ ] Use UForm with Zod validation schema
+- [ ] Pre-populate form with careerIDStore.contactInfo
+- [ ] Validate email, phone, URL formats
+- [ ] Call careerIDStore.updateContactInfo() on submit
+- [ ] Show toast notification on success/error
+- [ ] Display loading state during save
+```
+
+### Alternative: Without User Stories (Standard 3-Phase)
+```markdown
+## 1. Database: Schema + Tables + Functions
+
+- [ ] Design user_profiles table (id, user_id, name, email, bio, avatar_url, updated_at)
+- [ ] Create migration script: deliverables/migrations/001_create_user_profiles.sql
+- [ ] Add indexes on user_id and email
+- [ ] Document schema in deliverables/schemas/SCHEMA_DESIGN.md
+- [ ] Create domain model: deliverables/schemas/domain-models.ts (Profile type)
+
+## 2. Backend (API): Create Endpoints
+
+- [ ] Document API spec in deliverables/schemas/api-spec.md
+- [ ] Create DTOs in deliverables/schemas/api-dtos.ts (ProfileDTO, ProfileUpdateRequest)
+- [ ] Implement GET /api/career-id/profile/:profileId in server/api/
+- [ ] Implement PATCH /api/career-id/profile/:profileId in server/api/
+- [ ] Add Zod validation for email format, bio length
+- [ ] Add error handling (404 if not found, 401 if unauthorized)
+
+## 3. Frontend: Mock UI + Store Integration
+
+### 3A. Mock UI
+- [ ] Create pages/profile/index.vue with basic layout
+- [ ] Add form fields (name, email, bio, avatar)
+- [ ] Use placeholder data for initial testing
+- [ ] Test edit mode toggle, save/cancel buttons
+
+### 3B. Store Integration
+- [ ] Add profile state to careerIDStore
+- [ ] Create fetchProfile() action
+- [ ] Create updateProfile() action
+- [ ] Connect form to store state
+- [ ] Call careerIDStore.fetchProfile() on mount
+- [ ] Call careerIDStore.updateProfile() on submit
+- [ ] Add loading spinner (use store.isSaving)
+- [ ] Add success/error toasts
+- [ ] Handle validation errors from backend
 ```
 
 ---
@@ -221,49 +321,72 @@ Group all tasks into these 5 phases:
 
 ## Key Principles
 
-1. **Sequential phases** - Each phase must complete before the next begins. DO NOT proceed without approval.
-2. **Clear handoffs** - Each phase produces specific deliverables for the next team. State what was delivered and request approval.
-3. **Top-down then back-up** - Flow goes Frontend → Backend → Database, then back to Backend → Frontend
-4. **One group per phase** - Don't mix responsibilities from different phases
-5. **Complete deliverables** - Each phase produces everything needed for the next team to start
-6. **Human database work** - Phase 3 requires human review and execution. AI agents generate files but MUST wait.
-7. **Explicit approval gates** - After each phase, explicitly ask: "Phase X complete. Ready to proceed to Phase Y?"
+1. **Check for user stories first** - Always look in `context/` folder for existing user stories before creating tasks
+2. **Structure by user story** - If stories exist, create one task group per story with Database → Backend → Frontend sections
+3. **Mark completed work** - Use `[x] ✅` to indicate work already done (especially database/backend)
+4. **Bottom-up flow** - Always go Database → Backend → Frontend
+5. **Database first** - Tables and functions must exist before API work
+6. **Backend second** - API endpoints must exist before frontend integration
+7. **Frontend last** - Mock UI first with placeholder data, then integrate via store
+8. **Use the store** - Always integrate with Pinia store (e.g., careerIDStore), never call APIs directly from components
+9. **Complete deliverables** - Each phase produces files in `deliverables/` folder (migrations, schemas, API specs)
+10. **One feature at a time** - Don't mix responsibilities or jump between phases
 
 ---
 
 ## Quick Reference
 
-| Phase | Team | Focus | Hands Off To | AI Agent Action |
-|-------|------|-------|--------------|-----------------|
-| 1 | Frontend | UI mock + data shapes | Backend | Complete & wait for approval |
-| 2 | Backend | API contract + mocks | Database | Complete & wait for approval |
-| 3 | Database | Schema + migrations | Backend | **Generate files, STOP, wait for human** |
-| 4 | Backend | Real DB integration | Frontend | Complete & wait for approval |
-| 5 | Frontend | Real API integration | Release | Complete & deliver |
+| Phase | Team | Focus | Key Deliverables |
+|-------|------|-------|------------------|
+| 1 | Database | Tables, functions, migrations | Migration files, schema docs, domain models |
+| 2 | Backend | API endpoints | API spec, DTOs, functional endpoints |
+| 3A | Frontend | Mock UI | Page components, forms, placeholder data |
+| 3B | Frontend | Store integration | Connected store, API calls, error handling |
 
-## AI Agent Workflow Example
+## Checklist for Starting a New Feature
 
+- [ ] 1. Check `openspec/changes/[change-id]/context/` for user stories
+- [ ] 2. If stories exist, create one task group per user story
+- [ ] 3. For each group, add Database, Backend, Frontend sections
+- [ ] 4. Mark any completed work with `[x] ✅`
+- [ ] 5. List what's already done (tables, endpoints, etc.)
+- [ ] 6. Focus tasks on what remains (usually frontend work)
+
+## Example Task Flow
+
+```markdown
+## USER STORY 1: View Dashboard
+
+### Database
+- [x] ✅ Tables exist (profiles, experience, education)
+- [x] ✅ Function get_full_profile() exists
+
+### Backend (API)  
+- [x] ✅ GET /api/career-id/profile/:profileId exists
+- [x] ✅ careerIDStore.fetchProfile() method exists
+
+### Frontend
+- [ ] Create pages/profile/index.vue
+- [ ] Call careerIDStore.fetchProfile() on mount
+- [ ] Display data from store
+- [ ] Add loading/error states
 ```
-AI: "Phase 1 complete. Deliverables: profile.vue with mock data, ProfileData interface, 
-     list of required endpoints. Ready to proceed to Phase 2?"
-     
-USER: "Yes, proceed"
 
-AI: "Phase 2 complete. Deliverables: Profile domain model, API contract with GET/PUT endpoints,
-     mock API returning sample JSON. Ready to proceed to Phase 3?"
-     
-USER: "Yes"
+## Common Patterns
 
-AI: "Phase 3 files generated. Deliverables in openspec/changes/[change-id]/deliverables/:
-     - migrations/001_create_user_profiles.sql
-     - schemas/user_profiles_schema.md
-     - schemas/user_profiles_erd.png
-     🛑 WAITING: Please review and execute database migrations. Confirm when ready for Phase 4."
-     
-USER: "Migrations applied successfully, proceed"
+**For new features (nothing exists yet):**
+1. Database: Create all tables/functions/migrations first
+2. Backend: Build all API endpoints
+3. Frontend: Mock UI, then integrate via store
 
-AI: "Phase 4 complete. Deliverables: ProfileRepository with real DB queries, validation rules,
-     authorization checks. Ready to proceed to Phase 5?"
-```
+**For existing features (database/API done):**
+1. Database: Mark as `[x] ✅ Complete`
+2. Backend: Mark as `[x] ✅ Complete`  
+3. Frontend: Focus all tasks here
 
-Follow this 5-phase grouping pattern for all full-stack features to ensure smooth team handoffs and clear ownership.
+**For partial features (database done, API partial):**
+1. Database: Mark as `[x] ✅ Complete`
+2. Backend: List remaining endpoints to build
+3. Frontend: Wait until backend complete, then proceed
+
+Follow this bottom-up (Database → Backend → Frontend) pattern for all features to ensure proper dependencies and smooth implementation.

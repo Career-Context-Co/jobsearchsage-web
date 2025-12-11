@@ -541,7 +541,10 @@ function cancelEdits() {
 
       <!-- Willing to Relocate -->
       <UFormField size="xl" label="Willing to Relocate?" name="willingToRelocate">
-        <USwitch v-model="contactInfo.willingToRelocate" />
+        <div class="flex items-center gap-2">
+          <USwitch v-model="contactInfo.willingToRelocate" />
+          <span class="text-md">{{ contactInfo.willingToRelocate ? 'Yes' : 'No' }}</span>
+        </div>
       </UFormField>
 
       <!-- Action Buttons -->
