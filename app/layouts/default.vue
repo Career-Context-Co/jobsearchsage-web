@@ -10,11 +10,39 @@ const links = [[{
   label: 'Profile',
   icon: 'i-lucide-user',
   to: '/profile',
-  type: 'link',
+  type: 'trigger',
+  defaultOpen: true,
   children: [{
-    label: 'Onboarding',
-    to: '/profile/onboarding',
-    type: 'link',
+    label: 'Overview',
+    to: '/profile',
+    exact: true,
+    onSelect: () => {
+      open.value = false
+    }
+  }, {
+    label: 'Experience',
+    to: '/profile/experience',
+    onSelect: () => {
+      open.value = false
+    }
+  }, {
+    label: 'Education',
+    to: '/profile/education',
+    onSelect: () => {
+      open.value = false
+    }
+  }, {
+    label: 'Certifications',
+    to: '/profile/certifications',
+    onSelect: () => {
+      open.value = false
+    }
+  }, {
+    label: 'Skills',
+    to: '/profile/skills',
+    onSelect: () => {
+      open.value = false
+    }
   }]
 }, {
   label: 'Home',
