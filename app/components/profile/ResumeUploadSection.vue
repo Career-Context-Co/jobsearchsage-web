@@ -13,13 +13,12 @@ const uploadError = ref<string | null>(null)
 const acceptedFileTypes = '.pdf,.docx,.doc,.jpg,.jpeg,.png'
 const maxFileSize = 10 * 1024 * 1024 // 10MB in bytes
 
-// Handle file selection from UFileUpload
-function handleFileSelect(files: File[]) {
-  if (files && files.length > 0) {
-    selectedFile.value = files[0]
+// Clear error when file is selected
+watch(selectedFile, () => {
+  if (selectedFile.value) {
     uploadError.value = null
   }
-}
+})
 
 // Handle file validation errors from UFileUpload
 function handleFileError(error: any) {
@@ -42,15 +41,37 @@ async function handleUpload() {
   uploadError.value = null
   
   try {
-    // TODO: Implement API call to extract resume data
-    // For now, just simulate upload and move to next step
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    // Create FormData for multipart upload
+    const formData = new FormData()
+    formData.append('file', selectedFile.value)
     
-    // Emit upload complete event to parent
+    // Call the API endpoint
+    const response = await $fetch('/api/career-id/resume/extract', {
+      method: 'POST',
+      body: formData
+    })
+    
+    console.log('Upload successful:', response)
+    
+    // TODO: In USER STORY 3, extract and store the resume data
+    // For now, just advance to next step
     emit('uploadComplete')
   } catch (error: any) {
     console.error('Upload failed:', error)
-    uploadError.value = 'We couldn\'t read this resume. Can you try uploading another version (PDF, Word, or a screenshot)?'
+    
+    // Extract error message from API response
+    const errorMessage = error?.data?.error?.message || error?.message
+    
+    // Handle specific error codes
+    if (error?.data?.error?.code === 'FILE_TOO_LARGE') {
+      uploadError.value = errorMessage || 'File is too large. Maximum size is 10MB.'
+    } else if (error?.data?.error?.code === 'INVALID_EXTENSION') {
+      uploadError.value = errorMessage || 'File format not supported. Please upload PDF, Word, JPG, or PNG.'
+    } else if (error?.data?.error?.code === 'INVALID_MIME_TYPE') {
+      uploadError.value = errorMessage || 'Invalid file type. Please upload a valid resume file.'
+    } else {
+      uploadError.value = 'We couldn\'t read this resume. Can you try uploading another version (PDF, Word, or a screenshot)?'
+    }
   } finally {
     isUploading.value = false
   }
@@ -76,7 +97,7 @@ function handleRetry() {
         Upload Your Resume
       </h2>
       <p class="text-gray-600 dark:text-gray-400">
-        Speed up your profile creation by uploading your resume. We'll extract your information automatically. This step is optional.
+        <strong>Want to save 15-20 minutes?</strong> Upload your resume and we'll extract your information automagically! 🪄🧙
       </p>
     </div>
 
@@ -84,9 +105,8 @@ function handleRetry() {
     <div class="flex items-start gap-3 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
       <UIcon name="i-lucide-info" class="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
       <p class="text-sm text-green-900 dark:text-green-200">
-        <strong>Want to save 15-20 minutes?</strong> Upload your resume and we'll extract your information automagically! 🪄🧙
-         <br> We'll extract as much as we can and you can edit it in the later steps. 
-          We don't store your resume and only use it to extract info. 
+        We'll extract as much as we can and you can edit it in the later steps. 
+        We don't store your resume and only use it to extract info. 
       </p>
     </div>
 
@@ -96,11 +116,15 @@ function handleRetry() {
         :accept="acceptedFileTypes"
         :max-size="maxFileSize"
         :multiple="false"
-        @change="handleFileSelect"
+        :dropzone="true"
+        v-model="selectedFile"
         @error="handleFileError"
       >
-        <template #default>
-          <div class="flex flex-col items-center justify-center gap-4 p-8 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-400 transition-colors cursor-pointer">
+        <template #default="{ open }">
+          <div 
+            class="flex flex-col items-center justify-center gap-4 p-8 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-400 transition-colors cursor-pointer"
+            @click="open()"
+          >
             <UIcon name="i-lucide-upload-cloud" class="w-12 h-12 text-gray-400" />
             <div class="text-center">
               <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -179,6 +203,7 @@ function handleRetry() {
       <div class="flex gap-3 mt-4">
         <UButton
           v-if="selectedFile && !isUploading"
+          class="cursor-pointer"
           label="Extract Information"
           size="xl"
           color="primary"
@@ -186,6 +211,7 @@ function handleRetry() {
           @click="handleUpload"
         />
         <UButton
+          class="cursor-pointer"
           label="Skip"
           size="xl"
           color="neutral"

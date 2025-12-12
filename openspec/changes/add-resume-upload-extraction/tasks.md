@@ -56,35 +56,42 @@ This feature adds resume upload with AI-powered data extraction to the profile o
 - [x] ✅ No database changes needed
 
 ### Backend (API)
-- [ ] Create `server/utils/file-validator.ts`
-  - [ ] Implement `validateResumeFile()` function
-  - [ ] Check file extension (PDF, DOCX, DOC, JPG, PNG)
-  - [ ] Check file size (max 10MB)
-  - [ ] Check MIME type matches extension
-  - [ ] Return validation result with error messages
-  - [ ] Export validation types and constants
-- [ ] Add environment configuration
-  - [ ] Add `OPENAI_API_KEY` to `.env` file
-  - [ ] Add `ENABLE_RESUME_UPLOAD` feature flag (optional, default: true)
-  - [ ] Document environment variables
+- [x] Create `server/utils/file-validator.ts` (utility for validation logic)
+  - [x] Implement `validateResumeFile()` function
+  - [x] Check file extension (PDF, DOCX, DOC, JPG, PNG)
+  - [x] Check file size (max 10MB)
+  - [x] Check MIME type matches extension
+  - [x] Return validation result with error messages
+  - [x] Export validation types and constants
+- [x] Create `server/api/career-id/resume/extract.post.ts` (initial endpoint with validation only)
+  - [x] Implement event handler with multipart form data
+  - [x] Read uploaded file using `readMultipartFormData()`
+  - [x] Call `validateResumeFile()` utility
+  - [x] Return 400 error if validation fails with specific error message
+  - [x] Return 413 error if file too large
+  - [x] If validation passes, return success response (placeholder for now)
+  - [x] Add request/response logging
+  - [x] Add error handling for file read failures
+
+**Note:** This creates the endpoint with validation only. USER STORY 3 will enhance this endpoint to add AI extraction logic.
 
 ### Frontend
-- [ ] Configure `UFileUpload` validation in ResumeUploadSection
-  - [ ] Use built-in `accept` prop for file type validation
-  - [ ] Use built-in `max-size` prop for file size validation (10MB)
-  - [ ] Handle `@error` event for validation errors
-  - [ ] Display validation errors using Nuxt UI's error states
-  - [ ] Show error message: "File is too large. Maximum size is 10MB."
-  - [ ] Show error message: "File format not supported. Please upload PDF, Word, JPG, or PNG."
-- [ ] Implement upload progress UI
-  - [ ] Use `UFileUpload`'s built-in progress indicator
-  - [ ] Show extraction status messages below file upload
-  - [ ] Display engaging loading state during extraction
-  - [ ] Communicate extraction is in progress
-- [ ] Add visual feedback
-  - [ ] `UFileUpload` provides drag-over highlighting automatically
-  - [ ] Show file name after selection (built-in to `UFileUpload`)
-  - [ ] Show file size after selection (built-in to `UFileUpload`)
+- [x] Configure `UFileUpload` validation in ResumeUploadSection
+  - [x] Use built-in `accept` prop for file type validation
+  - [x] Use built-in `max-size` prop for file size validation (10MB)
+  - [x] Handle `@error` event for validation errors
+  - [x] Display validation errors using Nuxt UI's error states
+  - [x] Show error message: "File is too large. Maximum size is 10MB."
+  - [x] Show error message: "File format not supported. Please upload PDF, Word, JPG, or PNG."
+- [x] Implement upload progress UI
+  - [x] Use `UFileUpload`'s built-in progress indicator
+  - [x] Show extraction status messages below file upload
+  - [x] Display engaging loading state during extraction
+  - [x] Communicate extraction is in progress
+- [x] Add visual feedback
+  - [x] `UFileUpload` provides drag-over highlighting automatically
+  - [x] Show file name after selection (built-in to `UFileUpload`)
+  - [x] Show file size after selection (built-in to `UFileUpload`)
 
 ---
 
@@ -128,17 +135,14 @@ This feature adds resume upload with AI-powered data extraction to the profile o
     - [ ] Identify duplicate skills across uploads
     - [ ] Merge duplicates keeping most complete version
   - [ ] Export extraction types and functions
-- [ ] Create `server/api/career-id/resume/extract.post.ts`
-  - [ ] Implement event handler with multipart form data
-  - [ ] Read uploaded file using `readMultipartFormData()`
-  - [ ] Validate file using `validateResumeFile()`
-  - [ ] Return 400 error if validation fails
-  - [ ] Extract resume data using `extractResumeData()`
+- [ ] Enhance `server/api/career-id/resume/extract.post.ts` (add AI extraction to existing endpoint)
+  - [ ] Keep existing file upload and validation logic from USER STORY 2
+  - [ ] After validation passes, call `extractResumeData()` utility
   - [ ] Transform extraction result using `transformExtractionToProfile()`
   - [ ] Return transformed data as JSON response
-  - [ ] Handle errors with appropriate HTTP status codes (400, 413, 500, 503)
+  - [ ] Add error handling for extraction failures (500, 503)
   - [ ] Clear file data from memory after processing
-  - [ ] Add request/response logging
+  - [ ] Update request/response logging to include extraction metrics
 - [ ] Create deliverables
   - [ ] Create `deliverables/schemas/extraction-types.ts`
     - [ ] Define `ResumeExtractionRequest` type

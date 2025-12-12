@@ -10,7 +10,8 @@ This feature provides an accelerated onboarding path that automatically extracts
 
 - Add resume upload step as the first step in the onboarding stepper (before Contact step)
 - Support multiple resume formats: PDF, DOCX, DOC, JPG, PNG (up to 10MB)
-- Integrate OpenAI GPT-4 Vision API for AI-powered resume parsing and data extraction
+- Integrate Vercel AI SDK 5 with OpenAI GPT-4 Vision for AI-powered resume parsing and data extraction
+- Use Nuxt UI's `UFileUpload` component for file upload interface
 - Extract structured career data: professional experience, education, skills, contact information, and certifications
 - Pre-fill onboarding form sections with extracted data
 - Display extraction progress with loading states and status indicators
@@ -40,8 +41,10 @@ This feature provides an accelerated onboarding path that automatically extracts
   - [`shared/types/careerId.ts`](../../../shared/types/careerId.ts) - Add extraction request/response types
 
 ### Dependencies
-- New: `openai` npm package for GPT-4 Vision API integration
-- New: `pdf-parse` or similar for PDF text extraction (if needed for preprocessing)
+- New: `ai` npm package (Vercel AI SDK 5)
+- New: `@ai-sdk/openai` npm package (OpenAI provider for Vercel AI SDK)
+- Existing: `zod` npm package (already installed, used for schema validation)
+- Nuxt UI: `UFileUpload` component (built-in, no installation needed)
 - Environment variable: `OPENAI_API_KEY` for API authentication
 
 ### Performance Considerations
