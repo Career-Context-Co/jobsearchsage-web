@@ -113,30 +113,18 @@ function handleRetry() {
     <!-- File Upload Area -->
     <div class="flex flex-col gap-4">
       <UFileUpload
+        v-model="selectedFile"
         :accept="acceptedFileTypes"
         :max-size="maxFileSize"
         :multiple="false"
-        :dropzone="true"
-        v-model="selectedFile"
+        highlight
+        icon="i-lucide-upload-cloud"
+        label="Drop your resume here or click to browse"
+        description="Supported formats: PDF, DOCX, DOC, JPG, PNG (max 10MB)"
+        :preview="true"
+        class="cursor-pointer"
         @error="handleFileError"
-      >
-        <template #default="{ open }">
-          <div 
-            class="flex flex-col items-center justify-center gap-4 p-8 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-400 transition-colors cursor-pointer"
-            @click="open()"
-          >
-            <UIcon name="i-lucide-upload-cloud" class="w-12 h-12 text-gray-400" />
-            <div class="text-center">
-              <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Drop your resume here or click to browse
-              </p>
-              <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                Supported formats: PDF, DOCX, DOC, JPG, PNG (max 10MB)
-              </p>
-            </div>
-          </div>
-        </template>
-      </UFileUpload>
+      />
 
       <!-- Selected File Display -->
       <div v-if="selectedFile" class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -151,6 +139,7 @@ function handleRetry() {
         </div>
         <UButton
           v-if="!isUploading"
+          class="cursor-pointer"
           icon="i-lucide-x"
           size="xs"
           color="neutral"
