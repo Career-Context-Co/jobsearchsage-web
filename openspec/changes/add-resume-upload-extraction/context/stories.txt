@@ -1,0 +1,248 @@
+EPIC: Upload Resume and Extract Data to Profile
+Users can upload their existing resume and have AI automatically extract career data to quickly populate their Career ID Profile without manual data entry.
+Description:
+This epic provides an accelerated onboarding path for users who already have resumes. Rather than manually entering all career information, users can upload a resume document and have AI extract structured career data that pre-fills their profile form.
+The system must support common resume formats (PDF, DOCX, DOC, JPG, PNG) up to 10MB and accurately extract key career information including professional experience, education, skills, contact information, and certifications. After extraction, users review the pre-filled profile form, make corrections as needed, and save to populate their Career ID Profile. The system merges and deduplicates data if multiple resumes are uploaded. Resumes are not stored—this is a one-time prefill during onboarding.
+Key Capabilities:
+
+Offer resume upload as optional step 0 in onboarding flow
+Support resume upload in multiple formats (PDF, DOCX, DOC, JPG, PNG)
+Validate file type and size (max 10MB)
+Extract professional experience (company, title, dates, accomplishments)
+Extract education (degree, institution, graduation year)
+Extract skills (technical skills, tools, competencies)
+Extract contact information (email, phone, location, LinkedIn)
+Extract certifications (if present)
+Merge and deduplicate extracted data from multiple uploads
+Display engaging loading state during extraction
+Pre-fill profile form with extracted data
+Allow user review and correction of extracted data before saving
+Prevent multiple resume uploads after profile setup
+
+Out of Scope:
+
+Handwritten resume processing
+Scanned image resumes with poor OCR quality
+Non-English resumes
+Resume parsing for non-standard/creative formats
+Storing user resumes
+Resume updating after initial onboarding
+
+Dependencies: Profile form exists (from View and Edit Profile epic)
+
+Breakdown into User Stories:
+USER STORY 1: Add Resume Upload Step to Onboarding Flow
+As a user
+I want to see an optional resume upload step at the beginning of onboarding (Step 0)
+So that I can choose the fastest path to populate my Career ID Profile
+Acceptance Criteria:
+
+AC 1.1: Display resume upload step
+
+Given a user is starting onboarding
+When the onboarding flow loads
+Then Step 0 appears offering the option to upload a resume or skip to manual entry
+
+
+AC 1.2: Skip resume upload option
+
+Given a user is on the resume upload step
+When the user clicks "Skip" or "Enter Manually"
+Then the flow proceeds to the manual profile form (existing onboarding form)
+
+
+AC 1.3: Navigate to resume upload
+
+Given a user is on the resume upload step
+When the user clicks "Upload Resume"
+Then the resume upload interface is displayed
+
+
+
+Dependencies: Manual profile form exists
+
+USER STORY 2: Upload Resume File with Validation
+As a user
+I want to upload my resume in PDF, Word, or image format
+So that the system can extract my career data
+Acceptance Criteria:
+
+AC 2.1: Accept resume file upload
+
+Given a user is on the resume upload step
+When the user clicks the upload area or selects a file
+Then the system accepts PDF, DOCX, DOC, JPG, and PNG files
+
+
+AC 2.2: Validate file size
+
+Given a user is uploading a resume
+When the file exceeds 10MB
+Then the system displays an error message: "File is too large. Maximum size is 10MB."
+And the upload is rejected
+
+
+AC 2.3: Validate file type
+
+Given a user is uploading a file
+When the file is not a supported format (PDF, DOCX, DOC, JPG, PNG)
+Then the system displays an error message: "File format not supported. Please upload PDF, Word, JPG, or PNG."
+And the upload is rejected
+
+
+AC 2.4: Display loading state
+
+Given a user has uploaded a valid resume file
+When the extraction process begins
+Then the system displays an engaging loading state
+And communicates that extraction is in progress
+
+
+
+Dependencies: USER STORY 1 (resume upload step exists)
+
+USER STORY 3: Extract Career Data from Resume
+As a system
+I want to parse the uploaded resume and extract structured career data
+So that the profile form can be pre-filled accurately
+Acceptance Criteria:
+
+AC 3.1: Extract professional experience
+
+Given a user has uploaded a resume
+When the AI extraction service processes the document
+Then the system extracts professional experience data (company, title, dates, accomplishments)
+
+
+AC 3.2: Extract education data
+
+Given a user has uploaded a resume
+When the AI extraction service processes the document
+Then the system extracts education data (degree, institution, graduation year)
+
+
+AC 3.3: Extract skills
+
+Given a user has uploaded a resume
+When the AI extraction service processes the document
+Then the system extracts skills (technical skills, tools, competencies)
+
+
+AC 3.4: Extract contact information
+
+Given a user has uploaded a resume
+When the AI extraction service processes the document
+Then the system extracts contact information (email, phone, location, LinkedIn)
+
+
+AC 3.5: Extract certifications
+
+Given a user has uploaded a resume
+When the AI extraction service processes the document
+Then the system extracts certifications (if present in the document)
+
+
+AC 3.6: Merge and deduplicate data from multiple uploads
+
+Given a user uploads multiple resumes during onboarding
+When the extraction service processes each document
+Then duplicate entries across resumes are identified and merged
+And the most complete version of each entry is retained
+
+
+
+Dependencies: USER STORY 2 (file upload and validation completed)
+
+USER STORY 4: Handle Resume Extraction Failures
+As a user
+I want clear feedback if my resume cannot be processed
+So that I can upload an alternative version or proceed manually
+Acceptance Criteria:
+
+AC 4.1: Display extraction error
+
+Given a resume upload fails to process
+When extraction fails
+Then the system displays a user-friendly error message: "We couldn't read this resume. Can you try uploading another version (PDF, Word, or a screenshot)?"
+
+
+AC 4.2: Offer alternative upload
+
+Given extraction has failed
+When the user is shown the error message
+Then the system offers the option to upload another file
+And the system offers the option to skip to manual entry
+
+
+AC 4.3: Reset for retry
+
+Given a user chooses to upload another file after a failure
+When the user selects "Try Another File"
+Then the upload interface resets
+And the previous failed file is cleared
+
+
+
+Dependencies: USER STORY 2, 3 (upload and extraction must be attempted)
+
+USER STORY 5: Pre-fill Profile Form with Extracted Data
+As a user
+I want to see my extracted career data pre-filled in the profile form
+So that I can review, correct, and save it quickly
+Acceptance Criteria:
+
+AC 5.1: Display pre-filled form
+
+Given extraction has completed successfully
+When the extraction is finished
+Then the profile form loads with extracted data pre-filled in the appropriate fields
+
+
+AC 5.2: Map extracted data to form fields
+
+Given the system has extracted career data
+When the profile form displays
+Then all extracted data is correctly mapped to corresponding form fields (work experience, education, skills, certifications, contact information)
+
+
+AC 5.3: Allow user to edit pre-filled data
+
+Given the profile form is pre-filled
+When the user reviews the extracted data
+Then the user can edit, add, or remove any fields as needed
+
+
+AC 5.4: Preserve data through form submission
+
+Given a user has reviewed and edited pre-filled data
+When the user submits the form
+Then all data (both extracted and user-edited) is saved to the profile
+
+
+
+Dependencies: USER STORY 3 (extraction completed successfully)
+
+USER STORY 6: Prevent Multiple Resume Uploads After Onboarding
+As a system
+I want to ensure users cannot re-upload resumes after their profile is set up
+So that we maintain a clean data pipeline and don't store duplicate resumes
+Acceptance Criteria:
+
+AC 6.1: Hide resume upload after profile creation
+
+Given a user has completed onboarding and saved their profile
+When the user attempts to access onboarding again
+Then the resume upload step is not available
+And the system does not allow resume re-upload
+
+
+AC 6.2: Disable resume upload in profile settings
+
+Given a user has an existing profile
+When the user navigates to profile settings or account settings
+Then no resume upload option is available
+And the system does not allow resuming the extraction flow
+
+
+
+Dependencies: USER STORY 5 (profile must be created first)
