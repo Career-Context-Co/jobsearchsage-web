@@ -39,43 +39,87 @@ Users need a faster way to populate their Career ID Profile during onboarding. M
 
 ## Decisions
 
-### Decision 1: OpenAI GPT-4 Vision API for Extraction
+### Decision 1: Vercel AI SDK 5 with OpenAI GPT-4 Vision
 
-**What:** Use OpenAI GPT-4 Vision API with structured output for resume parsing
+**What:** Use Vercel AI SDK 5 with OpenAI provider for resume parsing with structured output
 
 **Why:**
-- Handles both text-based (PDF, DOCX) and image-based (JPG, PNG) resumes
-- Structured output mode ensures consistent JSON responses
-- High accuracy on varied resume formats (85%+ achievable)
-- Robust handling of different layouts and styles
-- No need for separate OCR pipeline
+- **Framework-agnostic:** Works seamlessly with Nuxt/Vue
+- **Structured output:** Built-in support for Zod schemas ensures type-safe, consistent JSON responses
+- **Provider flexibility:** Easy to switch between OpenAI, Anthropic, or other providers
+- **Streaming support:** Can stream extraction progress for better UX (future enhancement)
+- **Better DX:** TypeScript-first with excellent type inference
+- **Handles both formats:** Text-based (PDF, DOCX) and image-based (JPG, PNG) resumes via GPT-4 Vision
+- **No separate OCR:** GPT-4 Vision handles image processing natively
 
 **Alternatives Considered:**
-1. **AWS Textract + Custom NLP**
+1. **Direct OpenAI SDK**
+   - Pros: Official SDK, well-documented
+   - Cons: More boilerplate, less type-safe, no streaming utilities
+   
+2. **AWS Textract + Custom NLP**
    - Pros: Good OCR, AWS ecosystem integration
    - Cons: Requires additional NLP layer for entity extraction, more complex pipeline
    
-2. **Anthropic Claude with Vision**
+3. **Anthropic Claude with Vision**
    - Pros: Similar capabilities to GPT-4 Vision
-   - Cons: User specified OpenAI preference, less mature structured output
+   - Cons: Less mature structured output, user specified OpenAI preference
    
-3. **Dedicated Resume Parsing Service (Sovren, Affinda)**
+4. **Dedicated Resume Parsing Service (Sovren, Affinda)**
    - Pros: Purpose-built for resumes, high accuracy
    - Cons: Additional vendor dependency, cost, less flexibility
 
 **Implementation:**
 ```typescript
-// Structured output schema for consistent extraction
-const extractionSchema = {
-  type: "object",
-  properties: {
-    contactInfo: { /* ... */ },
-    experience: { type: "array", items: { /* ... */ } },
-    education: { type: "array", items: { /* ... */ } },
-    skills: { type: "array", items: { type: "string" } },
-    certifications: { type: "array", items: { /* ... */ } }
-  }
-}
+import { generateObject } from 'ai'
+import { openai } from '@ai-sdk/openai'
+import { z } from 'zod'
+
+// Define extraction schema with Zod for type safety
+const extractionSchema = z.object({
+  contactInfo: z.object({
+    firstName: z.string(),
+    lastName: z.string(),
+    email: z.string().email(),
+    phone: z.string().optional(),
+    // ... etc
+  }),
+  experience: z.array(z.object({
+    employer: z.string(),
+    title: z.string(),
+    startDate: z.string(),
+    endDate: z.string().optional(),
+    highlights: z.array(z.string())
+  })),
+  education: z.array(z.object({
+    degreeType: z.string(),
+    areaOfStudy: z.string(),
+    institution: z.string(),
+    // ... etc
+  })),
+  skills: z.array(z.string()),
+  certifications: z.array(z.object({
+    name: z.string(),
+    issuer: z.string(),
+    date: z.string()
+  }))
+})
+
+// Use generateObject for structured extraction
+const { object } = await generateObject({
+  model: openai('gpt-4-vision-preview'),
+  schema: extractionSchema,
+  prompt: 'Extract career data from this resume...',
+  messages: [
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: 'Extract all career information...' },
+        { type: 'image', image: base64Image }
+      ]
+    }
+  ]
+})
 ```
 
 ### Decision 2: In-Memory File Processing Only
@@ -177,14 +221,25 @@ function mapExtractionToProfile(extracted: ExtractionResult): ProfileData {
 │                                                           │
 │ ┌─────────────────────────────────────────────────────┐ │
 │ │ ResumeUploadSection.vue (new)                       │ │
-│ │ - File drop zone                                    │ │
-│ │ - File validation                                   │ │
-│ │ - Upload progress                                   │ │
-│ │ - Extraction status                                 │ │
+│ │ ┌─────────────────────────────────────────────────┐ │ │
+│ │ │ UFileUpload (Nuxt UI component)                 │ │ │
+│ │ │ - Drag-and-drop zone                            │ │ │
+│ │ │ - File picker button                            │ │ │
+│ │ │ - File validation (type, size)                  │ │ │
+│ │ │ - Upload progress indicator                     │ │ │
+│ │ └─────────────────────────────────────────────────┘ │ │
+│ │ - Extraction status messages                        │ │
 │ │ - Skip button                                       │ │
 │ └─────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
 ```
+
+**Note:** Using Nuxt UI's [`UFileUpload`](https://ui.nuxt.com/docs/components/file-upload) component provides:
+- Built-in drag-and-drop functionality
+- File type and size validation
+- Upload progress tracking
+- Consistent styling with the rest of the application
+- Accessibility features out of the box
 
 ### API Flow
 
@@ -292,17 +347,20 @@ Existing Save Flow (API endpoints)
 ## Migration Plan
 
 ### Phase 1: Backend Implementation
-1. Install OpenAI SDK: `npm install openai`
-2. Create extraction utility with GPT-4 Vision integration
+1. Install Vercel AI SDK and OpenAI provider:
+   ```bash
+   npm install ai @ai-sdk/openai zod
+   ```
+2. Create extraction utility with Vercel AI SDK + GPT-4 Vision integration
 3. Create file validation utility
 4. Create API endpoint for resume extraction
 5. Add extraction response transformation logic
 6. Add environment variable for OpenAI API key
 
 ### Phase 2: Frontend Implementation
-1. Create ResumeUploadSection component
+1. Create ResumeUploadSection component using Nuxt UI's `UFileUpload`
 2. Add "Upload" step to onboarding stepper
-3. Implement file drop zone with validation
+3. Configure `UFileUpload` with file type and size validation
 4. Add extraction progress UI
 5. Connect to extraction API endpoint
 6. Handle extraction response and populate store

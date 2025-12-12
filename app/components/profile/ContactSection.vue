@@ -256,7 +256,7 @@ function cancelEdits() {
 </script>
 
 <template>
-  <div class="max-w-xl mx-auto space-y-4">
+  <div class="max-w-2xl mx-auto space-y-4">
     <!-- Section Title and Description -->
     <div class="mb-8 space-y-2">
       <h1 class="text-2xl sm:text-3xl font-semibold text-foreground">Let employers know who you are</h1>

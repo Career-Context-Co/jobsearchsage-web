@@ -26,22 +26,25 @@ This feature adds resume upload with AI-powered data extraction to the profile o
 - [x] ✅ All section CRUD endpoints exist (experience, education, etc.)
 
 ### Frontend
-- [ ] Update `app/pages/profile/onboarding.vue` stepper configuration
-  - [ ] Add "Upload" step as first step (before Contact)
-  - [ ] Add icon: `i-lucide-upload`
-  - [ ] Add title: "Upload"
-  - [ ] Update step values: `['upload', 'contact', 'experience', 'education', 'additional']`
-- [ ] Create `app/components/profile/ResumeUploadSection.vue` component
-  - [ ] Add file drop zone UI with drag-and-drop support
-  - [ ] Add file picker button as alternative
-  - [ ] Display supported formats (PDF, DOCX, DOC, JPG, PNG)
-  - [ ] Display max file size (10MB)
-  - [ ] Add "Skip" button to proceed to manual entry
-  - [ ] Add "Upload Resume" button to trigger upload
-- [ ] Add ResumeUploadSection to onboarding template
-  - [ ] Show when `activeStep === 'upload'`
-  - [ ] Handle skip action (advance to Contact step)
-  - [ ] Handle upload success (advance to Contact step with pre-filled data)
+- [x] Update `app/pages/profile/onboarding.vue` stepper configuration
+  - [x] Add "Upload" step as first step (before Contact)
+  - [x] Add icon: `i-lucide-upload`
+  - [x] Add title: "Upload"
+  - [x] Update step values: `['upload', 'contact', 'experience', 'education', 'additional']`
+- [x] Create `app/components/profile/ResumeUploadSection.vue` component
+  - [x] Use Nuxt UI's `UFileUpload` component (https://ui.nuxt.com/docs/components/file-upload)
+  - [x] Configure `UFileUpload` with:
+    - [x] `accept` prop: `.pdf,.docx,.doc,.jpg,.jpeg,.png`
+    - [x] `max-size` prop: `10485760` (10MB in bytes)
+    - [x] `multiple` prop: `false` (single file upload)
+  - [x] Display supported formats (PDF, DOCX, DOC, JPG, PNG)
+  - [x] Display max file size (10MB)
+  - [x] Add "Skip" button to proceed to manual entry
+  - [x] Handle file selection event from `UFileUpload`
+- [x] Add ResumeUploadSection to onboarding template
+  - [x] Show when `activeStep === 'upload'`
+  - [x] Handle skip action (advance to Contact step)
+  - [x] Handle upload success (advance to Contact step with pre-filled data)
 
 ---
 
@@ -66,21 +69,22 @@ This feature adds resume upload with AI-powered data extraction to the profile o
   - [ ] Document environment variables
 
 ### Frontend
-- [ ] Implement client-side file validation in ResumeUploadSection
-  - [ ] Check file extension before upload
-  - [ ] Check file size before upload (max 10MB)
-  - [ ] Display validation errors inline
+- [ ] Configure `UFileUpload` validation in ResumeUploadSection
+  - [ ] Use built-in `accept` prop for file type validation
+  - [ ] Use built-in `max-size` prop for file size validation (10MB)
+  - [ ] Handle `@error` event for validation errors
+  - [ ] Display validation errors using Nuxt UI's error states
   - [ ] Show error message: "File is too large. Maximum size is 10MB."
   - [ ] Show error message: "File format not supported. Please upload PDF, Word, JPG, or PNG."
 - [ ] Implement upload progress UI
-  - [ ] Show upload progress bar
-  - [ ] Show extraction status messages
-  - [ ] Display engaging loading state
+  - [ ] Use `UFileUpload`'s built-in progress indicator
+  - [ ] Show extraction status messages below file upload
+  - [ ] Display engaging loading state during extraction
   - [ ] Communicate extraction is in progress
 - [ ] Add visual feedback
-  - [ ] Highlight drop zone on drag over
-  - [ ] Show file name after selection
-  - [ ] Show file size after selection
+  - [ ] `UFileUpload` provides drag-over highlighting automatically
+  - [ ] Show file name after selection (built-in to `UFileUpload`)
+  - [ ] Show file size after selection (built-in to `UFileUpload`)
 
 ---
 
@@ -98,17 +102,21 @@ This feature adds resume upload with AI-powered data extraction to the profile o
 
 ### Backend (API)
 - [ ] Install dependencies
-  - [ ] Install OpenAI SDK: `npm install openai`
+  - [ ] Install Vercel AI SDK and OpenAI provider: `npm install ai @ai-sdk/openai zod`
 - [ ] Create `server/utils/resume-extractor.ts`
+  - [ ] Import Vercel AI SDK: `import { generateObject } from 'ai'`
+  - [ ] Import OpenAI provider: `import { openai } from '@ai-sdk/openai'`
+  - [ ] Import Zod: `import { z } from 'zod'`
   - [ ] Implement `extractResumeData()` function
-    - [ ] Initialize OpenAI client with API key from env
+    - [ ] Define Zod schema for extraction (contactInfo, experience, education, skills, certifications)
     - [ ] Convert file buffer to base64
-    - [ ] Define structured output schema for extraction
-    - [ ] Send file to GPT-4 Vision API with extraction prompt
-    - [ ] Parse structured JSON response
+    - [ ] Use `generateObject()` with GPT-4 Vision model
+    - [ ] Pass Zod schema for type-safe structured output
+    - [ ] Send extraction prompt with base64 image
+    - [ ] Return typed extraction result
     - [ ] Handle API errors and timeouts
   - [ ] Implement `transformExtractionToProfile()` function
-    - [ ] Map AI response to existing profile schema types
+    - [ ] Map Zod-validated response to existing profile schema types
     - [ ] Transform experience data to match Experience interface
     - [ ] Transform education data to match Education interface
     - [ ] Transform skills to match ProfileSkill interface
@@ -427,7 +435,12 @@ This feature adds resume upload with AI-powered data extraction to the profile o
 - API key with sufficient quota/credits
 
 **NPM Packages:**
-- `openai` - OpenAI SDK for Node.js
+- `ai` - Vercel AI SDK 5 (framework-agnostic AI utilities)
+- `@ai-sdk/openai` - OpenAI provider for Vercel AI SDK
+- `zod` - TypeScript-first schema validation (already installed)
+
+**Nuxt UI Components:**
+- `UFileUpload` - Built-in Nuxt UI component for file uploads (https://ui.nuxt.com/docs/components/file-upload)
 
 **Environment Variables:**
 - `OPENAI_API_KEY` - Required for AI extraction

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Certification, ProfileSkill } from '~/shared/types/careerId'
+import type { Certification, ProfileSkill } from '../../../shared/types/careerId'
 import { validateRequired, validateUrl } from '~/utils/validation'
 
 // Form data types (without server-managed fields)
@@ -68,13 +68,14 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 // Emits - send raw group values (null or string)
-const emit = defineEmits<{
-  saveSkillGroup: [index: number, data: { group: string | null, originalGroup: string | null, skills: SkillItem[] }]
-  deleteSkillGroup: [groupValue: string | null]
-  saveCertification: [data: CertificationFormData & { id?: number }]
-  saveAll: [data: { certifications: (CertificationFormData & { id?: number })[], skillGroups: { group: string | null, originalGroup: string | null, skills: SkillItem[] }[] }]
-  deleteCertification: [id: number]
-}>()
+// Keep runtime emits for maximum toolchain compatibility.
+const emit = defineEmits([
+  'saveSkillGroup',
+  'deleteSkillGroup',
+  'saveCertification',
+  'saveAll',
+  'deleteCertification'
+] as const)
 
 // Transform raw ProfileSkill[] into grouped format for display
 // Convert null group to "No Group" for display
@@ -153,6 +154,10 @@ const editedCertifications = ref<Set<number>>(new Set())
 const isUpdatingSkillsFromProps = ref(false)
 const isUpdatingCertificationsFromProps = ref(false)
 
+const hasBulkEdits = computed(() => {
+  return editedSkillGroups.value.size > 0 || editedCertifications.value.size > 0
+})
+
 // Validation errors
 const certificationErrors = ref<Record<number, CertificationErrors>>({})
 const skillGroupErrors = ref<Record<number, SkillGroupErrors>>({})
@@ -160,27 +165,6 @@ const skillGroupErrors = ref<Record<number, SkillGroupErrors>>({})
 // Track delete confirmation states
 const certificationDeleteConfirm = ref<Set<number>>(new Set())
 const skillGroupDeleteConfirm = ref<Set<number>>(new Set())
-
-// Watch for changes - will not fire on initial setup (immediate: false by default)
-watch(skillGroups, () => {
-  // Skip if we're updating from props
-  if (isUpdatingSkillsFromProps.value) return
-  
-  // Mark all skill groups as potentially edited when any field changes
-  skillGroups.value.forEach((_, index) => {
-    editedSkillGroups.value.add(index)
-  })
-}, { deep: true })
-
-watch(certifications, () => {
-  // Skip if we're updating from props
-  if (isUpdatingCertificationsFromProps.value) return
-  
-  // Mark all certifications as potentially edited when any field changes
-  certifications.value.forEach((_, index) => {
-    editedCertifications.value.add(index)
-  })
-}, { deep: true })
 
 // Watch for external prop changes
 watch(() => props.skillGroups, (newValue) => {
@@ -240,12 +224,16 @@ function createBlankSkillGroup(): SkillGroupFormData {
 
 function addNewSkillGroup() {
   skillGroups.value.push(createBlankSkillGroup())
+  editedSkillGroups.value.add(skillGroups.value.length - 1)
 }
 
 // Update skills for a group when UInputTags changes
 function updateSkillsForGroup(groupIndex: number, newSkillNames: string[]) {
   const group = skillGroups.value[groupIndex]
   if (!group) return
+
+  // Any interaction here is user-driven editing
+  editedSkillGroups.value.add(groupIndex)
   
   // Check for duplicates (case-insensitive comparison)
   const seen = new Set<string>()
@@ -354,6 +342,7 @@ function editSkillGroup(index: number) {
   const group = skillGroups.value[index]
   if (!group) return
   group.isEditing = true
+  editedSkillGroups.value.add(index)
 }
 
 function deleteSkillGroup(index: number) {
@@ -429,6 +418,7 @@ function createBlankCertification(): CertificationFormData {
 
 function addNewCertification() {
   certifications.value.push(createBlankCertification())
+  editedCertifications.value.add(certifications.value.length - 1)
 }
 
 // Validate certification
@@ -499,6 +489,7 @@ function editCertification(index: number) {
   const cert = certifications.value[index]
   if (!cert) return
   cert.isEditing = true
+  editedCertifications.value.add(index)
 }
 
 function deleteCertification(index: number) {
@@ -663,7 +654,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="max-w-xl mx-auto space-y-4">
+  <div class="max-w-2xl mx-auto space-y-4">
     <!-- Section Title and Description -->
     <div class="mb-8 space-y-2">
       <h1 class="text-2xl sm:text-3xl font-semibold text-foreground">Additional Information</h1>
@@ -793,7 +784,7 @@ defineExpose({
                     <UFormField size="xl" label="Skills" name="skills">
                       <UInputTags 
                         class="w-full"
-                        duplicate="true"
+                        :duplicate="true"
                         :model-value="group.skills.map((s: any) => s.name)"
                         @update:model-value="(values: string[]) => updateSkillsForGroup(groupIndex, values)"
                         placeholder="Press enter to add"
@@ -988,7 +979,7 @@ defineExpose({
     </div>
 
     <!-- Bulk Action Buttons -->
-    <div class="flex gap-2 pt-6">
+    <div v-if="hasBulkEdits" class="flex gap-2 pt-6">
       <UButton class="cursor-pointer" size="xl" @click="saveAll">
         Save All Information
       </UButton>

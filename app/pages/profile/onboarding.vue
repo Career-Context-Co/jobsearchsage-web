@@ -4,16 +4,22 @@ import { ref, useTemplateRef, onMounted, computed } from 'vue'
 import { useCareerIDStore } from '~/stores/careerIDStore'
 
 const stepper = useTemplateRef('stepper')
-const activeStep = ref('contact')
+const activeStep = ref('upload')
 
 // Template refs for section components (for autosave)
+const uploadSectionRef = useTemplateRef('uploadSection')
 const contactSectionRef = useTemplateRef('contactSection')
 const experienceSectionRef = useTemplateRef('experienceSection')
 const educationSectionRef = useTemplateRef('educationSection')
 const additionalSectionRef = useTemplateRef('additionalSection')
 
 const steps: StepperItem[] = [
-{ 
+  { 
+    title: 'Upload', 
+    icon: 'i-lucide-upload',
+    value: 'upload'
+  },
+  { 
     title: 'Contact', 
     icon: 'i-lucide-user',
     value: 'contact'
@@ -545,10 +551,19 @@ async function handleDeleteSkillGroup(groupValue: string | null) {
   }
 }
 
+// Handle skip or successful upload from ResumeUploadSection
+function handleUploadComplete() {
+  // Advance to Contact step
+  stepper.value?.next()
+}
+
 // Autosave current step before navigation
 async function autosaveCurrentStep() {
   try {
     switch (activeStep.value) {
+      case 'upload':
+        // No autosave needed for upload step
+        break
       case 'contact':
         await contactSectionRef.value?.triggerSave()
         break
@@ -609,6 +624,13 @@ onMounted(async () => {
 
         <!-- Content Area with Dynamic Components -->
         <div class="p-6 sm:p-8">
+          <!-- ResumeUploadSection - optional first step -->
+          <ProfileResumeUploadSection 
+            ref="uploadSection"
+            v-show="activeStep === 'upload'"
+            @upload-complete="handleUploadComplete"
+          />
+          
           <!-- ContactSection - single save event with all data -->
           <ProfileContactSection 
             ref="contactSection"

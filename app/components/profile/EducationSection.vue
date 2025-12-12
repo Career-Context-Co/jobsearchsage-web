@@ -470,7 +470,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="max-w-xl mx-auto space-y-4">
+  <div class="max-w-2xl mx-auto space-y-4">
     <!-- Section Title and Description -->
     <div class="mb-8 space-y-2">
       <h1 class="text-2xl sm:text-3xl font-semibold text-foreground">Tell us about your education</h1>
@@ -480,9 +480,9 @@ defineExpose({
     </div>
 
     <!-- Helper Text -->
-    <div class="bg-info/5 border border-info/50 rounded-lg p-4">
+    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
       <div class="flex gap-3">
-        <UIcon name="i-lucide-lightbulb" class="w-5 h-5 text-info shrink-0 mt-0.5" />
+        <UIcon name="i-lucide-lightbulb" class="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
         <div class="text-sm text-muted">
           <p class="font-medium text-foreground mb-1">Tips for adding education</p>
           <ul class="list-disc list-inside space-y-1">
