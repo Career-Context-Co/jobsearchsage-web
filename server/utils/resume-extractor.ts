@@ -142,7 +142,7 @@ export async function extractResumeData(
       system: `You are an expert resume parser. Extract career information from resumes and return ONLY valid JSON.
 
 EXTRACTION RULES:
-1. Extract contact information (name, email, phone, location, summary/objective)
+1. Extract contact information (name, email, phone, location, summary/objective, FULL URLs for any links)
 2. Extract all work experience with dates, employers, titles, and bullet points
 3. Extract all education with degrees, institutions, dates, and coursework
 4. Extract all skills (technical and soft skills) as a simple array of skill names
