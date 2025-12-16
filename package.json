@@ -11,6 +11,7 @@
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
+    "@ai-sdk/vue": "^3.0.0-beta.157",
     "@iconify-json/lucide": "^1.2.73",
     "@iconify-json/simple-icons": "^1.2.58",
     "@nuxt/ui": "^4.1.0",
@@ -20,11 +21,13 @@
     "@unovis/ts": "^1.6.1",
     "@unovis/vue": "^1.6.1",
     "@vueuse/nuxt": "^13.9.0",
+    "ai": "^6.0.0-beta.157",
     "date-fns": "^4.1.0",
     "maska": "^3.2.0",
     "nuxt": "^4.2.1",
+    "pdf-parse": "^2.4.5",
     "pinia": "^3.0.4",
-    "zod": "^4.1.12"
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.10.0",

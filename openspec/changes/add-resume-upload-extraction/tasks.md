@@ -108,53 +108,53 @@ This feature adds resume upload with AI-powered data extraction to the profile o
 - [x] ✅ Contact_info table (first_name, last_name, email, phone, location, summary)
 
 ### Backend (API)
-- [ ] Install dependencies
-  - [ ] Install Vercel AI SDK and OpenAI provider: `npm install ai @ai-sdk/openai zod`
-- [ ] Create `server/utils/resume-extractor.ts`
-  - [ ] Import Vercel AI SDK: `import { generateObject } from 'ai'`
-  - [ ] Import OpenAI provider: `import { openai } from '@ai-sdk/openai'`
-  - [ ] Import Zod: `import { z } from 'zod'`
-  - [ ] Implement `extractResumeData()` function
-    - [ ] Define Zod schema for extraction (contactInfo, experience, education, skills, certifications)
-    - [ ] Convert file buffer to base64
-    - [ ] Use `generateObject()` with GPT-4 Vision model
-    - [ ] Pass Zod schema for type-safe structured output
-    - [ ] Send extraction prompt with base64 image
-    - [ ] Return typed extraction result
-    - [ ] Handle API errors and timeouts
-  - [ ] Implement `transformExtractionToProfile()` function
-    - [ ] Map Zod-validated response to existing profile schema types
-    - [ ] Transform experience data to match Experience interface
-    - [ ] Transform education data to match Education interface
-    - [ ] Transform skills to match ProfileSkill interface
-    - [ ] Transform contact info to match ContactInfo interface
-    - [ ] Transform certifications to match Certification interface
-  - [ ] Implement merge and deduplication logic
-    - [ ] Identify duplicate experience entries across uploads
-    - [ ] Identify duplicate education entries across uploads
-    - [ ] Identify duplicate skills across uploads
-    - [ ] Merge duplicates keeping most complete version
-  - [ ] Export extraction types and functions
-- [ ] Enhance `server/api/career-id/resume/extract.post.ts` (add AI extraction to existing endpoint)
-  - [ ] Keep existing file upload and validation logic from USER STORY 2
-  - [ ] After validation passes, call `extractResumeData()` utility
-  - [ ] Transform extraction result using `transformExtractionToProfile()`
-  - [ ] Return transformed data as JSON response
-  - [ ] Add error handling for extraction failures (500, 503)
-  - [ ] Clear file data from memory after processing
-  - [ ] Update request/response logging to include extraction metrics
-- [ ] Create deliverables
-  - [ ] Create `deliverables/schemas/extraction-types.ts`
-    - [ ] Define `ResumeExtractionRequest` type
-    - [ ] Define `ResumeExtractionResponse` type
-    - [ ] Define `ExtractionError` type
-    - [ ] Define OpenAI structured output schema
-  - [ ] Update `deliverables/schemas/api-spec.md`
-    - [ ] Document POST `/api/career-id/resume/extract` endpoint
-    - [ ] Document request format (multipart/form-data)
-    - [ ] Document response format (extracted profile data)
-    - [ ] Document error responses (400, 413, 500, 503)
-    - [ ] Add example requests and responses
+- [x] Install dependencies
+  - [x] Install Vercel AI SDK and OpenAI provider: `npm install ai @ai-sdk/openai zod`
+- [x] Create `server/utils/resume-extractor.ts`
+  - [x] Import Vercel AI SDK: `import { generateObject } from 'ai'`
+  - [x] Import OpenAI provider: `import { openai } from '@ai-sdk/openai'`
+  - [x] Import Zod: `import { z } from 'zod'`
+  - [x] Implement `extractResumeData()` function
+    - [x] Define Zod schema for extraction (contactInfo, experience, education, skills, certifications)
+    - [x] Convert file buffer to base64
+    - [x] Use `generateObject()` with GPT-4 Vision model
+    - [x] Pass Zod schema for type-safe structured output
+    - [x] Send extraction prompt with base64 image
+    - [x] Return typed extraction result
+    - [x] Handle API errors and timeouts
+  - [x] Implement `transformExtractionToProfile()` function
+    - [x] Map Zod-validated response to existing profile schema types
+    - [x] Transform experience data to match Experience interface
+    - [x] Transform education data to match Education interface
+    - [x] Transform skills to match ProfileSkill interface
+    - [x] Transform contact info to match ContactInfo interface
+    - [x] Transform certifications to match Certification interface
+  - [x] Implement merge and deduplication logic
+    - [x] Identify duplicate experience entries across uploads
+    - [x] Identify duplicate education entries across uploads
+    - [x] Identify duplicate skills across uploads
+    - [x] Merge duplicates keeping most complete version
+  - [x] Export extraction types and functions
+- [x] Enhance `server/api/career-id/resume/extract.post.ts` (add AI extraction to existing endpoint)
+  - [x] Keep existing file upload and validation logic from USER STORY 2
+  - [x] After validation passes, call `extractResumeData()` utility
+  - [x] Transform extraction result using `transformExtractionToProfile()`
+  - [x] Return transformed data as JSON response
+  - [x] Add error handling for extraction failures (500, 503)
+  - [x] Clear file data from memory after processing
+  - [x] Update request/response logging to include extraction metrics
+- [x] Create deliverables
+  - [x] Create `deliverables/schemas/extraction-types.ts`
+    - [x] Define `ResumeExtractionRequest` type
+    - [x] Define `ResumeExtractionResponse` type
+    - [x] Define `ExtractionError` type
+    - [x] Define OpenAI structured output schema
+  - [x] Update `deliverables/schemas/api-spec.md`
+    - [x] Document POST `/api/career-id/resume/extract` endpoint
+    - [x] Document request format (multipart/form-data)
+    - [x] Document response format (extracted profile data)
+    - [x] Document error responses (400, 413, 500, 503)
+    - [x] Add example requests and responses
 
 ### Frontend
 - [ ] Add extraction state to `app/stores/careerIDStore.ts`

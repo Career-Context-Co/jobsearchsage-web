@@ -7,7 +7,7 @@ Users need a faster way to populate their Career ID Profile during onboarding. M
 **Constraints:**
 - Must integrate with existing onboarding stepper flow
 - Must work with existing database schema (no schema changes)
-- Must handle multiple file formats (PDF, DOCX, DOC, JPG, PNG)
+- Must handle multiple file formats (PDF, TXT, Markdown)
 - Must achieve 85%+ extraction accuracy on standard resumes
 - Must not persist uploaded files (privacy/security requirement)
 - Must gracefully handle extraction failures
@@ -22,7 +22,7 @@ Users need a faster way to populate their Career ID Profile during onboarding. M
 ### Goals
 - Reduce onboarding time from 15-20 minutes to 2-3 minutes
 - Achieve 85%+ extraction accuracy on standard resume formats
-- Support common resume file formats (PDF, DOCX, DOC, JPG, PNG)
+- Support basic resume file formats (PDF, TXT, Markdown)
 - Provide clear feedback during extraction process
 - Allow users to review and correct extracted data
 - Maintain existing data validation and quality standards

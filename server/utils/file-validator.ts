@@ -8,17 +8,15 @@
 /**
  * Supported resume file extensions
  */
-export const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.jpg', '.jpeg', '.png'] as const
+export const SUPPORTED_EXTENSIONS = ['.pdf', '.txt', '.md'] as const
 
 /**
  * Supported MIME types mapped to their extensions
  */
 export const MIME_TYPE_MAP: Record<string, string[]> = {
   'application/pdf': ['.pdf'],
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-  'application/msword': ['.doc'],
-  'image/jpeg': ['.jpg', '.jpeg'],
-  'image/png': ['.png'],
+  'text/plain': ['.txt'],
+  'text/markdown': ['.md'],
 }
 
 /**
@@ -74,7 +72,7 @@ export function validateResumeFile(file: {
       valid: false,
       error: {
         code: 'INVALID_EXTENSION',
-        message: `File format not supported. Please upload PDF, DOCX, DOC, JPG, or PNG files. Got: ${filename}`
+        message: `File format not supported. Please upload PDF, TXT, or MD files. Got: ${filename}`
       }
     }
   }

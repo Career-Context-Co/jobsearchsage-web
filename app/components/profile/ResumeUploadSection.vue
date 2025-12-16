@@ -120,7 +120,7 @@ function handleRetry() {
         highlight
         icon="i-lucide-upload-cloud"
         label="Drop your resume here or click to browse"
-        description="Supported formats: PDF, DOCX, DOC, JPG, PNG (max 10MB)"
+        description="Supported formats: PDF, Txt, Markdown (max 10MB)"
         :preview="true"
         class="cursor-pointer"
         @error="handleFileError"
