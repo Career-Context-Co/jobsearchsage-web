@@ -44,10 +44,17 @@ const steps: StepperItem[] = [
 const careerIDStore = useCareerIDStore()
 const toast = useToast()
 
+// Check if user is redoing onboarding with existing profile
+const isRedoingOnboarding = computed(() => careerIDStore.isProfileLoaded)
+
 // Handle save from ContactSection - diffs against store to determine API calls
-async function handleSaveContact(payload: { contactInfo: any, socialLinks: { id?: number, platformId: number, url: string }[] }) {
+async function handleSaveContact(payload: { 
+  contactInfo: any, 
+  socialLinks: { id?: number, platformId: number, url: string }[],
+  deletedLinkIds: number[]
+}) {
   try {
-    const { contactInfo, socialLinks } = payload
+    const { contactInfo, socialLinks, deletedLinkIds } = payload
     
     // 1. Save contact info
     if (careerIDStore.contactInfo?.id) {
@@ -56,22 +63,20 @@ async function handleSaveContact(payload: { contactInfo: any, socialLinks: { id?
       await careerIDStore.createContactInfo(contactInfo)
     }
     
-    // 2. Diff social links against store
-    const existingLinks = careerIDStore.profileSocialLinks
-    const existingIds = new Set(existingLinks.map(l => l.id))
-    const newIds = new Set(socialLinks.filter(l => l.id).map(l => l.id))
+    // 2. Handle social links changes
     
-    // Find links to add (no id)
-    const linksToAdd = socialLinks.filter(l => !l.id)
-    if (linksToAdd.length > 0) {
-      await careerIDStore.addSocialLinks(linksToAdd.map((l, i) => ({
-        platformId: l.platformId,
-        url: l.url,
-        displayOrder: existingLinks.length + i
-      })))
+    // STEP 1: Delete explicitly removed links (user clicked delete button)
+    for (const deletedId of deletedLinkIds) {
+      try {
+        await careerIDStore.deleteSocialLink(deletedId)
+      } catch (deleteError: any) {
+        console.error('Failed to delete social link:', deletedId, deleteError)
+        // Continue to next delete - don't stop the save process
+      }
     }
     
-    // Find links to update (id exists, check if url changed)
+    // STEP 2: Update existing links (id exists, check if url changed)
+    const existingLinks = careerIDStore.profileSocialLinks
     for (const link of socialLinks) {
       if (link.id) {
         const existing = existingLinks.find(l => l.id === link.id)
@@ -81,7 +86,26 @@ async function handleSaveContact(payload: { contactInfo: any, socialLinks: { id?
       }
     }
     
-    // Note: Delete is handled separately via explicit delete handler, never during save
+    // STEP 3: Add new links (no id)
+    const linksToAdd = socialLinks.filter(l => !l.id)
+    if (linksToAdd.length > 0) {
+      // Remove old extracted links without IDs before adding saved ones
+      careerIDStore.profileSocialLinks = careerIDStore.profileSocialLinks.filter(link => link.id !== undefined)
+      
+      await careerIDStore.addSocialLinks(linksToAdd.map((l, i) => ({
+        platformId: l.platformId,
+        url: l.url,
+        displayOrder: existingLinks.length + i
+      })))
+    }
+    
+    // Clear isExtracted flag from all items after successful save
+    if (careerIDStore.contactInfo) {
+      careerIDStore.contactInfo.isExtracted = false
+    }
+    careerIDStore.profileSocialLinks.forEach(link => {
+      link.isExtracted = false
+    })
     
     // Show success toast
     toast.add({
@@ -92,15 +116,17 @@ async function handleSaveContact(payload: { contactInfo: any, socialLinks: { id?
   } catch (error: any) {
     console.error('Failed to save contact section:', error)
     
+    // Handle API errors in the child component (e.g., duplicate platforms)
+    if (contactSectionRef.value?.handleApiError) {
+      contactSectionRef.value.handleApiError(error)
+    }
+    
     // Show error toast
     toast.add({
       title: 'Save Failed',
       description: error?.data?.error?.message || 'Failed to save contact information',
       color: 'error'
     })
-    
-    // Revert changes in child component
-    contactSectionRef.value?.revertChanges()
   }
 }
 
@@ -637,6 +663,16 @@ onMounted(async () => {
 
         <!-- Content Area with Dynamic Components -->
         <div class="p-6 sm:p-8">
+          <!-- Info Banner for Redo Onboarding -->
+          <UAlert
+            v-if="activeStep === 'upload' && isRedoingOnboarding"
+            color="info"
+            icon="i-lucide-sparkles"
+            title="You're redoing onboarding"
+            description="Uploading a new resume will add extracted data alongside your existing profile. Extracted items will have purple borders - you can review and delete any unwanted duplicates."
+            class="mb-6"
+          />
+
           <!-- ResumeUploadSection - optional first step -->
           <ProfileResumeUploadSection 
             ref="uploadSection"

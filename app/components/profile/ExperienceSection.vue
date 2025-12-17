@@ -17,6 +17,7 @@ interface ExperienceFormData {
   currentPosition: boolean
   summary?: string | null
   highlights: string[]
+  isExtracted?: boolean
   isEditing: boolean
 }
 
@@ -76,6 +77,7 @@ const experiences = ref<ExperienceFormData[]>(
         currentPosition: exp.currentPosition,
         summary: exp.summary,
         highlights: exp.highlights || [],
+        isExtracted: exp.isExtracted,
         isEditing: false
       }))
     : [{
@@ -141,6 +143,7 @@ watch(() => props.experience, (newValue) => {
         currentPosition: exp.currentPosition,
         summary: exp.summary,
         highlights: exp.highlights || [],
+        isExtracted: exp.isExtracted,
         // Preserve isEditing state if this item was already being edited
         isEditing: editingStates.get(exp.id) ?? false
       }))
@@ -464,10 +467,19 @@ defineExpose({
         class="flex flex-col gap-2"
       >
         <!-- Collapsed View -->
-        <UCard v-if="!experience.isEditing">
+        <UCard 
+          v-if="!experience.isEditing"
+          :class="{ 'ring-2 ring-purple-500 dark:ring-purple-400': experience.isExtracted }"
+        >
           <div class="flex items-start justify-between gap-4">
             <div class="flex-1">
-              <h2 class="text-md font-semibold text-foreground">{{ experience.title || 'Untitled Position' }}</h2>
+              <div class="flex items-center gap-2">
+                <h2 class="text-md font-semibold text-foreground">{{ experience.title || 'Untitled Position' }}</h2>
+                <UBadge v-if="experience.isExtracted" color="neutral" variant="subtle" size="xs" class="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                  <UIcon name="i-lucide-sparkles" class="w-3 h-3" />
+                  Extracted
+                </UBadge>
+              </div>
               <h3 class="text-sm text-muted">{{ experience.employer || 'Untitled Company' }}</h3>
               <p class="text-sm text-muted" v-if="experience.startDate || experience.endDate">
                 {{ experience.startDate }} - {{ experience.endDate || 'Present' }}
@@ -496,10 +508,19 @@ defineExpose({
         </UCard>
 
         <!-- Expanded Edit Form - Still needs a clickable trigger when in edit mode -->
-        <UCard v-if="experience.isEditing">
+        <UCard 
+          v-if="experience.isEditing"
+          :class="{ 'ring-2 ring-purple-500 dark:ring-purple-400': experience.isExtracted }"
+        >
           <div class="flex items-center justify-between mb-4">
             <div class="flex-1">
-              <h2 class="text-md font-semibold text-foreground">{{ experience.title || 'Untitled Position' }}</h2>
+              <div class="flex items-center gap-2">
+                <h2 class="text-md font-semibold text-foreground">{{ experience.title || 'Untitled Position' }}</h2>
+                <UBadge v-if="experience.isExtracted" color="neutral" variant="subtle" size="xs" class="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                  <UIcon name="i-lucide-sparkles" class="w-3 h-3" />
+                  Extracted
+                </UBadge>
+              </div>
               <h3 class="text-sm text-muted">{{ experience.employer || 'Untitled Company' }}</h3>
             </div>
             <div class="flex gap-2">

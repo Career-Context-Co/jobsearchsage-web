@@ -366,7 +366,8 @@ export function transformExtractionToProfile(extraction: ExtractionResult) {
     currentPosition: exp.currentPosition,
     summary: exp.summary || null,
     highlights: exp.highlights || [],
-    displayOrder: index
+    displayOrder: index,
+    isExtracted: true
   }))
 
   // Derive jobTitle from experience if not already set in contact info
@@ -401,7 +402,8 @@ export function transformExtractionToProfile(extraction: ExtractionResult) {
       postalCode: extraction.contactInfo.postalCode || null,
       summary: extraction.contactInfo.summary || null,
       websites, // Only regular websites now
-      willingToRelocate: extraction.contactInfo.willingToRelocate ?? false
+      willingToRelocate: extraction.contactInfo.willingToRelocate ?? false,
+      isExtracted: true
     },
 
     socialLinks, // Social links extracted from URLs
@@ -419,7 +421,8 @@ export function transformExtractionToProfile(extraction: ExtractionResult) {
       creditHours: edu.creditHours || null,
       coursework: edu.coursework || [],
       minors: edu.minors || [],
-      displayOrder: index
+      displayOrder: index,
+      isExtracted: true
     })),
     
     profileSkills: extraction.skills,  // Return as simple string array to save bandwidth
@@ -429,7 +432,8 @@ export function transformExtractionToProfile(extraction: ExtractionResult) {
       issuer: cert.issuer,
       issueDate: cert.issueDate,
       url: cert.url || null,
-      displayOrder: index
+      displayOrder: index,
+      isExtracted: true
     }))
   }
 }

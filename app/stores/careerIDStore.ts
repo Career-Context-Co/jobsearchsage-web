@@ -1002,119 +1002,72 @@ export const useCareerIDStore = defineStore('careerID', {
 
       const result = this.extractionResult
 
-      // Apply contact info (overwrite with extracted data, preserve database fields)
+      // Apply contact info (overwrite with extracted data and mark as extracted)
       if (result.contactInfo) {
         const existing = this.contactInfo || {} as ContactInfo
         const extracted = result.contactInfo
 
-        // Completely overwrite all user-editable fields with extracted data, keep database fields
+        // Overwrite with extracted values and mark as extracted
         this.contactInfo = {
-          // Preserve database fields
+          // Preserve database fields if they exist
           id: existing.id,
           internalId: existing.internalId,
           profileId: existing.profileId,
           createdAt: existing.createdAt,
           updatedAt: existing.updatedAt,
-          // Use extracted values only if they are not null/undefined (preserve existing data when extraction returns null)
-          firstName: (extracted.firstName !== undefined && extracted.firstName !== null) ? extracted.firstName : existing.firstName,
-          lastName: (extracted.lastName !== undefined && extracted.lastName !== null) ? extracted.lastName : existing.lastName,
-          email: (extracted.email !== undefined && extracted.email !== null) ? extracted.email : existing.email,
-          phone: (extracted.phone !== undefined && extracted.phone !== null) ? extracted.phone : existing.phone,
-          jobTitle: (extracted.jobTitle !== undefined && extracted.jobTitle !== null) ? extracted.jobTitle : existing.jobTitle,
-          city: (extracted.city !== undefined && extracted.city !== null) ? extracted.city : existing.city,
-          stateRegion: (extracted.stateRegion !== undefined && extracted.stateRegion !== null) ? extracted.stateRegion : existing.stateRegion,
-          country: (extracted.country !== undefined && extracted.country !== null) ? extracted.country : existing.country,
-          postalCode: (extracted.postalCode !== undefined && extracted.postalCode !== null) ? extracted.postalCode : existing.postalCode,
-          summary: (extracted.summary !== undefined && extracted.summary !== null) ? extracted.summary : existing.summary,
-          websites: (extracted.websites !== undefined && extracted.websites !== null) ? extracted.websites : existing.websites,
-          willingToRelocate: (extracted.willingToRelocate !== undefined && extracted.willingToRelocate !== null) ? extracted.willingToRelocate : existing.willingToRelocate
+          // Use extracted values (overwrite existing)
+          firstName: extracted.firstName ?? existing.firstName ?? '',
+          lastName: extracted.lastName ?? existing.lastName ?? '',
+          email: extracted.email ?? existing.email ?? '',
+          phone: extracted.phone ?? existing.phone ?? null,
+          jobTitle: extracted.jobTitle ?? existing.jobTitle ?? null,
+          city: extracted.city ?? existing.city ?? null,
+          stateRegion: extracted.stateRegion ?? existing.stateRegion ?? null,
+          country: extracted.country ?? existing.country ?? null,
+          postalCode: extracted.postalCode ?? existing.postalCode ?? null,
+          summary: extracted.summary ?? existing.summary ?? null,
+          websites: extracted.websites ?? existing.websites ?? [],
+          willingToRelocate: extracted.willingToRelocate ?? existing.willingToRelocate ?? false,
+          isExtracted: true
         } as ContactInfo
       }
 
-      // Merge experience (deduplicate by employer + title + start date)
+      // Merge experience - keep both old and new, show duplicates with isExtracted flag
       if (result.experience.length > 0) {
-        const existingKeys = new Set(
-          this.experience.map(exp => 
-            `${exp.employer?.toLowerCase()}_${exp.title?.toLowerCase()}_${exp.startDate}`
-          )
-        )
-
-        const newExperience = result.experience.filter(exp => {
-          const key = `${exp.employer?.toLowerCase()}_${exp.title?.toLowerCase()}_${exp.startDate}`
-          return !existingKeys.has(key)
-        })
-
-        this.experience = [...this.experience, ...newExperience as Experience[]]
+        this.experience = [...this.experience, ...result.experience as Experience[]]
       }
 
-      // Merge education (deduplicate by institution + degree + area of study)
+      // Merge education - keep both old and new, show duplicates with isExtracted flag
       if (result.education.length > 0) {
-        const existingKeys = new Set(
-          this.education.map(edu => 
-            `${edu.institution?.toLowerCase()}_${edu.degreeType?.toLowerCase()}_${edu.areaOfStudy?.toLowerCase()}`
-          )
-        )
-
-        const newEducation = result.education.filter(edu => {
-          const key = `${edu.institution?.toLowerCase()}_${edu.degreeType?.toLowerCase()}_${edu.areaOfStudy?.toLowerCase()}`
-          return !existingKeys.has(key)
-        })
-
-        this.education = [...this.education, ...newEducation as Education[]]
+        this.education = [...this.education, ...result.education as Education[]]
       }
 
-      // Merge skills as simple strings (deduplicate by name, case-insensitive)
+      // Merge skills - all extracted skills go to "Extracted" group with isExtracted flag
       if (result.profileSkills.length > 0) {
-        const existingSkillNames = new Set(
-          this.profileSkills.map(skill => skill.name.toLowerCase())
-        )
-
-        const newSkills = result.profileSkills
-          .filter(skillName => !existingSkillNames.has(skillName.toLowerCase()))
-          .map((skillName, index) => ({
-            name: skillName,
-            group: null,
-            proficiencyLevel: 'intermediate' as const,
-            yearsExperience: null,
-            displayOrder: this.profileSkills.length + index
-          }))
+        const newSkills = result.profileSkills.map((skillName, index) => ({
+          name: skillName,
+          group: 'Extracted',
+          proficiencyLevel: 'intermediate' as const,
+          yearsExperience: null,
+          displayOrder: this.profileSkills.length + index,
+          isExtracted: true
+        }))
 
         this.profileSkills = [...this.profileSkills, ...newSkills as ProfileSkill[]]
       }
 
-      // Merge certifications (deduplicate by name + issuer)
+      // Merge certifications - keep both old and new, show duplicates with isExtracted flag
       if (result.certifications.length > 0) {
-        const existingKeys = new Set(
-          this.certifications.map(cert => 
-            `${cert.name?.toLowerCase()}_${cert.issuer?.toLowerCase()}`
-          )
-        )
-
-        const newCertifications = result.certifications.filter(cert => {
-          const key = `${cert.name?.toLowerCase()}_${cert.issuer?.toLowerCase()}`
-          return !existingKeys.has(key)
-        })
-
-        this.certifications = [...this.certifications, ...newCertifications as Certification[]]
+        this.certifications = [...this.certifications, ...result.certifications as Certification[]]
       }
 
-      // Merge social links (deduplicate by platformId + URL)
+      // Merge social links - keep both old and new
       if (result.socialLinks && result.socialLinks.length > 0) {
-        const existingKeys = new Set(
-          this.profileSocialLinks.map(link => 
-            `${link.platformId}_${link.url.toLowerCase()}`
-          )
-        )
-
-        const newSocialLinks = result.socialLinks.filter(link => {
-          const key = `${link.platformId}_${link.url.toLowerCase()}`
-          return !existingKeys.has(key)
-        })
-
         // Transform to ProfileSocialLink format
-        const transformedLinks = newSocialLinks.map(link => ({
+        const transformedLinks = result.socialLinks.map(link => ({
           ...link,
-          platformNameCache: this.getPlatformNameById(link.platformId)
+          platformNameCache: this.getPlatformNameById(link.platformId),
+          isExtracted: true
         })) as ProfileSocialLink[]
 
         this.profileSocialLinks = [...this.profileSocialLinks, ...transformedLinks]

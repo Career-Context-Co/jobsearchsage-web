@@ -386,7 +386,7 @@ async function updateSocialLink(linkId: number) {
 async function deleteSocialLink(linkId: number) {
   try {
     await careerIDStore.deleteSocialLink(linkId)
-    
+
     toast.add({
       title: 'Success',
       description: 'Social link deleted successfully',
@@ -1048,13 +1048,8 @@ onMounted(async () => {
         <p class="text-muted text-center max-w-md">
           It looks like you haven't created your profile yet. Complete onboarding to get started.
         </p>
-        <UButton
-          label="Redo Onboarding"
-          color="primary"
-          icon="i-lucide-arrow-right"
-          trailing
-          to="/profile/onboarding"
-        />
+        
+        <ProfileRedoOnboardingModal />
       </div>
     </UPageCard>
   </div>

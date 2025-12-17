@@ -47,7 +47,7 @@ async function handleUpload() {
     
     console.log('Extraction successful:', response)
     
-    // Apply extraction to profile
+    // Apply extraction to profile (always merges, with isExtracted flag for visual indicators)
     store.applyExtractionToProfile()
     
     // Emit success with extracted flag
@@ -119,7 +119,7 @@ function handleRetry() {
         icon="i-lucide-upload-cloud"
         label="Drop your resume here or click to browse"
         description="Supported formats: PDF, Txt, Markdown (max 10MB)"
-        :preview="true"
+        :preview="false"
         class="cursor-pointer"
         @error="handleFileError"
       />

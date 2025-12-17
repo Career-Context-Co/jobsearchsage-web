@@ -127,8 +127,8 @@ function transformSkillsToGroups(skills: ProfileSkill[]): SkillGroupFormData[] {
 // Local reactive copies for two-way binding
 const skillGroups = ref<SkillGroupFormData[]>(transformSkillsToGroups(props.skillGroups))
 
-// Transform Certification[] from store into local editable format with id preserved
-const certifications = ref<(CertificationFormData & { id?: number })[]>(
+// Transform Certification[] from store into local editable format with id and isExtracted preserved
+const certifications = ref<(CertificationFormData & { id?: number, isExtracted?: boolean })[]>(
   props.certifications.length > 0
     ? props.certifications.map(cert => ({
         id: cert.id,
@@ -136,6 +136,7 @@ const certifications = ref<(CertificationFormData & { id?: number })[]>(
         issuer: cert.issuer,
         issueDate: formatDateForUI(cert.issueDate),
         url: cert.url,
+        isExtracted: cert.isExtracted,
         isEditing: false
       }))
     : [{
@@ -191,6 +192,7 @@ watch(() => props.certifications, (newValue) => {
         issuer: cert.issuer,
         issueDate: formatDateForUI(cert.issueDate),
         url: cert.url,
+        isExtracted: cert.isExtracted,
         isEditing: false
       }))
     : [{
@@ -844,10 +846,19 @@ defineExpose({
           class="flex flex-col gap-2"
         >
           <!-- Collapsed View -->
-          <UCard v-if="!cert.isEditing">
+          <UCard 
+            v-if="!cert.isEditing"
+            :class="{ 'ring-2 ring-purple-500 dark:ring-purple-400': cert.isExtracted }"
+          >
             <div class="flex items-start justify-between gap-4">
               <div class="flex-1">
-                <h3 class="text-md font-semibold text-foreground">{{ cert.name || 'Untitled Certification' }}</h3>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-md font-semibold text-foreground">{{ cert.name || 'Untitled Certification' }}</h3>
+                  <UBadge v-if="cert.isExtracted" color="neutral" variant="subtle" size="xs" class="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                    <UIcon name="i-lucide-sparkles" class="w-3 h-3" />
+                    Extracted
+                  </UBadge>
+                </div>
                 <p class="text-sm text-muted">{{ cert.issuer || 'Unknown Issuer' }}</p>
                 <p class="text-sm text-muted" v-if="cert.issueDate">{{ cert.issueDate }}</p>
               </div>
@@ -874,10 +885,19 @@ defineExpose({
           </UCard>
 
           <!-- Expanded Edit Form Header -->
-          <UCard v-if="cert.isEditing">
+          <UCard 
+            v-if="cert.isEditing"
+            :class="{ 'ring-2 ring-purple-500 dark:ring-purple-400': cert.isExtracted }"
+          >
             <div class="flex items-center justify-between mb-4">
               <div class="flex-1">
-                <h3 class="text-md font-semibold text-foreground">{{ cert.name || 'Untitled Certification' }}</h3>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-md font-semibold text-foreground">{{ cert.name || 'Untitled Certification' }}</h3>
+                  <UBadge v-if="cert.isExtracted" color="neutral" variant="subtle" size="xs" class="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                    <UIcon name="i-lucide-sparkles" class="w-3 h-3" />
+                    Extracted
+                  </UBadge>
+                </div>
                 <p class="text-sm text-muted">{{ cert.issuer || 'Unknown Issuer' }}</p>
               </div>
               <div class="flex gap-2">

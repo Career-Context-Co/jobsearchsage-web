@@ -17,6 +17,7 @@ interface EducationFormData {
   creditHours?: number | null
   coursework: string[]
   minors: string[]
+  isExtracted?: boolean
   isEditing: boolean
 }
 
@@ -86,6 +87,7 @@ const educationList = ref<EducationFormData[]>(
         creditHours: edu.creditHours,
         coursework: edu.coursework || [],
         minors: edu.minors || [],
+        isExtracted: edu.isExtracted,
         isEditing: false
       }))
     : [{
@@ -147,6 +149,7 @@ watch(() => props.education, (newValue) => {
         creditHours: edu.creditHours,
         coursework: edu.coursework || [],
         minors: edu.minors || [],
+        isExtracted: edu.isExtracted,
         // Preserve isEditing state if this item was already being edited
         isEditing: editingStates.get(edu.id) ?? false
       }))
@@ -504,12 +507,21 @@ defineExpose({
         class="flex flex-col gap-2"
       >
         <!-- Collapsed View -->
-        <UCard v-if="!education.isEditing">
+        <UCard 
+          v-if="!education.isEditing"
+          :class="{ 'ring-2 ring-purple-500 dark:ring-purple-400': education.isExtracted }"
+        >
           <div class="flex items-start justify-between gap-4">
             <div class="flex-1">
-              <h2 class="text-md font-semibold text-foreground">
-                {{ education.degreeType || 'Unknown Degree' }}, {{ education.areaOfStudy || 'Unknown Subject' }}
-              </h2>
+              <div class="flex items-center gap-2">
+                <h2 class="text-md font-semibold text-foreground">
+                  {{ education.degreeType || 'Unknown Degree' }}, {{ education.areaOfStudy || 'Unknown Subject' }}
+                </h2>
+                <UBadge v-if="education.isExtracted" color="neutral" variant="subtle" size="xs" class="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                  <UIcon name="i-lucide-sparkles" class="w-3 h-3" />
+                  Extracted
+                </UBadge>
+              </div>
               <h3 class="text-sm text-muted">{{ education.institution || 'Untitled Institution' }}</h3>
               <p class="text-sm text-muted" v-if="education.startDate || education.endDate">
                 {{ education.startDate }} - {{ education.endDate || 'Present' }}
@@ -538,12 +550,21 @@ defineExpose({
         </UCard>
 
         <!-- Expanded Edit Form Header -->
-        <UCard v-if="education.isEditing">
+        <UCard 
+          v-if="education.isEditing"
+          :class="{ 'ring-2 ring-purple-500 dark:ring-purple-400': education.isExtracted }"
+        >
           <div class="flex items-center justify-between mb-4">
             <div class="flex-1">
-              <h2 class="text-md font-semibold text-foreground">
-                {{ education.degreeType || 'Unknown Degree' }}, {{ education.areaOfStudy || 'Unknown Subject' }}
-              </h2>
+              <div class="flex items-center gap-2">
+                <h2 class="text-md font-semibold text-foreground">
+                  {{ education.degreeType || 'Unknown Degree' }}, {{ education.areaOfStudy || 'Unknown Subject' }}
+                </h2>
+                <UBadge v-if="education.isExtracted" color="neutral" variant="subtle" size="xs" class="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                  <UIcon name="i-lucide-sparkles" class="w-3 h-3" />
+                  Extracted
+                </UBadge>
+              </div>
               <h3 class="text-sm text-muted">{{ education.institution || 'Untitled Institution' }}</h3>
               <p class="text-sm text-muted" v-if="education.startDate || education.endDate">
                 {{ education.startDate }} - {{ education.endDate || 'Present' }}

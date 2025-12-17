@@ -197,34 +197,34 @@ This feature adds resume upload with AI-powered data extraction to the profile o
 - [x] ✅ No database changes needed
 
 ### Backend (API)
-- [ ] Enhance error handling in `server/api/career-id/resume/extract.post.ts`
-  - [ ] Catch OpenAI API timeout errors
-  - [ ] Catch OpenAI API error responses
-  - [ ] Catch invalid API key errors
-  - [ ] Catch corrupted file errors
-  - [ ] Return user-friendly error messages
-  - [ ] Log technical details server-side
-- [ ] Add error response types
-  - [ ] 400: Invalid file format or size
-  - [ ] 413: File too large
-  - [ ] 500: Server error during extraction
-  - [ ] 503: OpenAI API unavailable
+- [x] Enhance error handling in `server/api/career-id/resume/extract.post.ts`
+  - [x] Catch OpenAI API timeout errors
+  - [x] Catch OpenAI API error responses
+  - [x] Catch invalid API key errors
+  - [x] Catch corrupted file errors
+  - [x] Return user-friendly error messages
+  - [x] Log technical details server-side
+- [x] Add error response types
+  - [x] 400: Invalid file format or size
+  - [x] 413: File too large
+  - [x] 500: Server error during extraction
+  - [x] 503: OpenAI API unavailable
 
 ### Frontend
-- [ ] Add error handling to ResumeUploadSection
-  - [ ] Display user-friendly error message: "We couldn't read this resume. Can you try uploading another version (PDF, Word, or a screenshot)?"
-  - [ ] Provide "Try Another File" button
-  - [ ] Provide "Skip to Manual Entry" button
-  - [ ] Reset upload interface on retry
-  - [ ] Clear previous failed file
-- [ ] Add toast notifications
-  - [ ] Show error toast for extraction failures
-  - [ ] Show error toast for file validation failures
-  - [ ] Provide retry and skip options in toast
-- [ ] Add retry logic
-  - [ ] Clear error state when retrying
-  - [ ] Allow user to upload different file after failure
-  - [ ] Track retry attempts (optional: limit to 3 retries)
+- [x] Add error handling to ResumeUploadSection
+  - [x] Display user-friendly error message: "We couldn't read this resume. Can you try uploading another version (PDF, Markdown, or plain text)?"
+  - [x] Provide "Try Another File" button
+  - [x] Provide "Skip to Manual Entry" button
+  - [x] Reset upload interface on retry
+  - [x] Clear previous failed file
+- [x] Add toast notifications
+  - [x] Show error toast for extraction failures
+  - [x] Show error toast for file validation failures
+  - [x] Provide retry and skip options in toast
+- [x] Add retry logic
+  - [x] Clear error state when retrying
+  - [x] Allow user to upload different file after failure
+  - [x] Track retry attempts (optional: limit to 3 retries)
 
 ---
 
@@ -268,32 +268,57 @@ This feature adds resume upload with AI-powered data extraction to the profile o
 
 ---
 
-## USER STORY 6: Prevent Multiple Resume Uploads After Onboarding
+## USER STORY 6: Visual Indicators for Extracted Data
 
-**Goal:** Ensure users cannot re-upload resumes after their profile is set up to maintain a clean data pipeline.
+**Goal:** Visually distinguish resume-extracted data from manually entered data using purple borders and badges, allowing users to manually decide what to keep or delete.
 
 ### Database
-- [x] ✅ Profile completion_status field exists
-- [x] ✅ Can check if profile is complete
+- [x] ✅ No database changes needed - `isExtracted` is frontend-only flag
 
 ### Backend (API)
-- [ ] Add profile completion check to extraction endpoint
-  - [ ] Check if profile already exists and is complete
-  - [ ] Return 403 error if profile is already complete
-  - [ ] Error message: "Profile already exists. Resume upload is only available during initial onboarding."
+- [x] Update type definitions in `shared/types/careerId.ts`
+  - [x] Add `isExtracted?: boolean` to Experience interface
+  - [x] Add `isExtracted?: boolean` to Education interface
+  - [x] Add `isExtracted?: boolean` to Certification interface
+  - [x] Add `isExtracted?: boolean` to ProfileSkill interface
+  - [x] Add `isExtracted?: boolean` to ContactInfo interface
+- [x] Update `server/utils/resume-extractor.ts`
+  - [x] Add `isExtracted: true` to all items in `transformExtractionToProfile()`
+  - [x] Set extracted skills to group 'Extracted' instead of null
 
 ### Frontend
-- [ ] Hide resume upload step after profile creation
-  - [ ] Check if profile exists and is complete on onboarding load
-  - [ ] Skip upload step if profile is complete
-  - [ ] Start at Contact step if profile is complete
-- [ ] Disable resume upload in profile settings
-  - [ ] Do not show resume upload option in profile dashboard
-  - [ ] Do not show resume upload option in settings
-  - [ ] Prevent access to extraction API if profile is complete
-- [ ] Add conditional rendering
-  - [ ] Only show upload step if profile is incomplete or doesn't exist
-  - [ ] Show appropriate message if user tries to access upload after completion
+- [x] Update `app/stores/careerIDStore.ts`
+  - [x] Modify `applyExtractionToProfile()` to always merge (remove mode parameter)
+  - [x] Set `isExtracted: true` on all extracted items
+  - [x] Set `group: 'Extracted'` for all extracted skills
+  - [x] Keep both old and new data (show duplicates with visual indicators)
+- [x] Update `app/components/profile/ContactSection.vue`
+  - [x] Add purple border (`ring-2 ring-purple-500`) to all input fields when `contactInfo?.isExtracted`
+  - [x] Add "Extracted" badge with sparkles icon to section header
+- [x] Update `app/components/profile/ExperienceSection.vue`
+  - [x] Add purple border to cards where `experience.isExtracted`
+  - [x] Add "Extracted" badge with sparkles icon to card titles (both collapsed and expanded views)
+- [x] Update `app/components/profile/EducationSection.vue`
+  - [x] Add purple border to cards where `education.isExtracted`
+  - [x] Add "Extracted" badge with sparkles icon to card titles (both collapsed and expanded views)
+- [x] Update `app/components/profile/AdditionalSection.vue`
+  - [x] Add purple border to certification cards where `cert.isExtracted`
+  - [x] Add "Extracted" badge with sparkles icon to certification titles
+  - [x] Preserve `isExtracted` field in local state transformation
+  - [x] Extracted skills automatically appear in "Extracted" group (via store logic)
+- [x] Update `app/pages/profile/onboarding.vue`
+  - [x] Update info banner message to explain visual indicators approach
+  - [x] No deletion logic needed - users manually delete unwanted items
+- [x] Update `app/components/profile/ResumeUploadSection.vue`
+  - [x] Remove mode parameter from `applyExtractionToProfile()` call
+  - [x] Always use merge mode with visual indicators
+
+**Key Behavior:**
+- No auto-delete or overwrite
+- No confirmation modal for destructive actions
+- Extracted data shown alongside existing data with purple borders
+- Users manually review and delete unwanted items using existing delete buttons
+- Skills from resume extraction automatically grouped as "Extracted"
 
 ---
 
