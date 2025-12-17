@@ -26,7 +26,19 @@ export const useCareerIDStore = defineStore('careerID', {
     isLoading: false,
     isSaving: false,
     error: null as string | null,
-    lastSaved: null as string | null
+    lastSaved: null as string | null,
+
+    // Resume extraction state
+    isExtracting: false,
+    extractionError: null as string | null,
+    extractionResult: null as {
+      contactInfo: Partial<ContactInfo> | null
+      socialLinks: Array<{ platformId: number, url: string, displayOrder: number }>
+      experience: Array<Omit<Experience, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>
+      education: Array<Omit<Education, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>
+      profileSkills: string[]
+      certifications: Array<Omit<Certification, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>
+    } | null
   }),
 
   getters: {
@@ -925,6 +937,204 @@ export const useCareerIDStore = defineStore('careerID', {
       } finally {
         this.isSaving = false
       }
+    },
+
+    // Resume extraction actions
+    async extractResumeData(file: File) {
+      this.isExtracting = true
+      this.extractionError = null
+      this.extractionResult = null
+
+      try {
+        // Create FormData for multipart upload
+        const formData = new FormData()
+        formData.append('file', file)
+
+        // Call the extraction endpoint
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: {
+            contactInfo: Partial<ContactInfo> | null
+            socialLinks: Array<{ platformId: number, url: string, displayOrder: number }>
+            experience: Array<Omit<Experience, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>
+            education: Array<Omit<Education, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>
+            profileSkills: string[]
+            certifications: Array<Omit<Certification, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>
+          }
+          metadata: {
+            filename: string
+            fileSize: number
+            extractionTimeMs: number
+            extractedCounts: {
+              experience: number
+              education: number
+              skills: number
+              certifications: number
+            }
+          }
+        }>('/api/career-id/resume/extract', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to extract resume data')
+        }
+
+        // Store extraction result
+        this.extractionResult = response.data
+
+        return response
+      } catch (error: any) {
+        const errorMessage = error?.data?.error?.message || error?.message || 'Failed to extract resume data'
+        this.extractionError = errorMessage
+        throw error
+      } finally {
+        this.isExtracting = false
+      }
+    },
+
+    applyExtractionToProfile() {
+      if (!this.extractionResult) {
+        throw new Error('No extraction result to apply')
+      }
+
+      const result = this.extractionResult
+
+      // Apply contact info (overwrite with extracted data, preserve database fields)
+      if (result.contactInfo) {
+        const existing = this.contactInfo || {} as ContactInfo
+        const extracted = result.contactInfo
+
+        // Completely overwrite all user-editable fields with extracted data, keep database fields
+        this.contactInfo = {
+          // Preserve database fields
+          id: existing.id,
+          internalId: existing.internalId,
+          profileId: existing.profileId,
+          createdAt: existing.createdAt,
+          updatedAt: existing.updatedAt,
+          // Use extracted values only if they are not null/undefined (preserve existing data when extraction returns null)
+          firstName: (extracted.firstName !== undefined && extracted.firstName !== null) ? extracted.firstName : existing.firstName,
+          lastName: (extracted.lastName !== undefined && extracted.lastName !== null) ? extracted.lastName : existing.lastName,
+          email: (extracted.email !== undefined && extracted.email !== null) ? extracted.email : existing.email,
+          phone: (extracted.phone !== undefined && extracted.phone !== null) ? extracted.phone : existing.phone,
+          jobTitle: (extracted.jobTitle !== undefined && extracted.jobTitle !== null) ? extracted.jobTitle : existing.jobTitle,
+          city: (extracted.city !== undefined && extracted.city !== null) ? extracted.city : existing.city,
+          stateRegion: (extracted.stateRegion !== undefined && extracted.stateRegion !== null) ? extracted.stateRegion : existing.stateRegion,
+          country: (extracted.country !== undefined && extracted.country !== null) ? extracted.country : existing.country,
+          postalCode: (extracted.postalCode !== undefined && extracted.postalCode !== null) ? extracted.postalCode : existing.postalCode,
+          summary: (extracted.summary !== undefined && extracted.summary !== null) ? extracted.summary : existing.summary,
+          websites: (extracted.websites !== undefined && extracted.websites !== null) ? extracted.websites : existing.websites,
+          willingToRelocate: (extracted.willingToRelocate !== undefined && extracted.willingToRelocate !== null) ? extracted.willingToRelocate : existing.willingToRelocate
+        } as ContactInfo
+      }
+
+      // Merge experience (deduplicate by employer + title + start date)
+      if (result.experience.length > 0) {
+        const existingKeys = new Set(
+          this.experience.map(exp => 
+            `${exp.employer?.toLowerCase()}_${exp.title?.toLowerCase()}_${exp.startDate}`
+          )
+        )
+
+        const newExperience = result.experience.filter(exp => {
+          const key = `${exp.employer?.toLowerCase()}_${exp.title?.toLowerCase()}_${exp.startDate}`
+          return !existingKeys.has(key)
+        })
+
+        this.experience = [...this.experience, ...newExperience as Experience[]]
+      }
+
+      // Merge education (deduplicate by institution + degree + area of study)
+      if (result.education.length > 0) {
+        const existingKeys = new Set(
+          this.education.map(edu => 
+            `${edu.institution?.toLowerCase()}_${edu.degreeType?.toLowerCase()}_${edu.areaOfStudy?.toLowerCase()}`
+          )
+        )
+
+        const newEducation = result.education.filter(edu => {
+          const key = `${edu.institution?.toLowerCase()}_${edu.degreeType?.toLowerCase()}_${edu.areaOfStudy?.toLowerCase()}`
+          return !existingKeys.has(key)
+        })
+
+        this.education = [...this.education, ...newEducation as Education[]]
+      }
+
+      // Merge skills as simple strings (deduplicate by name, case-insensitive)
+      if (result.profileSkills.length > 0) {
+        const existingSkillNames = new Set(
+          this.profileSkills.map(skill => skill.name.toLowerCase())
+        )
+
+        const newSkills = result.profileSkills
+          .filter(skillName => !existingSkillNames.has(skillName.toLowerCase()))
+          .map((skillName, index) => ({
+            name: skillName,
+            group: null,
+            proficiencyLevel: 'intermediate' as const,
+            yearsExperience: null,
+            displayOrder: this.profileSkills.length + index
+          }))
+
+        this.profileSkills = [...this.profileSkills, ...newSkills as ProfileSkill[]]
+      }
+
+      // Merge certifications (deduplicate by name + issuer)
+      if (result.certifications.length > 0) {
+        const existingKeys = new Set(
+          this.certifications.map(cert => 
+            `${cert.name?.toLowerCase()}_${cert.issuer?.toLowerCase()}`
+          )
+        )
+
+        const newCertifications = result.certifications.filter(cert => {
+          const key = `${cert.name?.toLowerCase()}_${cert.issuer?.toLowerCase()}`
+          return !existingKeys.has(key)
+        })
+
+        this.certifications = [...this.certifications, ...newCertifications as Certification[]]
+      }
+
+      // Merge social links (deduplicate by platformId + URL)
+      if (result.socialLinks && result.socialLinks.length > 0) {
+        const existingKeys = new Set(
+          this.profileSocialLinks.map(link => 
+            `${link.platformId}_${link.url.toLowerCase()}`
+          )
+        )
+
+        const newSocialLinks = result.socialLinks.filter(link => {
+          const key = `${link.platformId}_${link.url.toLowerCase()}`
+          return !existingKeys.has(key)
+        })
+
+        // Transform to ProfileSocialLink format
+        const transformedLinks = newSocialLinks.map(link => ({
+          ...link,
+          platformNameCache: this.getPlatformNameById(link.platformId)
+        })) as ProfileSocialLink[]
+
+        this.profileSocialLinks = [...this.profileSocialLinks, ...transformedLinks]
+      }
+
+      // Clear extraction result after applying
+      this.extractionResult = null
+      this.extractionError = null
+    },
+
+    // Helper to get platform name by ID (for social links)
+    getPlatformNameById(platformId: number): string {
+      const platformMap: Record<number, string> = {
+        1: 'linkedin',
+        2: 'github',
+        3: 'twitter',
+        4: 'instagram',
+        5: 'facebook'
+      }
+      return platformMap[platformId] || 'unknown'
     }
   }
 })

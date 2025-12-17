@@ -157,35 +157,35 @@ This feature adds resume upload with AI-powered data extraction to the profile o
     - [x] Add example requests and responses
 
 ### Frontend
-- [ ] Add extraction state to `app/stores/careerIDStore.ts`
-  - [ ] Add `isExtracting: boolean` (loading state)
-  - [ ] Add `extractionError: string | null` (error message)
-  - [ ] Add `extractionResult: ProfileData | null` (extracted data)
-- [ ] Add `extractResumeData()` action to store
-  - [ ] Accept File object as parameter
-  - [ ] Create FormData with file
-  - [ ] Call `/api/career-id/resume/extract` endpoint
-  - [ ] Set `isExtracting = true` during request
-  - [ ] Handle successful response
-  - [ ] Handle error response
-  - [ ] Set `isExtracting = false` after completion
-  - [ ] Return extraction result or throw error
-- [ ] Add `applyExtractionToProfile()` action to store
-  - [ ] Populate store state with extracted data
-  - [ ] Set `contactInfo` from extraction
-  - [ ] Set `experience` array from extraction
-  - [ ] Set `education` array from extraction
-  - [ ] Set `profileSkills` array from extraction
-  - [ ] Set `certifications` array from extraction
-  - [ ] Merge with existing data if multiple uploads
-  - [ ] Deduplicate entries
-- [ ] Connect ResumeUploadSection to store
-  - [ ] Import `useCareerIDStore` composable
-  - [ ] Call `store.extractResumeData()` on file upload
-  - [ ] Display `store.isExtracting` loading state
-  - [ ] Display `store.extractionError` if present
-  - [ ] Call `store.applyExtractionToProfile()` on success
-  - [ ] Emit success event to parent (onboarding.vue)
+- [x] Add extraction state to `app/stores/careerIDStore.ts`
+  - [x] Add `isExtracting: boolean` (loading state)
+  - [x] Add `extractionError: string | null` (error message)
+  - [x] Add `extractionResult: ProfileData | null` (extracted data)
+- [x] Add `extractResumeData()` action to store
+  - [x] Accept File object as parameter
+  - [x] Create FormData with file
+  - [x] Call `/api/career-id/resume/extract` endpoint
+  - [x] Set `isExtracting = true` during request
+  - [x] Handle successful response
+  - [x] Handle error response
+  - [x] Set `isExtracting = false` after completion
+  - [x] Return extraction result or throw error
+- [x] Add `applyExtractionToProfile()` action to store
+  - [x] Populate store state with extracted data
+  - [x] Set `contactInfo` from extraction
+  - [x] Set `experience` array from extraction
+  - [x] Set `education` array from extraction
+  - [x] Set `profileSkills` array from extraction
+  - [x] Set `certifications` array from extraction
+  - [x] Merge with existing data if multiple uploads
+  - [x] Deduplicate entries
+- [x] Connect ResumeUploadSection to store
+  - [x] Import `useCareerIDStore` composable
+  - [x] Call `store.extractResumeData()` on file upload
+  - [x] Display `store.isExtracting` loading state
+  - [x] Display `store.extractionError` if present
+  - [x] Call `store.applyExtractionToProfile()` on success
+  - [x] Emit success event to parent (onboarding.vue)
 
 ---
 

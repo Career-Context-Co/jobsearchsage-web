@@ -1,22 +1,26 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useCareerIDStore } from '~/stores/careerIDStore'
 
 const emit = defineEmits<{
-  uploadComplete: []
+  uploadComplete: [extracted: boolean]
 }>()
 
+const store = useCareerIDStore()
 const selectedFile = ref<File | null>(null)
-const isUploading = ref(false)
-const uploadError = ref<string | null>(null)
 
 // File validation configuration
-const acceptedFileTypes = '.pdf,.docx,.doc,.jpg,.jpeg,.png'
+const acceptedFileTypes = '.pdf,.txt,.md'
 const maxFileSize = 10 * 1024 * 1024 // 10MB in bytes
+
+// Use store state
+const isUploading = computed(() => store.isExtracting)
+const uploadError = computed(() => store.extractionError)
 
 // Clear error when file is selected
 watch(selectedFile, () => {
   if (selectedFile.value) {
-    uploadError.value = null
+    store.extractionError = null
   }
 })
 
@@ -25,11 +29,11 @@ function handleFileError(error: any) {
   console.error('File validation error:', error)
   
   if (error?.message?.includes('size')) {
-    uploadError.value = 'File is too large. Maximum size is 10MB.'
+    store.extractionError = 'File is too large. Maximum size is 10MB.'
   } else if (error?.message?.includes('type')) {
-    uploadError.value = 'File format not supported. Please upload PDF, Word, JPG, or PNG.'
+    store.extractionError = 'File format not supported. Please upload a PDF, Txt, or Markdown file.'
   } else {
-    uploadError.value = 'Invalid file. Please try again.'
+    store.extractionError = 'Invalid file. Please try again.'
   }
 }
 
@@ -37,55 +41,49 @@ function handleFileError(error: any) {
 async function handleUpload() {
   if (!selectedFile.value) return
   
-  isUploading.value = true
-  uploadError.value = null
-  
   try {
-    // Create FormData for multipart upload
-    const formData = new FormData()
-    formData.append('file', selectedFile.value)
+    // Extract resume data via store action
+    const response = await store.extractResumeData(selectedFile.value)
     
-    // Call the API endpoint
-    const response = await $fetch('/api/career-id/resume/extract', {
-      method: 'POST',
-      body: formData
-    })
+    console.log('Extraction successful:', response)
     
-    console.log('Upload successful:', response)
+    // Apply extraction to profile
+    store.applyExtractionToProfile()
     
-    // TODO: In USER STORY 3, extract and store the resume data
-    // For now, just advance to next step
-    emit('uploadComplete')
+    // Emit success with extracted flag
+    emit('uploadComplete', true)
   } catch (error: any) {
-    console.error('Upload failed:', error)
+    console.error('Extraction failed:', error)
     
-    // Extract error message from API response
-    const errorMessage = error?.data?.error?.message || error?.message
+    // Error is already set in store, but handle specific error codes for better UX
+    const errorCode = error?.data?.error?.code
     
-    // Handle specific error codes
-    if (error?.data?.error?.code === 'FILE_TOO_LARGE') {
-      uploadError.value = errorMessage || 'File is too large. Maximum size is 10MB.'
-    } else if (error?.data?.error?.code === 'INVALID_EXTENSION') {
-      uploadError.value = errorMessage || 'File format not supported. Please upload PDF, Word, JPG, or PNG.'
-    } else if (error?.data?.error?.code === 'INVALID_MIME_TYPE') {
-      uploadError.value = errorMessage || 'Invalid file type. Please upload a valid resume file.'
-    } else {
-      uploadError.value = 'We couldn\'t read this resume. Can you try uploading another version (PDF, Word, or a screenshot)?'
+    if (errorCode === 'FILE_TOO_LARGE') {
+      store.extractionError = error?.data?.error?.message || 'File is too large. Maximum size is 10MB.'
+    } else if (errorCode === 'INVALID_EXTENSION') {
+      store.extractionError = error?.data?.error?.message || 'File format not supported. Please upload PDF, Txt, or Markdown file.'
+    } else if (errorCode === 'INVALID_MIME_TYPE') {
+      store.extractionError = error?.data?.error?.message || 'Invalid file type. Please upload a valid resume file.'
+    } else if (errorCode === 'EXTRACTION_TIMEOUT') {
+      store.extractionError = 'Extraction timed out. Please try again or use a smaller file.'
+    } else if (errorCode === 'SERVICE_UNAVAILABLE') {
+      store.extractionError = 'AI service is temporarily unavailable. Please try again in a moment.'
+    } else if (!store.extractionError) {
+      // Only set generic message if no error message was set by store
+      store.extractionError = 'We couldn\'t read this resume. Can you try uploading another version (PDF, Txt, or Markdown)?'
     }
-  } finally {
-    isUploading.value = false
   }
 }
 
 // Handle skip button
 function handleSkip() {
-  emit('uploadComplete')
+  emit('uploadComplete', false)
 }
 
 // Handle retry after error
 function handleRetry() {
   selectedFile.value = null
-  uploadError.value = null
+  store.extractionError = null
 }
 </script>
 
@@ -153,10 +151,18 @@ function handleRetry() {
         <div class="flex items-center gap-3">
           <UIcon name="i-lucide-loader-circle" class="w-5 h-5 text-primary-500 animate-spin" />
           <p class="text-sm text-gray-700 dark:text-gray-300">
-            Extracting your career information... This may take 10-15 seconds.
+            Extracting your career information with AI... This may take 10-15 seconds.
           </p>
         </div>
         <UProgress :value="100" animation="carousel" />
+      </div>
+
+      <!-- Extraction Result Display -->
+      <div v-if="store.extractionResult" class="flex flex-col gap-2">
+        <p class="text-sm text-gray-700 dark:text-gray-300">
+          Extraction successful!
+        </p>
+        <pre class="text-xs text-gray-500 dark:text-gray-400">{{ store.extractionResult }}</pre>
       </div>
 
       <!-- Error Display -->

@@ -42,7 +42,7 @@ export interface ExtractionResult {
 export class ExtractionError extends Error {
   constructor(
     message: string,
-    public code: 'OPENAI_ERROR' | 'TIMEOUT' | 'INVALID_RESPONSE' | 'API_KEY_MISSING' | 'CONVERSION_ERROR' | 'JSON_PARSE_ERROR',
+    public code: 'TIMEOUT' | 'INVALID_RESPONSE' | 'API_KEY_MISSING' | 'CONVERSION_ERROR' | 'JSON_PARSE_ERROR' | 'AI_PROVIDER_ERROR',
     public details?: any
   ) {
     super(message)
@@ -141,76 +141,78 @@ export async function extractResumeData(
       model: gateway('google/gemini-2.5-flash-lite'),
       system: `You are an expert resume parser. Extract career information from resumes and return ONLY valid JSON.
 
-EXTRACTION RULES:
-1. Extract contact information (name, email, phone, location, summary/objective, FULL URLs for any links)
-2. Extract all work experience with dates, employers, titles, and bullet points
-3. Extract all education with degrees, institutions, dates, and coursework
-4. Extract all skills (technical and soft skills) as a simple array of skill names
-5. Extract all certifications with issuers and dates
+        EXTRACTION RULES:
+        1. Extract contact information (name, email, phone, location, summary/objective, FULL URLs for any links)
+        2. Extract all work experience with dates, employers, titles, and bullet points
+        3. Extract all education with degrees, institutions, dates, and coursework
+        4. Extract all skills (technical and soft skills) as a simple array of skill names
+        5. Extract all certifications with issuers and dates
 
-FORMATTING GUIDELINES:
-- Dates: Use YYYY-MM format when month is available, otherwise YYYY format
-- Current positions: Set currentPosition=true and omit or null endDate
-- Highlights: Extract bullet points as an array of strings
-- Location type: Infer from job location or description (on_site/remote/hybrid)
-- Employment type: Infer from job description (full_time/part_time/contract/freelance/internship)
+        FORMATTING GUIDELINES:
+        - Dates: Use YYYY-MM format when month is available, otherwise YYYY format
+        - Current positions: Set currentPosition=true and omit or null endDate
+        - Highlights: Extract bullet points as an array of strings
+        - Location: Extract full location including city, state, and country
+        - Websites: Extract full URLs for any links
+        - Location type: Infer from job location or description (on_site/remote/hybrid)
+        - Employment type: Infer from job description (full_time/part_time/contract/freelance/internship)
 
-JSON STRUCTURE:
-{
-  "contactInfo": {
-    "firstName": "string",
-    "lastName": "string",
-    "email": "string",
-    "phone": "string (optional)",
-    "jobTitle": "string (optional)",
-    "city": "string (optional)",
-    "stateRegion": "string (optional)",
-    "country": "string (optional)",
-    "postalCode": "string (optional)",
-    "summary": "string (optional)",
-    "websites": ["string (optional)"],
-    "willingToRelocate": "boolean (optional)"
-  },
-  "experience": [{
-    "employer": "string",
-    "title": "string",
-    "location": "string (optional)",
-    "locationType": "on_site|remote|hybrid (optional)",
-    "employmentType": "full_time|part_time|contract|freelance|internship (optional)",
-    "startDate": "string",
-    "endDate": "string (optional, null for current)",
-    "currentPosition": "boolean",
-    "summary": "string (optional)",
-    "highlights": ["string"],
-    "url": "string (optional)"
-  }],
-  "education": [{
-    "degreeType": "string",
-    "areaOfStudy": "string",
-    "institution": "string",
-    "startDate": "string",
-    "endDate": "string",
-    "completed": "boolean",
-    "coursework": ["string (optional)"],
-    "minors": ["string (optional)"],
-    "creditHours": "number (optional)",
-    "url": "string (optional)"
-  }],
-  "skills": ["string array of skill names"],
-  "certifications": [{
-    "name": "string",
-    "issuer": "string",
-    "issueDate": "string",
-    "url": "string (optional)"
-  }]
-}
+        JSON STRUCTURE:
+        {
+          "contactInfo": {
+            "firstName": "string",
+            "lastName": "string",
+            "email": "string",
+            "phone": "string (optional)",
+            "jobTitle": "string (optional)",
+            "city": "string (optional)",
+            "stateRegion": "string (optional)",
+            "country": "string (optional)",
+            "postalCode": "string (optional)",
+            "summary": "string (optional)",
+            "websites": ["string (optional)"],
+            "willingToRelocate": "boolean (optional)"
+          },
+          "experience": [{
+            "employer": "string",
+            "title": "string",
+            "location": "string (optional)",
+            "locationType": "on_site|remote|hybrid (optional)",
+            "employmentType": "full_time|part_time|contract|freelance|internship (optional)",
+            "startDate": "string",
+            "endDate": "string (optional, null for current)",
+            "currentPosition": "boolean",
+            "summary": "string (optional)",
+            "highlights": ["string"],
+            "url": "string (optional)"
+          }],
+          "education": [{
+            "degreeType": "string",
+            "areaOfStudy": "string",
+            "institution": "string",
+            "startDate": "string",
+            "endDate": "string",
+            "completed": "boolean",
+            "coursework": ["string (optional)"],
+            "minors": ["string (optional)"],
+            "creditHours": "number (optional)",
+            "url": "string (optional)"
+          }],
+          "skills": ["string array of skill names"],
+          "certifications": [{
+            "name": "string",
+            "issuer": "string",
+            "issueDate": "string",
+            "url": "string (optional)"
+          }]
+        }
 
-IMPORTANT:
-- Return ONLY the JSON object, no other text or markdown
-- Extract ALL information present in the resume including full urls for any links
-- Do not fabricate information that is not present
-- Preserve original wording from the resume
-- If a field is not present, use null`,
+        IMPORTANT:
+        - Return ONLY the JSON object, no other text or markdown
+        - Extract ALL information present in the resume including full urls for any links
+        - Do not fabricate information that is not present
+        - Preserve original wording from the resume
+        - If a field is not present, use null`,
       prompt: `Extract all career information from this resume and return as JSON:\n\n${resumeText}${additionalContext}`,
       maxRetries: 2
     })
@@ -271,7 +273,7 @@ IMPORTANT:
     // Generic AI Gateway API error
     throw new ExtractionError(
       'Failed to extract data from resume. Please try again or use a different file format.',
-      'OPENAI_ERROR',
+      'AI_PROVIDER_ERROR',
       { 
         originalError: error.message,
         stack: error.stack
@@ -289,37 +291,122 @@ IMPORTANT:
  * @param extraction - Extraction result from AI
  * @returns Profile data in existing schema format
  */
+/**
+ * Social platform domain mappings
+ * Maps domain patterns to platform IDs
+ */
+const SOCIAL_PLATFORM_MAP: Record<string, number> = {
+  'linkedin.com': 1,
+  'github.com': 2,
+  'twitter.com': 3,
+  'x.com': 3, // Twitter/X
+  'instagram.com': 4,
+  'facebook.com': 5
+}
+
+/**
+ * Categorize URLs into social links and regular websites
+ * Returns { socialLinks, websites }
+ */
+function categorizeUrls(urls: string[]): { 
+  socialLinks: Array<{ platformId: number, url: string, displayOrder: number }>, 
+  websites: string[] 
+} {
+  const socialLinks: Array<{ platformId: number, url: string, displayOrder: number }> = []
+  const websites: string[] = []
+  let socialDisplayOrder = 0
+
+  for (const url of urls) {
+    if (!url || !url.trim()) continue
+
+    try {
+      const urlObj = new URL(url.toLowerCase())
+      const domain = urlObj.hostname.replace('www.', '')
+      
+      // Check if this URL matches any social platform
+      let platformId: number | null = null
+      for (const [socialDomain, id] of Object.entries(SOCIAL_PLATFORM_MAP)) {
+        if (domain.includes(socialDomain)) {
+          platformId = id
+          break
+        }
+      }
+
+      if (platformId) {
+        // It's a social link
+        socialLinks.push({
+          platformId,
+          url: url.trim(), // Use original URL with proper casing
+          displayOrder: socialDisplayOrder++
+        })
+      } else {
+        // It's a regular website
+        websites.push(url.trim())
+      }
+    } catch (error) {
+      // Invalid URL, treat as website
+      websites.push(url.trim())
+    }
+  }
+
+  return { socialLinks, websites }
+}
+
 export function transformExtractionToProfile(extraction: ExtractionResult) {
+  // Transform experience first to derive jobTitle
+  const experience = extraction.experience.map((exp, index) => ({
+    employmentType: exp.employmentType || 'full_time',
+    employer: exp.employer,
+    title: exp.title,
+    location: exp.location || undefined,
+    locationType: exp.locationType || 'on_site',
+    url: exp.url || null,
+    startDate: exp.startDate,
+    endDate: exp.endDate || null,
+    currentPosition: exp.currentPosition,
+    summary: exp.summary || null,
+    highlights: exp.highlights || [],
+    displayOrder: index
+  }))
+
+  // Derive jobTitle from experience if not already set in contact info
+  let jobTitle = extraction.contactInfo.jobTitle || null
+  if (!jobTitle && experience.length > 0) {
+    // First, try to find current position (currentPosition === true)
+    const currentPosition = experience.find(exp => exp.currentPosition === true)
+    if (currentPosition?.title) {
+      jobTitle = currentPosition.title
+    } else {
+      // Otherwise, use the one with displayOrder === 0
+      const firstPosition = experience.find(exp => exp.displayOrder === 0)
+      if (firstPosition?.title) {
+        jobTitle = firstPosition.title
+      }
+    }
+  }
+
+  // Categorize URLs into social links and websites
+  const { socialLinks, websites } = categorizeUrls(extraction.contactInfo.websites || [])
+
   return {
     contactInfo: {
       firstName: extraction.contactInfo.firstName,
       lastName: extraction.contactInfo.lastName,
       email: extraction.contactInfo.email,
       phone: extraction.contactInfo.phone || null,
-      jobTitle: extraction.contactInfo.jobTitle || null,
+      jobTitle,
       city: extraction.contactInfo.city || null,
       stateRegion: extraction.contactInfo.stateRegion || null,
       country: extraction.contactInfo.country || null,
       postalCode: extraction.contactInfo.postalCode || null,
       summary: extraction.contactInfo.summary || null,
-      websites: extraction.contactInfo.websites || [],
+      websites, // Only regular websites now
       willingToRelocate: extraction.contactInfo.willingToRelocate ?? false
     },
-    
-    experience: extraction.experience.map((exp, index) => ({
-      employmentType: exp.employmentType || 'full_time',
-      employer: exp.employer,
-      title: exp.title,
-      location: exp.location || undefined,
-      locationType: exp.locationType || 'on_site',
-      url: exp.url || null,
-      startDate: exp.startDate,
-      endDate: exp.endDate || null,
-      currentPosition: exp.currentPosition,
-      summary: exp.summary || null,
-      highlights: exp.highlights || [],
-      displayOrder: index
-    })),
+
+    socialLinks, // Social links extracted from URLs
+
+    experience,
     
     education: extraction.education.map((edu, index) => ({
       degreeType: edu.degreeType,
@@ -372,6 +459,12 @@ export function mergeProfileData(
         ...(extracted.contactInfo?.websites || [])
       ]))
     },
+    
+    // Social links: merge and deduplicate by platformId + URL
+    socialLinks: deduplicateSocialLinks([
+      ...(existing.socialLinks || []),
+      ...(extracted.socialLinks || [])
+    ]),
     
     // Experience: merge and deduplicate by employer + title + startDate
     experience: deduplicateExperience([
@@ -482,6 +575,27 @@ function deduplicateSkills(skills: string[]) {
   }
   
   return result
+}
+
+/**
+ * Deduplicate social links
+ * Identifies duplicates by platformId + URL (case-insensitive)
+ * Returns unique social links
+ */
+function deduplicateSocialLinks(socialLinks: ReturnType<typeof transformExtractionToProfile>['socialLinks']) {
+  const seen = new Set<string>()
+  const result: typeof socialLinks = []
+  
+  for (const link of socialLinks) {
+    const key = `${link.platformId}_${link.url.toLowerCase()}`
+    if (!seen.has(key)) {
+      seen.add(key)
+      result.push(link)
+    }
+  }
+  
+  // Reassign display order
+  return result.map((link, index) => ({ ...link, displayOrder: index }))
 }
 
 /**

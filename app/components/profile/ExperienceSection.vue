@@ -469,7 +469,9 @@ defineExpose({
             <div class="flex-1">
               <h2 class="text-md font-semibold text-foreground">{{ experience.title || 'Untitled Position' }}</h2>
               <h3 class="text-sm text-muted">{{ experience.employer || 'Untitled Company' }}</h3>
-              <p class="text-sm text-muted">{{ experience.location }}</p>
+              <p class="text-sm text-muted" v-if="experience.startDate || experience.endDate">
+                {{ experience.startDate }} - {{ experience.endDate || 'Present' }}
+              </p>
             </div>
             <div class="flex gap-2">
               <UButton 

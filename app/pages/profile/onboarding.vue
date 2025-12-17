@@ -552,7 +552,20 @@ async function handleDeleteSkillGroup(groupValue: string | null) {
 }
 
 // Handle skip or successful upload from ResumeUploadSection
-function handleUploadComplete() {
+function handleUploadComplete(extracted: boolean) {
+  if (extracted) {
+    // Show success toast with extraction stats
+    const counts = careerIDStore.sectionCounts
+    const totalExtracted = counts.experience + counts.education + counts.skills + counts.certifications
+
+    toast.add({
+      title: 'Resume Extracted Successfully! 🎉',
+      description: `Extracted ${totalExtracted} items from your resume. Review and edit in the next steps.`,
+      color: 'success',
+      timeout: 5000
+    })
+  }
+
   // Advance to Contact step
   stepper.value?.next()
 }

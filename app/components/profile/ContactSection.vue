@@ -47,9 +47,6 @@ const props = defineProps<{
   profileSocialLinks: ProfileSocialLink[]
 }>()
 
-console.log('props.contactInfo', props.contactInfo)
-console.log('props.profileSocialLinks', props.profileSocialLinks)
-
 const socialPlatforms = ref<SocialPlatform[]>([
   { id: 1, platform_name: 'linkedin', display_name: 'LinkedIn', base_url: 'https://linkedin.com/in/', icon: 'i-lucide-linkedin' },
   { id: 2, platform_name: 'github', display_name: 'GitHub', base_url: 'https://github.com/', icon: 'i-lucide-github' },
@@ -78,13 +75,15 @@ const showAddSocialForm = ref(socialLinks.value.length === 0) // Show form by de
 const selectedSocialPlatform = ref<SocialPlatform | undefined>(socialPlatforms.value?.[0])
 const socialLinkUrl = ref(selectedSocialPlatform.value?.base_url || '')
 
-// Watch for changes - will not fire on initial setup (immediate: false by default)
-watch(contactInfo, () => {
-  hasChanges.value = true
+// Watch for external prop changes (when store updates after extraction)
+watch(() => props.contactInfo, (newValue) => {
+  // Update local ref with new prop values
+  contactInfo.value = { ...newValue }
 }, { deep: true })
 
-watch(socialLinks, () => {
-  hasChanges.value = true
+watch(() => props.profileSocialLinks, (newValue) => {
+  // Update local ref with new prop values
+  socialLinks.value = [...newValue || []]
 }, { deep: true })
 
 // Helper to get platform details by platformId
