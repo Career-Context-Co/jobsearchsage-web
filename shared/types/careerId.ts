@@ -124,6 +124,20 @@ export interface ContactInfo {
   postalCode?: string | null;
   willingToRelocate: boolean;
   isExtracted?: boolean;
+  // Per-field extraction flags (set when extracted value differs from existing)
+  extractedFields?: {
+    firstName?: boolean;
+    lastName?: boolean;
+    jobTitle?: boolean;
+    email?: boolean;
+    phone?: boolean;
+    websites?: boolean;
+    summary?: boolean;
+    city?: boolean;
+    stateRegion?: boolean;
+    country?: boolean;
+    postalCode?: boolean;
+  };
   createdAt: string;
   updatedAt: string;
 }

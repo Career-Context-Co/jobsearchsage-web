@@ -681,7 +681,17 @@ onMounted(async () => {
           />
           
           <!-- ContactSection - single save event with all data -->
-          <ProfileContactSection 
+          <!-- OLD VERSION: Uncomment to test old ContactSection -->
+          <!-- <ProfileContactSection 
+            ref="contactSection"
+            v-show="activeStep === 'contact'"
+            :contact-info="careerIDStore.contactInfo"
+            :profile-social-links="careerIDStore.profileSocialLinks"
+            @save="handleSaveContact"
+          /> -->
+          
+          <!-- NEW VERSION: ContactSectionNew with section-based editing -->
+          <ProfileContactSectionNew 
             ref="contactSection"
             v-show="activeStep === 'contact'"
             :contact-info="careerIDStore.contactInfo"

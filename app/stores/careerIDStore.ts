@@ -1007,7 +1007,45 @@ export const useCareerIDStore = defineStore('careerID', {
         const existing = this.contactInfo || {} as ContactInfo
         const extracted = result.contactInfo
 
-        // Overwrite with extracted values and mark as extracted
+        // Helper to check if a value is different (only consider non-empty extracted values)
+        const isDifferent = (extractedVal: any, existingVal: any): boolean => {
+          // If extracted value is empty/null/undefined, not different
+          if (extractedVal === null || extractedVal === undefined || extractedVal === '') return false
+          // If array, check if empty
+          if (Array.isArray(extractedVal) && extractedVal.length === 0) return false
+          // If existing value is empty/null/undefined and extracted has value, it's different
+          if (existingVal === null || existingVal === undefined || existingVal === '') return true
+          // If both have values, compare them (normalize strings for comparison)
+          if (typeof extractedVal === 'string' && typeof existingVal === 'string') {
+            return extractedVal.trim().toLowerCase() !== existingVal.trim().toLowerCase()
+          }
+          // For arrays (websites), compare contents
+          if (Array.isArray(extractedVal) && Array.isArray(existingVal)) {
+            if (extractedVal.length !== existingVal.length) return true
+            return extractedVal.some((val, idx) => val !== existingVal[idx])
+          }
+          return extractedVal !== existingVal
+        }
+
+        // Determine which fields are actually different
+        const extractedFields = {
+          firstName: extracted.firstName ? isDifferent(extracted.firstName, existing.firstName) : false,
+          lastName: extracted.lastName ? isDifferent(extracted.lastName, existing.lastName) : false,
+          email: extracted.email ? isDifferent(extracted.email, existing.email) : false,
+          phone: extracted.phone ? isDifferent(extracted.phone, existing.phone) : false,
+          jobTitle: extracted.jobTitle ? isDifferent(extracted.jobTitle, existing.jobTitle) : false,
+          city: extracted.city ? isDifferent(extracted.city, existing.city) : false,
+          stateRegion: extracted.stateRegion ? isDifferent(extracted.stateRegion, existing.stateRegion) : false,
+          country: extracted.country ? isDifferent(extracted.country, existing.country) : false,
+          postalCode: extracted.postalCode ? isDifferent(extracted.postalCode, existing.postalCode) : false,
+          summary: extracted.summary ? isDifferent(extracted.summary, existing.summary) : false,
+          websites: extracted.websites && extracted.websites.length > 0 ? isDifferent(extracted.websites, existing.websites) : false
+        }
+
+        // Check if any field is actually extracted (different)
+        const hasAnyExtractedFields = Object.values(extractedFields).some(val => val === true)
+
+        // Merge extracted values with existing, preferring extracted when available
         this.contactInfo = {
           // Preserve database fields if they exist
           id: existing.id,
@@ -1028,7 +1066,8 @@ export const useCareerIDStore = defineStore('careerID', {
           summary: extracted.summary ?? existing.summary ?? null,
           websites: extracted.websites ?? existing.websites ?? [],
           willingToRelocate: extracted.willingToRelocate ?? existing.willingToRelocate ?? false,
-          isExtracted: true
+          isExtracted: hasAnyExtractedFields,
+          extractedFields: hasAnyExtractedFields ? extractedFields : undefined
         } as ContactInfo
       }
 

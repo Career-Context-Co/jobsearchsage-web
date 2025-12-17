@@ -373,7 +373,7 @@ function cancelEdits() {
         <UFormField size="xl" label="First Name" name="firstName">
           <UInput 
             class="w-full rounded" 
-            :class="{ 'ring-2 ring-purple-500 dark:ring-purple-400': contactInfo?.isExtracted }"
+            :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': contactInfo?.isExtracted }"
             v-model="contactInfo.firstName" 
             placeholder="John"
           />
@@ -386,7 +386,7 @@ function cancelEdits() {
         <UFormField size="xl" label="Last Name" name="lastName">
           <UInput 
             class="w-full rounded" 
-            :class="{ 'ring-2 ring-purple-500 dark:ring-purple-400': contactInfo?.isExtracted }"
+            :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': contactInfo?.isExtracted }"
             v-model="contactInfo.lastName" 
             placeholder="Doe"
           />
@@ -399,7 +399,7 @@ function cancelEdits() {
         <UFormField size="xl" label="Job Title" name="jobTitle">
           <UInput 
             class="w-full rounded" 
-            :class="{ 'ring-2 ring-purple-500 dark:ring-purple-400': contactInfo?.isExtracted }"
+            :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': contactInfo?.isExtracted }"
             v-model="contactInfo.jobTitle" 
             placeholder="e.g., Software Engineer, Product Manager"
           />
@@ -412,7 +412,7 @@ function cancelEdits() {
         <UFormField size="xl" label="Email Address" name="email">
           <UInput 
             class="w-full rounded"
-            :class="{ 'ring-2 ring-purple-500 dark:ring-purple-400': contactInfo?.isExtracted }"
+            :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': contactInfo?.isExtracted }"
             v-model="contactInfo.email" 
             type="email"
             placeholder="john.doe@example.com"
@@ -442,7 +442,7 @@ function cancelEdits() {
           <UFormField size="xl" label="City" name="city">
             <UInput 
               class="w-full rounded" 
-              :class="{ 'ring-2 ring-purple-500 dark:ring-purple-400': contactInfo?.isExtracted }"
+              :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': contactInfo?.isExtracted }"
               v-model="contactInfo.city" 
               placeholder="San Francisco"
             />
