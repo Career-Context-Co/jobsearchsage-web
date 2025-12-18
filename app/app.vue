@@ -1,10 +1,30 @@
 <script setup lang="ts">
 const careerIDStore = useCareerIDStore()
 
-if (!careerIDStore.isProfileLoaded) {
-  await careerIDStore.fetchProfile('prof_myf2i85se9xri4e4wgsxxim7')
-} else {
-  console.log('Profile already loaded')
+// Attempt to fetch profile if profileId exists, but don't crash the app if it fails
+// Individual pages (like /profile) will handle empty states and guide users to onboarding
+if (!careerIDStore.isProfileLoaded && careerIDStore.profileId) {
+  try {
+    await careerIDStore.fetchProfile(careerIDStore.profileId)
+    console.log('Profile loaded successfully')
+  } catch (error: any) {
+    // Silently handle 404 - user doesn't have a profile yet
+    const is404 = error?.status === 404 || error?.statusCode === 404 || 
+                  error?.message?.includes('not found') ||
+                  error?.message?.includes('No profile')
+    
+    if (is404) {
+      console.log('No profile found - user can create one via onboarding')
+      // Clear error from store so it doesn't show in UI
+      careerIDStore.error = null
+    } else {
+      // Log other errors but don't crash the app
+      console.error('Failed to load profile:', error)
+      careerIDStore.error = null // Clear error to allow app to function
+    }
+  }
+} else if (!careerIDStore.profileId) {
+  console.log('No profileId set - new user flow')
 }
 
 const colorMode = useColorMode()

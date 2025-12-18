@@ -15,6 +15,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 /**
  * Phone validation regex (E.164 format: +[country][number])
  * Supports 1-15 digits after the + sign
+ * Total format: +[1-3 digit country code][4-14 digit number]
  */
 const PHONE_REGEX = /^\+[1-9]\d{1,14}$/
 
@@ -35,12 +36,15 @@ export function isValidEmail(email: string): boolean {
 
 /**
  * Validate phone number format (E.164)
+ * Cleans formatting before validation (removes spaces, dashes, parentheses)
  * 
  * @param phone - Phone number to validate
  * @returns true if valid, false otherwise
  */
 export function isValidPhone(phone: string): boolean {
-  return PHONE_REGEX.test(phone)
+  // Remove any formatting (spaces, dashes, parentheses, dots)
+  const cleaned = phone.replace(/[\s\-\(\)\.]/g, '')
+  return PHONE_REGEX.test(cleaned)
 }
 
 /**

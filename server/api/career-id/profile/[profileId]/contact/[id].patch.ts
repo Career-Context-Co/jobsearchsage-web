@@ -89,7 +89,10 @@ export default eventHandler(async (event) => {
   if (body.lastName !== undefined) updateData.last_name = body.lastName
   if (body.jobTitle !== undefined) updateData.job_title = body.jobTitle
   if (body.email !== undefined) updateData.email = body.email
-  if (body.phone !== undefined) updateData.phone = body.phone
+  // Clean phone number before saving (remove formatting)
+  if (body.phone !== undefined) {
+    updateData.phone = body.phone ? body.phone.replace(/[\s\-\(\)\.]/g, '') : null
+  }
   if (body.websites !== undefined) updateData.websites = body.websites
   if (body.summary !== undefined) updateData.summary = body.summary
   if (body.city !== undefined) updateData.city = body.city

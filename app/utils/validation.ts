@@ -11,10 +11,11 @@
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /**
- * Phone validation regex (flexible - allows common formats)
- * More lenient than strict E.164 for better UX
+ * Phone validation regex (E.164 format)
+ * Requires + followed by 1-3 digit country code, then 4-14 digits for number
+ * Examples: +1234567890, +441234567890, +351123456789
  */
-const PHONE_REGEX = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/
+const PHONE_REGEX = /^\+[1-9]\d{0,2}\d{4,14}$/
 
 /**
  * URL validation regex (http or https)
@@ -66,9 +67,11 @@ export function validateEmail(email: string | undefined, required = false): stri
 }
 
 /**
- * Validate phone number format
+ * Validate phone number format (E.164)
+ * Expects format: +[country code 1-3 digits][number 4-14 digits]
+ * Example: +12025551234 (US), +442071234567 (UK)
  * 
- * @param phone - Phone number to validate
+ * @param phone - Phone number to validate (should be combined country code + number)
  * @param required - Whether the field is required
  * @returns Error message string or null if valid
  */
@@ -77,9 +80,20 @@ export function validatePhone(phone: string | undefined, required = false): stri
     return required ? 'Phone is required' : null
   }
   
-  // More lenient validation for better UX
-  const cleaned = phone.trim().replace(/[\s\-\(\)]/g, '')
-  return PHONE_REGEX.test(cleaned) ? null : 'Invalid phone format'
+  // Remove any whitespace or formatting
+  const cleaned = phone.replace(/[\s\-\(\)\.]/g, '')
+  
+  // Check if phone starts with + (required for E.164)
+  if (!cleaned.startsWith('+')) {
+    return 'Phone must include country code starting with +'
+  }
+  
+  // Check overall format
+  if (!PHONE_REGEX.test(cleaned)) {
+    return 'Phone must be in format: +[country code][number] (e.g., +12025551234)'
+  }
+  
+  return null
 }
 
 /**

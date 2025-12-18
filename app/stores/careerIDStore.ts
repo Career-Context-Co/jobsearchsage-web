@@ -12,7 +12,8 @@ import type {
 
 export const useCareerIDStore = defineStore('careerID', {
   state: () => ({
-
+    profileId: 'prof_myf2i85se9xri4e4wgsxxim7',
+    userId: 'nswk',
     // Core profile data (flat structure for ease of use)
     profile: null as Profile | null,
     experience: [] as Experience[],
@@ -26,7 +27,19 @@ export const useCareerIDStore = defineStore('careerID', {
     isLoading: false,
     isSaving: false,
     error: null as string | null,
-    lastSaved: null as string | null
+    lastSaved: null as string | null,
+
+    // Resume extraction state
+    isExtracting: false,
+    extractionError: null as string | null,
+    extractionResult: null as {
+      contactInfo: Partial<ContactInfo> | null
+      socialLinks: Array<{ platformId: number, url: string, displayOrder: number }>
+      experience: Array<Omit<Experience, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>
+      education: Array<Omit<Education, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>
+      profileSkills: string[]
+      certifications: Array<Omit<Certification, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>
+    } | null
   }),
 
   getters: {
@@ -139,7 +152,7 @@ export const useCareerIDStore = defineStore('careerID', {
     },
 
     // 5.4.2 Create new profile shell
-    async createProfile(userId: string) {
+    async createProfile() {
       this.isSaving = true
       this.error = null
 
@@ -150,7 +163,7 @@ export const useCareerIDStore = defineStore('careerID', {
           data: { profile: Profile }
         }>('/api/career-id/profile', {
           method: 'POST',
-          body: { userId }
+          body: { userId: this.userId }
         })
 
         if (!response.success || !response.data?.profile) {
@@ -162,11 +175,48 @@ export const useCareerIDStore = defineStore('careerID', {
 
         // Set the new profile in state
         this.profile = profile
+        // Store the profileId for future use
+        this.profileId = profile.id
         this.lastSaved = new Date().toISOString()
 
         return profile
       } catch (error: any) {
         const errorMessage = error?.data?.message || error?.message || 'Failed to create profile'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    async updateProfile(profileId: string, data: { completionStatus?: 'incomplete' | 'verified' | 'complete' }) {
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: Profile
+        }>(`/api/career-id/profile/${profileId}`, {
+          method: 'PATCH',
+          body: data
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to update profile')
+        }
+
+        // API returns data already in camelCase format
+        const profile = response.data
+
+        // Update the profile in state
+        this.profile = profile
+        this.lastSaved = new Date().toISOString()
+
+        return profile
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to update profile'
         this.error = errorMessage
         throw error
       } finally {
@@ -409,20 +459,26 @@ export const useCareerIDStore = defineStore('careerID', {
     // 5.9.1 Create contact info entry
     async createContactInfo(data: Omit<ContactInfo, 'id' | 'internalId' | 'profileId' | 'createdAt' | 'updatedAt'>) {
       if (!this.profile?.id) {
-        throw new Error('No profile loaded')
+        throw new Error('No profile loaded. Please create a profile first.')
       }
 
       this.isSaving = true
       this.error = null
 
       try {
+        // Clean phone number before sending (remove any formatting)
+        const cleanedData = {
+          ...data,
+          phone: data.phone ? data.phone.replace(/[\s\-\(\)\.]/g, '') : null
+        }
+
         const response = await $fetch<{
           success: boolean
           message: string
           data: ContactInfo
         }>(`/api/career-id/profile/${this.profile.id}/contact`, {
           method: 'POST',
-          body: data
+          body: cleanedData
         })
 
         if (!response.success || !response.data) {
@@ -456,13 +512,19 @@ export const useCareerIDStore = defineStore('careerID', {
       this.error = null
 
       try {
+        // Clean phone number before sending (remove any formatting)
+        const cleanedData = {
+          ...data,
+          phone: data.phone ? data.phone.replace(/[\s\-\(\)\.]/g, '') : data.phone
+        }
+
         const response = await $fetch<{
           success: boolean
           message: string
           data: ContactInfo
         }>(`/api/career-id/profile/${this.profile.id}/contact/${id}`, {
           method: 'PATCH',
-          body: data
+          body: cleanedData
         })
 
         if (!response.success || !response.data) {
@@ -672,7 +734,7 @@ export const useCareerIDStore = defineStore('careerID', {
     // 5.10.1 Add social links (bulk operation)
     async addSocialLinks(links: Array<Omit<ProfileSocialLink, 'id' | 'profileId' | 'platformNameCache' | 'createdAt' | 'updatedAt'>>) {
       if (!this.profile?.id) {
-        throw new Error('No profile loaded')
+        throw new Error('No profile loaded. Please create a profile first.')
       }
 
       this.isSaving = true
@@ -695,7 +757,11 @@ export const useCareerIDStore = defineStore('careerID', {
         // API returns data already in camelCase format
         const addedLinks = response.data
 
-        // Add to local state
+        // Remove old extracted links (without IDs) before adding new ones
+        // This prevents duplicates when saving extracted social links
+        this.profileSocialLinks = this.profileSocialLinks.filter(link => link.id)
+        
+        // Add the newly created links with IDs
         this.profileSocialLinks.push(...addedLinks)
         this.lastSaved = new Date().toISOString()
 
@@ -925,6 +991,226 @@ export const useCareerIDStore = defineStore('careerID', {
       } finally {
         this.isSaving = false
       }
+    },
+
+    // Resume extraction actions
+    async extractResumeData(file: File) {
+      this.isExtracting = true
+      this.extractionError = null
+      this.extractionResult = null
+
+      try {
+        // Create FormData for multipart upload
+        const formData = new FormData()
+        formData.append('file', file)
+
+        // Call the extraction endpoint
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: {
+            contactInfo: Partial<ContactInfo> | null
+            socialLinks: Array<{ platformId: number, url: string, displayOrder: number }>
+            experience: Array<Omit<Experience, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>
+            education: Array<Omit<Education, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>
+            profileSkills: string[]
+            certifications: Array<Omit<Certification, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>
+          }
+          metadata: {
+            filename: string
+            fileSize: number
+            extractionTimeMs: number
+            extractedCounts: {
+              experience: number
+              education: number
+              skills: number
+              certifications: number
+            }
+          }
+        }>('/api/career-id/resume/extract', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to extract resume data')
+        }
+
+        // Store extraction result
+        this.extractionResult = response.data
+
+        return response
+      } catch (error: any) {
+        const errorMessage = error?.data?.error?.message || error?.message || 'Failed to extract resume data'
+        this.extractionError = errorMessage
+        throw error
+      } finally {
+        this.isExtracting = false
+      }
+    },
+
+    applyExtractionToProfile() {
+      if (!this.extractionResult) {
+        throw new Error('No extraction result to apply')
+      }
+
+      const result = this.extractionResult
+
+      // Apply contact info (overwrite with extracted data and mark as extracted)
+      if (result.contactInfo) {
+        const existing = this.contactInfo || {} as ContactInfo
+        const extracted = result.contactInfo
+
+        // Helper to check if a value is different (only consider non-empty extracted values)
+        const isDifferent = (extractedVal: any, existingVal: any): boolean => {
+          // If extracted value is empty/null/undefined, not different
+          if (extractedVal === null || extractedVal === undefined || extractedVal === '') return false
+          // If array, check if empty
+          if (Array.isArray(extractedVal) && extractedVal.length === 0) return false
+          // If existing value is empty/null/undefined and extracted has value, it's different
+          if (existingVal === null || existingVal === undefined || existingVal === '') return true
+          // If both have values, compare them (normalize strings for comparison)
+          if (typeof extractedVal === 'string' && typeof existingVal === 'string') {
+            return extractedVal.trim().toLowerCase() !== existingVal.trim().toLowerCase()
+          }
+          // For arrays (websites), compare contents
+          if (Array.isArray(extractedVal) && Array.isArray(existingVal)) {
+            if (extractedVal.length !== existingVal.length) return true
+            return extractedVal.some((val, idx) => val !== existingVal[idx])
+          }
+          return extractedVal !== existingVal
+        }
+
+        // Determine which fields are actually different
+        const extractedFields = {
+          firstName: extracted.firstName ? isDifferent(extracted.firstName, existing.firstName) : false,
+          lastName: extracted.lastName ? isDifferent(extracted.lastName, existing.lastName) : false,
+          email: extracted.email ? isDifferent(extracted.email, existing.email) : false,
+          phone: extracted.phone ? isDifferent(extracted.phone, existing.phone) : false,
+          jobTitle: extracted.jobTitle ? isDifferent(extracted.jobTitle, existing.jobTitle) : false,
+          city: extracted.city ? isDifferent(extracted.city, existing.city) : false,
+          stateRegion: extracted.stateRegion ? isDifferent(extracted.stateRegion, existing.stateRegion) : false,
+          country: extracted.country ? isDifferent(extracted.country, existing.country) : false,
+          postalCode: extracted.postalCode ? isDifferent(extracted.postalCode, existing.postalCode) : false,
+          summary: extracted.summary ? isDifferent(extracted.summary, existing.summary) : false,
+          websites: extracted.websites && extracted.websites.length > 0 ? isDifferent(extracted.websites, existing.websites) : false
+        }
+
+        // Check if any field is actually extracted (different)
+        const hasAnyExtractedFields = Object.values(extractedFields).some(val => val === true)
+
+        // Merge extracted values with existing, preferring extracted when available
+        this.contactInfo = {
+          // Preserve database fields if they exist
+          id: existing.id,
+          internalId: existing.internalId,
+          profileId: existing.profileId,
+          createdAt: existing.createdAt,
+          updatedAt: existing.updatedAt,
+          // Use extracted values (overwrite existing)
+          firstName: extracted.firstName ?? existing.firstName ?? '',
+          lastName: extracted.lastName ?? existing.lastName ?? '',
+          email: extracted.email ?? existing.email ?? '',
+          phone: extracted.phone ?? existing.phone ?? null,
+          jobTitle: extracted.jobTitle ?? existing.jobTitle ?? null,
+          city: extracted.city ?? existing.city ?? null,
+          stateRegion: extracted.stateRegion ?? existing.stateRegion ?? null,
+          country: extracted.country ?? existing.country ?? null,
+          postalCode: extracted.postalCode ?? existing.postalCode ?? null,
+          summary: extracted.summary ?? existing.summary ?? null,
+          websites: extracted.websites ?? existing.websites ?? [],
+          willingToRelocate: extracted.willingToRelocate ?? existing.willingToRelocate ?? false,
+          isExtracted: hasAnyExtractedFields,
+          extractedFields: hasAnyExtractedFields ? extractedFields : undefined
+        } as ContactInfo
+      }
+
+      // Merge experience - keep both old and new, show duplicates with isExtracted flag
+      if (result.experience.length > 0) {
+        this.experience = [...this.experience, ...result.experience as Experience[]]
+      }
+
+      // Merge education - keep both old and new, show duplicates with isExtracted flag
+      if (result.education.length > 0) {
+        this.education = [...this.education, ...result.education as Education[]]
+      }
+
+      // Merge skills - all extracted skills go to "Extracted" group with isExtracted flag
+      if (result.profileSkills.length > 0) {
+        const newSkills = result.profileSkills.map((skillName, index) => ({
+          name: skillName,
+          group: 'Extracted',
+          proficiencyLevel: 'intermediate' as const,
+          yearsExperience: null,
+          displayOrder: this.profileSkills.length + index,
+          isExtracted: true
+        }))
+
+        this.profileSkills = [...this.profileSkills, ...newSkills as ProfileSkill[]]
+      }
+
+      // Merge certifications - keep both old and new, show duplicates with isExtracted flag
+      if (result.certifications.length > 0) {
+        this.certifications = [...this.certifications, ...result.certifications as Certification[]]
+      }
+
+      // Merge social links - keep both old and new
+      if (result.socialLinks && result.socialLinks.length > 0) {
+        // Transform to ProfileSocialLink format
+        const transformedLinks = result.socialLinks.map(link => ({
+          ...link,
+          platformNameCache: this.getPlatformNameById(link.platformId),
+          isExtracted: true
+        })) as ProfileSocialLink[]
+
+        this.profileSocialLinks = [...this.profileSocialLinks, ...transformedLinks]
+      }
+
+      // Clear extraction result after applying
+      this.extractionResult = null
+      this.extractionError = null
+    },
+
+    // Helper to get platform name by ID (for social links)
+    getPlatformNameById(platformId: number): string {
+      const platformMap: Record<number, string> = {
+        1: 'linkedin',
+        2: 'github',
+        3: 'twitter',
+        4: 'instagram',
+        5: 'facebook'
+      }
+      return platformMap[platformId] || 'unknown'
+    },
+
+    // Clear extracted and unsaved data (for "Take a Break" functionality)
+    clearExtractedData() {
+      // Remove extracted contact info fields (keep existing saved data)
+      if (this.contactInfo?.isExtracted && !this.contactInfo.id) {
+        // If contact info was only extracted and never saved, clear it entirely
+        this.contactInfo = null
+      } else if (this.contactInfo?.isExtracted) {
+        // If contact info has an ID (saved), just remove the isExtracted flag
+        this.contactInfo.isExtracted = false
+        this.contactInfo.extractedFields = undefined
+      }
+
+      // Remove extracted and unsaved experience entries
+      this.experience = this.experience.filter(exp => !exp.isExtracted || exp.id !== undefined)
+      
+      // Remove extracted and unsaved education entries
+      this.education = this.education.filter(edu => !edu.isExtracted || edu.id !== undefined)
+      
+      // Remove extracted and unsaved skills
+      this.profileSkills = this.profileSkills.filter(skill => !skill.isExtracted || skill.id !== undefined)
+      
+      // Remove extracted and unsaved certifications
+      this.certifications = this.certifications.filter(cert => !cert.isExtracted || cert.id !== undefined)
+      
+      // Remove extracted and unsaved social links
+      this.profileSocialLinks = this.profileSocialLinks.filter(link => !link.isExtracted || link.id !== undefined)
+      
+      console.log('Cleared all extracted and unsaved data')
     }
   }
 })

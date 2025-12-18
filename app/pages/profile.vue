@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
+import { useCareerIDStore } from '~/stores/careerIDStore'
 
 const route = useRoute()
+const careerIDStore = useCareerIDStore()
 
 // Check if we're on the onboarding page
 const isOnboarding = computed(() => route.path === '/profile/onboarding')
 
-const links = [[{
+// Check if user has partial completion (took a break during onboarding)
+const showContinueOnboarding = computed(() => 
+  careerIDStore.profile?.completionStatus === 'incomplete'
+)
+
+const links = computed(() => [[{
   label: 'Overview',
   icon: 'i-lucide-user',
   to: '/profile',
@@ -27,11 +34,13 @@ const links = [[{
   label: 'Skills',
   icon: 'i-lucide-wrench',
   to: '/profile/skills'
-}], [{
-  label: 'Redo Onboarding',
-  icon: 'i-lucide-rocket',
-  to: '/profile/onboarding'
-}]] satisfies NavigationMenuItem[][]
+}], ...(showContinueOnboarding.value ? [[{
+  label: 'Continue Onboarding',
+  icon: 'i-lucide-arrow-right',
+  color: 'primary',
+  to: '/profile/onboarding',
+  class: 'bg-gradient-to-r from-indigo-500 to-green-500 cursor-pointer rounded text-white hover:text-white font-semibold'
+}]] : [])] satisfies NavigationMenuItem[][])
 </script>
 
 <template>

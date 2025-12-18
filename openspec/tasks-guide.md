@@ -1,7 +1,7 @@
 # Task Grouping Guide for AI Agents
 
 ## Overview
-When breaking down feature specifications into implementation tasks, group tasks by **team responsibility** and **workflow phase**. Our development process follows a 3-phase sequential pipeline: Database → Backend → Frontend.
+When breaking down feature specifications into implementation tasks, group tasks by **team responsibility** and **workflow phase**. Our development process follows a 3-phase sequential pipeline: Database → Backend → Frontend. 
 
 ## Before Starting: Check for User Stories
 

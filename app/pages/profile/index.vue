@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vMaska } from 'maska/vue'
 import type { ContactInfo } from '#shared/types/careerId'
 import { validateEmail, validatePhone, validateRequired, validateUrls, validateLength, validateUrl } from '~/utils/validation'
 
@@ -6,9 +7,6 @@ const careerIDStore = useCareerIDStore()
 const toast = useToast()
 const router = useRouter()
 
-// Get current user - this would typically come from Supabase auth
-// For now, we'll use a mock user ID
-const user = ref({ id: 'mock-user-id' }) // TODO: Replace with real Supabase user
 
 // Loading state from store
 const isLoading = computed(() => careerIDStore.isLoading)
@@ -25,8 +23,11 @@ const isEditingSummary = ref(false)
 const isAddingSocialLink = ref(false)
 const editingSocialLinkId = ref<number | null>(null)
 
-// Form data - initialized when editing starts
-const formData = ref<Partial<ContactInfo>>({})
+// Form data - initialized when editing starts (extends ContactInfo with phone split)
+const formData = ref<Partial<ContactInfo> & { 
+  phoneCountryCode?: string
+  phoneNumber?: string 
+}>({})
 const formErrors = ref<Record<string, string>>({})
 
 // Social link form data
@@ -67,6 +68,60 @@ function getPlatformById(platformId: number) {
   return socialPlatforms.value.find(p => p.id === platformId)
 }
 
+// Helper to parse phone number into country code and number
+function parsePhone(phone: string | null | undefined): { countryCode: string; number: string } {
+  if (!phone) return { countryCode: '1', number: '' }
+  
+  // Remove + and any formatting
+  const cleaned = phone.replace(/[^\d]/g, '')
+  
+  // Try to extract country code (1-3 digits)
+  if (cleaned.length >= 10) {
+    // Try 1 digit country code first (US/Canada is most common)
+    if (cleaned.startsWith('1') && cleaned.length === 11) {
+      return { countryCode: '1', number: cleaned.slice(1) }
+    }
+    // Try 2 digit country code
+    if (cleaned.length >= 11) {
+      return { countryCode: cleaned.slice(0, 2), number: cleaned.slice(2) }
+    }
+    // Try 3 digit country code
+    if (cleaned.length >= 12) {
+      return { countryCode: cleaned.slice(0, 3), number: cleaned.slice(3) }
+    }
+  }
+  
+  return { countryCode: '1', number: cleaned }
+}
+
+// Helper to format phone number for display in view mode
+function formatPhoneForDisplay(phone: string | null | undefined): string | null {
+  if (!phone) return null
+  
+  const parsed = parsePhone(phone)
+  const cleaned = parsed.number.replace(/[^\d]/g, '')
+  
+  // Format based on length (assuming North American format for 10 digits)
+  if (cleaned.length === 10) {
+    const areaCode = cleaned.slice(0, 3)
+    const prefix = cleaned.slice(3, 6)
+    const line = cleaned.slice(6, 10)
+    return `+${parsed.countryCode} (${areaCode}) ${prefix}-${line}`
+  }
+  
+  // For other formats, just return with country code
+  return `+${parsed.countryCode} ${cleaned}`
+}
+
+// Helper to combine country code and number for save
+function combinePhone(countryCode: string, number: string): string | null {
+  if (!number || !number.trim()) return null
+  const cleanCode = countryCode.replace(/[^\d]/g, '')
+  const cleanNumber = number.replace(/[^\d]/g, '')
+  if (!cleanCode || !cleanNumber) return null
+  return `+${cleanCode}${cleanNumber}`
+}
+
 // Watch for platform selection changes and prefill URL
 watch(() => socialLinkForm.value.platformId, (newPlatformId) => {
   if (newPlatformId) {
@@ -81,12 +136,14 @@ watch(() => socialLinkForm.value.platformId, (newPlatformId) => {
 function startEditingContact() {
   if (!contactInfo.value) return
   
+  const parsed = parsePhone(contactInfo.value.phone)
   formData.value = {
     firstName: contactInfo.value.firstName,
     lastName: contactInfo.value.lastName,
     jobTitle: contactInfo.value.jobTitle,
     email: contactInfo.value.email,
-    phone: contactInfo.value.phone,
+    phoneCountryCode: parsed.countryCode,
+    phoneNumber: parsed.number,
     websites: [...(contactInfo.value.websites || [])],
     city: contactInfo.value.city,
     stateRegion: contactInfo.value.stateRegion,
@@ -145,8 +202,10 @@ function validateContactForm(): boolean {
   
   const emailError = validateEmail(formData.value.email, true)
   if (emailError) errors.email = emailError
-  
-  const phoneError = validatePhone(formData.value.phone || undefined, true)
+
+  // Validate phone (combine country code + number)
+  const combined = combinePhone(formData.value.phoneCountryCode || '', formData.value.phoneNumber || '')
+  const phoneError = validatePhone(combined || '', true)
   if (phoneError) errors.phone = phoneError
   
   const cityError = validateRequired(formData.value.city, 'City')
@@ -202,10 +261,19 @@ async function saveContactInfo() {
   }
   
   try {
-    await careerIDStore.updateContactInfo(
-      contactInfo.value!.id,
-      formData.value as Partial<ContactInfo>
-    )
+    await careerIDStore.updateContactInfo(contactInfo.value!.id, {
+      firstName: formData.value.firstName!,
+      lastName: formData.value.lastName!,
+      jobTitle: formData.value.jobTitle!,
+      email: formData.value.email!,
+      phone: combinePhone(formData.value.phoneCountryCode || '', formData.value.phoneNumber || ''),
+      websites: formData.value.websites || [],
+      city: formData.value.city || null,
+      stateRegion: formData.value.stateRegion || null,
+      country: formData.value.country || null,
+      postalCode: formData.value.postalCode || null,
+      willingToRelocate: formData.value.willingToRelocate || false
+    })
     
     toast.add({
       title: 'Success',
@@ -386,7 +454,7 @@ async function updateSocialLink(linkId: number) {
 async function deleteSocialLink(linkId: number) {
   try {
     await careerIDStore.deleteSocialLink(linkId)
-    
+
     toast.add({
       title: 'Success',
       description: 'Social link deleted successfully',
@@ -403,40 +471,53 @@ async function deleteSocialLink(linkId: number) {
   }
 }
 
+// State to track if profile doesn't exist (for empty state)
+const showEmptyState = ref(false)
+
 // Fetch profile data on mount
 onMounted(async () => {
-  if (!user.value?.id) {
-    toast.add({
-      title: 'Error',
-      description: 'You must be logged in to view your profile',
-      icon: 'i-lucide-alert-circle',
-      color: 'error'
-    })
-    router.push('/login')
+  const profileId = careerIDStore.profileId
+
+  // If no profileId is set, show empty state immediately
+  if (!profileId) {
+    showEmptyState.value = true
+    return
+  }
+
+  // If profile is already loaded (e.g., from onboarding), clear any stale errors
+  if (careerIDStore.isProfileLoaded && careerIDStore.contactInfo) {
+    careerIDStore.clearError()
     return
   }
 
   try {
     // Only fetch if not already loaded
     if (!careerIDStore.isProfileLoaded) {
-      await careerIDStore.fetchProfile(user.value.id)
+      await careerIDStore.fetchProfile(profileId)
     }
 
-    // If no profile found, redirect to onboarding
+    // If no profile found after fetch, show empty state
     if (!careerIDStore.profile) {
-      toast.add({
-        title: 'No profile found',
-        description: 'Please complete onboarding to create your profile',
-        icon: 'i-lucide-info',
-        color: 'primary'
-      })
-      router.push('/profile/onboarding')
+      showEmptyState.value = true
     }
     
     // Social platforms are hardcoded, no need to fetch
-  } catch (err) {
-    // Error is already set in store
-    console.error('Failed to load profile:', err)
+  } catch (err: any) {
+    // Check if it's a 404 or profile not found error
+    const is404 = err?.status === 404 || err?.statusCode === 404 || 
+                  err?.message?.includes('not found') || 
+                  err?.message?.includes('No profile')
+    
+    if (is404) {
+      // Profile doesn't exist - show empty state instead of error
+      showEmptyState.value = true
+      // Clear the error from the store since we're handling it gracefully
+      careerIDStore.error = null
+    } else {
+      // Other errors - log but still show empty state with option to retry
+      console.error('Failed to load profile:', err)
+      showEmptyState.value = true
+    }
   }
 })
 </script>
@@ -449,8 +530,61 @@ onMounted(async () => {
     <USkeleton class="h-48 w-full" />
   </div>
 
-  <!-- Error State -->
-  <div v-else-if="error">
+  <!-- Empty State - No Profile Found -->
+  <div v-else-if="showEmptyState">
+    <UPageCard
+      title="Welcome to Your Profile"
+      variant="subtle"
+    >
+      <div class="flex flex-col items-center justify-center py-12 gap-6 max-w-md mx-auto text-center">
+        <UIcon name="i-lucide-user-circle" class="w-20 h-20 text-primary" />
+        <div class="space-y-2">
+          <h3 class="text-xl font-semibold">No Profile Yet</h3>
+          <p class="text-muted text-base">
+            You haven't created your professional profile yet. Let's get started by completing your onboarding!
+          </p>
+        </div>
+        <div class="space-y-3 w-full">
+          <UButton
+            label="Start Onboarding"
+            icon="i-lucide-rocket"
+            size="lg"
+            color="primary"
+            block
+            @click="router.push('/profile/onboarding')"
+          />
+          <p class="text-sm text-muted">
+            It only takes a few minutes to set up your profile
+          </p>
+        </div>
+        <UDivider class="my-4" />
+        <div class="text-left w-full space-y-2">
+          <p class="text-sm font-medium">What you'll add:</p>
+          <ul class="space-y-2 text-sm text-muted">
+            <li class="flex items-center gap-2">
+              <UIcon name="i-lucide-check-circle" class="w-4 h-4 text-success" />
+              Contact information & professional summary
+            </li>
+            <li class="flex items-center gap-2">
+              <UIcon name="i-lucide-check-circle" class="w-4 h-4 text-success" />
+              Work experience & education
+            </li>
+            <li class="flex items-center gap-2">
+              <UIcon name="i-lucide-check-circle" class="w-4 h-4 text-success" />
+              Skills & certifications
+            </li>
+            <li class="flex items-center gap-2">
+              <UIcon name="i-lucide-check-circle" class="w-4 h-4 text-success" />
+              Social links & portfolio
+            </li>
+          </ul>
+        </div>
+      </div>
+    </UPageCard>
+  </div>
+
+  <!-- Error State (for non-404 errors) -->
+  <div v-else-if="error && !showEmptyState">
     <UPageCard
       title="Error Loading Profile"
       variant="subtle"
@@ -461,7 +595,7 @@ onMounted(async () => {
         <UButton
           label="Retry"
           color="primary"
-          @click="careerIDStore.fetchProfile(user?.id)"
+          @click="router.push('/profile/onboarding')"
         />
       </div>
     </UPageCard>
@@ -543,7 +677,7 @@ onMounted(async () => {
         <div class="flex max-sm:flex-col justify-between items-start gap-4">
           <div class="flex-1">
             <label class="block text-sm font-medium mb-1">Phone</label>
-            <p class="text-base">{{ contactInfo.phone || 'Not specified' }}</p>
+            <p class="text-base">{{ formatPhoneForDisplay(contactInfo.phone) || 'Not specified' }}</p>
           </div>
         </div>
 
@@ -662,13 +796,34 @@ onMounted(async () => {
         <div class="flex max-sm:flex-col justify-between items-start gap-4">
           <div class="flex-1">
             <label class="block text-sm font-medium mb-1">Phone <span class="text-error">*</span></label>
-            <UInput
-              class="w-full"
-              v-model="formData.phone"
-              type="tel"
-              placeholder="+1 (555) 123-4567"
-              :error="!!formErrors.phone"
-            />
+            <div class="flex gap-2">
+              <!-- Country Code -->
+              <div class="w-24">
+                <UInput
+                  class="rounded"
+                  v-model="formData.phoneCountryCode"
+                  v-maska="'###'"
+                  type="tel"
+                  placeholder="1"
+                  :error="!!formErrors.phone"
+                >
+                  <template #leading>
+                    <span class="text-muted">+</span>
+                  </template>
+                </UInput>
+              </div>
+              <!-- Phone Number (with mask for formatting) -->
+              <div class="flex-1">
+                <UInput
+                  class="rounded"
+                  v-model="formData.phoneNumber"
+                  v-maska="'(###) ###-####'"
+                  type="tel"
+                  placeholder="(555) 123-4567"
+                  :error="!!formErrors.phone"
+                />
+              </div>
+            </div>
             <p v-if="formErrors.phone" class="text-sm text-error mt-1">{{ formErrors.phone }}</p>
           </div>
         </div>
@@ -1048,13 +1203,8 @@ onMounted(async () => {
         <p class="text-muted text-center max-w-md">
           It looks like you haven't created your profile yet. Complete onboarding to get started.
         </p>
-        <UButton
-          label="Redo Onboarding"
-          color="primary"
-          icon="i-lucide-arrow-right"
-          trailing
-          to="/profile/onboarding"
-        />
+        
+        <ProfileContinueOnboardingModal />
       </div>
     </UPageCard>
   </div>

@@ -85,7 +85,7 @@ export default eventHandler(async (event) => {
   // Generate prefixed ID for new contact info
   const contactId = generatePrefixedId('cont')
   
-  const { data, error } = await supabase
+    const { data, error } = await supabase
     .schema('career_id')
     .from('contact_info')
     .insert({
@@ -95,7 +95,8 @@ export default eventHandler(async (event) => {
       last_name: body.lastName,
       job_title: body.jobTitle || null,
       email: body.email,
-      phone: body.phone || null,
+      // Clean phone number before saving (remove formatting)
+      phone: body.phone ? body.phone.replace(/[\s\-\(\)\.]/g, '') : null,
       websites: body.websites || [],
       summary: body.summary || null,
       city: body.city || null,

@@ -31,6 +31,7 @@ export interface Experience {
   summary?: string | null;
   highlights: string[];
   displayOrder: number;
+  isExtracted?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -50,6 +51,7 @@ export interface Education {
   coursework: string[];
   minors: string[];
   displayOrder: number;
+  isExtracted?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -63,6 +65,7 @@ export interface Certification {
   issueDate: string;
   url?: string | null;
   displayOrder: number;
+  isExtracted?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -84,6 +87,7 @@ export interface ProfileSkill {
   proficiencyLevel: 'beginner' | 'intermediate' | 'advanced' | 'expert';
   yearsExperience?: number | null;
   displayOrder: number;
+  isExtracted?: boolean;
   skill: Skill;
   createdAt: string;
   updatedAt: string;
@@ -97,6 +101,7 @@ export interface ProfileSocialLink {
   platformNameCache: string;
   url: string;
   displayOrder: number;
+  isExtracted?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -118,6 +123,21 @@ export interface ContactInfo {
   country?: string | null;
   postalCode?: string | null;
   willingToRelocate: boolean;
+  isExtracted?: boolean;
+  // Per-field extraction flags (set when extracted value differs from existing)
+  extractedFields?: {
+    firstName?: boolean;
+    lastName?: boolean;
+    jobTitle?: boolean;
+    email?: boolean;
+    phone?: boolean;
+    websites?: boolean;
+    summary?: boolean;
+    city?: boolean;
+    stateRegion?: boolean;
+    country?: boolean;
+    postalCode?: boolean;
+  };
   createdAt: string;
   updatedAt: string;
 }
