@@ -3,6 +3,10 @@ import type { StepperItem } from '@nuxt/ui'
 import { ref, useTemplateRef, onMounted, computed } from 'vue'
 import { useCareerIDStore } from '~/stores/careerIDStore'
 
+definePageMeta({
+  layout: 'fullscreen'
+})
+
 const stepper = useTemplateRef('stepper')
 const activeStep = ref('upload')
 
@@ -49,9 +53,12 @@ const steps: StepperItem[] = [
 
 const careerIDStore = useCareerIDStore()
 const toast = useToast()
+const router = useRouter()
 
-// Check if user is redoing onboarding with existing profile
-const isRedoingOnboarding = computed(() => careerIDStore.isProfileLoaded)
+// Check if user is continuing onboarding after taking a break
+const isContinuingOnboarding = computed(() => 
+  careerIDStore.profile?.completionStatus === 'incomplete' && careerIDStore.isProfileLoaded
+)
 
 // Handle save from ContactSection - diffs against store to determine API calls
 async function handleSaveContact(payload: { 
@@ -556,10 +563,27 @@ async function saveAndValidateCurrentStep(): Promise<boolean> {
   }
 }
 
+// Take a break - clear extracted data and navigate to profile
+function takeABreak() {
+  // Clear all extracted and unsaved data
+  careerIDStore.clearExtractedData()
+  
+  // Clear any error state from the store
+  careerIDStore.clearError()
+  
+  toast.add({
+    title: 'Taking a Break',
+    description: 'Your saved progress has been preserved. Come back anytime to continue!',
+    icon: 'i-lucide-coffee',
+    color: 'primary'
+  })
+  
+  // Navigate to profile page
+  router.push('/profile')
+}
+
 // Complete profile - save certifications and redirect
 async function completeProfile() {
-  const router = useRouter()
-  
   try {
     // Save certifications section (last step)
     const success = await saveAndValidateCurrentStep()
@@ -677,13 +701,13 @@ onMounted(async () => {
 
         <!-- Content Area with Dynamic Components -->
         <div class="p-6 sm:p-8">
-          <!-- Info Banner for Redo Onboarding -->
+          <!-- Info Banner for Continue Onboarding -->
           <UAlert
-            v-if="activeStep === 'upload' && isRedoingOnboarding"
+            v-if="activeStep === 'upload' && isContinuingOnboarding"
             color="primary"
             icon="i-lucide-sparkles"
-            title="You're redoing onboarding"
-            description="Uploading a new resume will add extracted data alongside your existing profile. Extracted items will be highlited so you can review and delete any unwanted entries."
+            title="Welcome back!"
+            description="You can upload a new resume to extract additional information, or continue editing your existing profile data."
             class="mb-6"
           />
 
@@ -730,16 +754,27 @@ onMounted(async () => {
 
         <!-- Navigation Buttons -->
         <div class="flex justify-between items-center gap-4">
-          <UButton
-            label="Back"
-            class="cursor-pointer"
-            size="xl"
-            leading-icon="i-lucide-chevron-left"
-            color="neutral"
-            variant="subtle"
-            :disabled="!stepper?.hasPrev"
-            @click="stepper?.prev()"
-          />
+          <div class="flex gap-2">
+            <UButton
+              label="Back"
+              class="cursor-pointer"
+              size="xl"
+              leading-icon="i-lucide-chevron-left"
+              color="neutral"
+              variant="subtle"
+              :disabled="!stepper?.hasPrev"
+              @click="stepper?.prev()"
+            />
+            <UButton
+              label="Take a Break"
+              class="cursor-pointer"
+              size="xl"
+              leading-icon="i-lucide-coffee"
+              color="neutral"
+              variant="ghost"
+              @click="takeABreak"
+            />
+          </div>
           
           <div class="flex gap-2">
             <UButton

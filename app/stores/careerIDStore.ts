@@ -189,7 +189,7 @@ export const useCareerIDStore = defineStore('careerID', {
       }
     },
 
-    async updateProfile(profileId: string, data: { completionStatus?: 'incomplete' | 'partial' | 'complete' }) {
+    async updateProfile(profileId: string, data: { completionStatus?: 'incomplete' | 'verified' | 'complete' }) {
       this.isSaving = true
       this.error = null
 
@@ -1181,6 +1181,36 @@ export const useCareerIDStore = defineStore('careerID', {
         5: 'facebook'
       }
       return platformMap[platformId] || 'unknown'
+    },
+
+    // Clear extracted and unsaved data (for "Take a Break" functionality)
+    clearExtractedData() {
+      // Remove extracted contact info fields (keep existing saved data)
+      if (this.contactInfo?.isExtracted && !this.contactInfo.id) {
+        // If contact info was only extracted and never saved, clear it entirely
+        this.contactInfo = null
+      } else if (this.contactInfo?.isExtracted) {
+        // If contact info has an ID (saved), just remove the isExtracted flag
+        this.contactInfo.isExtracted = false
+        this.contactInfo.extractedFields = undefined
+      }
+
+      // Remove extracted and unsaved experience entries
+      this.experience = this.experience.filter(exp => !exp.isExtracted || exp.id !== undefined)
+      
+      // Remove extracted and unsaved education entries
+      this.education = this.education.filter(edu => !edu.isExtracted || edu.id !== undefined)
+      
+      // Remove extracted and unsaved skills
+      this.profileSkills = this.profileSkills.filter(skill => !skill.isExtracted || skill.id !== undefined)
+      
+      // Remove extracted and unsaved certifications
+      this.certifications = this.certifications.filter(cert => !cert.isExtracted || cert.id !== undefined)
+      
+      // Remove extracted and unsaved social links
+      this.profileSocialLinks = this.profileSocialLinks.filter(link => !link.isExtracted || link.id !== undefined)
+      
+      console.log('Cleared all extracted and unsaved data')
     }
   }
 })

@@ -1,8 +1,16 @@
 <script setup lang="ts">
+import { useCareerIDStore } from '~/stores/careerIDStore'
+
 const open = ref(false)
 const router = useRouter()
+const careerIDStore = useCareerIDStore()
 
-function confirmRedo() {
+// Only show this modal if user has incomplete status (took a break or still onboarding)
+const shouldShow = computed(() => 
+  careerIDStore.profile?.completionStatus === 'incomplete' && careerIDStore.isProfileLoaded
+)
+
+function confirmContinue() {
   open.value = false
   router.push('/profile/onboarding')
 }
@@ -10,12 +18,13 @@ function confirmRedo() {
 
 <template>
   <UModal
+    v-if="shouldShow"
     v-model:open="open"
-    title="Redo Onboarding?"
-    description="Your existing profile data will be overwritten"
+    title="Continue Onboarding?"
+    description="Pick up where you left off"
   >
     <UButton
-      label="Redo Onboarding"
+      label="Continue Onboarding"
       color="primary"
       icon="i-lucide-arrow-right"
       trailing
@@ -24,19 +33,19 @@ function confirmRedo() {
     <template #body>
       <div class="space-y-4">
         <UAlert
-          color="warning"
-          icon="i-lucide-alert-triangle"
-          title="Your existing profile data will be overwritten"
-          description="Redoing onboarding will allow you to upload a new resume. Any newly extracted information will overwrite your current profile data."
+          color="primary"
+          icon="i-lucide-coffee"
+          title="Welcome back!"
+          description="You took a break during onboarding. Your saved progress is preserved and ready for you to continue."
         />
 
         <p class="text-sm text-muted">
-          Are you sure you want to continue?
+          Ready to complete your profile?
         </p>
 
         <div class="flex gap-2 justify-end pt-4">
           <UButton
-            label="Cancel"
+            label="Not Now"
             color="neutral"
             variant="ghost"
             @click="open = false"
@@ -46,7 +55,7 @@ function confirmRedo() {
             color="primary"
             icon="i-lucide-arrow-right"
             trailing
-            @click="confirmRedo"
+            @click="confirmContinue"
           />
         </div>
       </div>

@@ -484,6 +484,12 @@ onMounted(async () => {
     return
   }
 
+  // If profile is already loaded (e.g., from onboarding), clear any stale errors
+  if (careerIDStore.isProfileLoaded && careerIDStore.contactInfo) {
+    careerIDStore.clearError()
+    return
+  }
+
   try {
     // Only fetch if not already loaded
     if (!careerIDStore.isProfileLoaded) {
@@ -1198,7 +1204,7 @@ onMounted(async () => {
           It looks like you haven't created your profile yet. Complete onboarding to get started.
         </p>
         
-        <ProfileRedoOnboardingModal />
+        <ProfileContinueOnboardingModal />
       </div>
     </UPageCard>
   </div>
