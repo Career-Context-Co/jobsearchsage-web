@@ -31,6 +31,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
     // Resume extraction state
     isExtracting: false,
+    hasPerformedExtraction: false,
     extractionError: null as string | null,
     extractionResult: null as {
       contactInfo: Partial<ContactInfo> | null
@@ -1038,6 +1039,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         // Store extraction result
         this.extractionResult = response.data
+        this.hasPerformedExtraction = true
 
         return response
       } catch (error: any) {
@@ -1210,6 +1212,7 @@ export const useCareerIDStore = defineStore('careerID', {
       // Remove extracted and unsaved social links
       this.profileSocialLinks = this.profileSocialLinks.filter(link => !link.isExtracted || link.id !== undefined)
       
+      this.hasPerformedExtraction = false
       console.log('Cleared all extracted and unsaved data')
     }
   }

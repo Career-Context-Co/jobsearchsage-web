@@ -15,6 +15,7 @@ const maxFileSize = 10 * 1024 * 1024 // 10MB in bytes
 
 // Use store state
 const isUploading = computed(() => store.isExtracting)
+const hasPerformedExtraction = computed(() => store.hasPerformedExtraction)
 const uploadError = computed(() => store.extractionError)
 
 // Clear error when file is selected
@@ -195,25 +196,35 @@ function handleRetry() {
       </UAlert>
 
       <!-- Action Buttons -->
-      <div class="flex gap-3 mt-4">
-        <UButton
-          v-if="selectedFile && !isUploading"
-          class="cursor-pointer"
-          label="Extract Information"
-          size="xl"
-          color="primary"
-          leading-icon="i-lucide-sparkles"
-          @click="handleUpload"
-        />
-        <UButton
-          class="cursor-pointer"
-          label="Skip"
-          size="xl"
-          color="neutral"
-          variant="subtle"
-          :disabled="isUploading"
-          @click="handleSkip"
-        />
+      <div class="flex flex-col gap-3 mt-4">
+        <div v-if="hasPerformedExtraction" class="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 flex items-center gap-2">
+          <UIcon name="i-lucide-check-circle" class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          <p class="text-sm text-blue-900 dark:text-blue-200">
+            Resume information has already been extracted. Continue to review the results.
+          </p>
+        </div>
+
+        <div class="flex gap-3">
+          <UButton
+            v-if="selectedFile && !isUploading"
+            class="cursor-pointer"
+            label="Extract Information"
+            size="xl"
+            color="primary"
+            leading-icon="i-lucide-sparkles"
+            :disabled="hasPerformedExtraction"
+            @click="handleUpload"
+          />
+          <UButton
+            class="cursor-pointer"
+            :label="hasPerformedExtraction ? 'View Results' : 'Skip'"
+            size="xl"
+            color="neutral"
+            variant="subtle"
+            :disabled="isUploading"
+            @click="handleSkip"
+          />
+        </div>
       </div>
     </div>
 

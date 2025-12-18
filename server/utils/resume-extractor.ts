@@ -214,7 +214,8 @@ export async function extractResumeData(
         - Preserve original wording from the resume
         - If a field is not present, use null`,
       prompt: `Extract all career information from this resume and return as JSON:\n\n${resumeText}${additionalContext}`,
-      maxRetries: 2
+      maxRetries: 2,
+      temperature: 0.3
     })
     
     // Parse the JSON response
