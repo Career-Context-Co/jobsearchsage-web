@@ -20,7 +20,8 @@ interface ContactInfoFormData {
   lastName: string
   email: string
   jobTitle?: string | null
-  phone?: string | null
+  phoneCountryCode?: string
+  phoneNumber?: string
   city?: string | null
   stateRegion?: string | null
   country?: string | null
@@ -162,33 +163,60 @@ onMounted(() => {
   }
 })
 
-// Helper to format phone number for display
+// Helper to parse phone number into country code and number
+function parsePhone(phone: string | null | undefined): { countryCode: string; number: string } {
+  if (!phone) return { countryCode: '1', number: '' }
+  
+  // Remove + and any formatting
+  const cleaned = phone.replace(/[^\d]/g, '')
+  
+  // Try to extract country code (1-3 digits)
+  // Common patterns: 1 (US/Canada), 44 (UK), 86 (China), 351 (Portugal)
+  if (cleaned.length >= 10) {
+    // Try 1 digit country code first (US/Canada is most common)
+    if (cleaned.startsWith('1') && cleaned.length === 11) {
+      return { countryCode: '1', number: cleaned.slice(1) }
+    }
+    // Try 2 digit country code
+    if (cleaned.length >= 11) {
+      return { countryCode: cleaned.slice(0, 2), number: cleaned.slice(2) }
+    }
+    // Try 3 digit country code
+    if (cleaned.length >= 12) {
+      return { countryCode: cleaned.slice(0, 3), number: cleaned.slice(3) }
+    }
+  }
+  
+  // Default: assume it's just a number without country code
+  return { countryCode: '1', number: cleaned }
+}
+
+// Helper to format phone number for display in view mode
 function formatPhoneForDisplay(phone: string | null | undefined): string | null {
   if (!phone) return null
   
-  if (phone.startsWith('+1')) {
-    const digits = phone.replace(/\D/g, '')
-    if (digits.length === 11 && digits.startsWith('1')) {
-      const areaCode = digits.slice(1, 4)
-      const prefix = digits.slice(4, 7)
-      const line = digits.slice(7, 11)
-      return `+1 (${areaCode}) ${prefix}-${line}`
-    }
+  const parsed = parsePhone(phone)
+  const cleaned = parsed.number.replace(/[^\d]/g, '')
+  
+  // Format based on length (assuming North American format for 10 digits)
+  if (cleaned.length === 10) {
+    const areaCode = cleaned.slice(0, 3)
+    const prefix = cleaned.slice(3, 6)
+    const line = cleaned.slice(6, 10)
+    return `+${parsed.countryCode} (${areaCode}) ${prefix}-${line}`
   }
-  return phone
+  
+  // For other formats, just return with country code
+  return `+${parsed.countryCode} ${cleaned}`
 }
 
-// Helper to convert phone to E.164 format
-function formatPhoneForSave(phone: string | null | undefined): string | null {
-  if (!phone) return null
-  const cleaned = phone.replace(/\D/g, '')
-  if (cleaned.length === 10) {
-    return `+1${cleaned}`
-  }
-  if (cleaned.length === 11 && cleaned.startsWith('1')) {
-    return `+${cleaned}`
-  }
-  return phone
+// Helper to combine country code and number for save
+function combinePhone(countryCode: string, number: string): string | null {
+  if (!number || !number.trim()) return null
+  const cleanCode = countryCode.replace(/[^\d]/g, '')
+  const cleanNumber = number.replace(/[^\d]/g, '')
+  if (!cleanCode || !cleanNumber) return null
+  return `+${cleanCode}${cleanNumber}`
 }
 
 // ============================================
@@ -198,12 +226,14 @@ function formatPhoneForSave(phone: string | null | undefined): string | null {
 function startEditingContact() {
   if (props.contactInfo) {
     // Existing contact info - populate form with current values
+    const parsed = parsePhone(props.contactInfo.phone)
     formData.value = {
       firstName: props.contactInfo.firstName,
       lastName: props.contactInfo.lastName,
       email: props.contactInfo.email,
       jobTitle: props.contactInfo.jobTitle,
-      phone: formatPhoneForDisplay(props.contactInfo.phone),
+      phoneCountryCode: parsed.countryCode,
+      phoneNumber: parsed.number,
       city: props.contactInfo.city,
       stateRegion: props.contactInfo.stateRegion,
       country: props.contactInfo.country,
@@ -217,7 +247,8 @@ function startEditingContact() {
       lastName: '',
       email: '',
       jobTitle: '',
-      phone: '',
+      phoneCountryCode: '1',
+      phoneNumber: '',
       city: '',
       stateRegion: '',
       country: '',
@@ -247,8 +278,12 @@ function validateContactForm(): boolean {
   const emailError = validateEmail(formData.value.email, true)
   if (emailError) errors.email = emailError
   
-  const phoneError = validatePhone(formData.value.phone, false)
-  if (phoneError) errors.phone = phoneError
+  // Validate phone (if either part is provided)
+  if (formData.value.phoneNumber || formData.value.phoneCountryCode) {
+    const combined = combinePhone(formData.value.phoneCountryCode || '', formData.value.phoneNumber || '')
+    const phoneError = validatePhone(combined || '', false)
+    if (phoneError) errors.phone = phoneError
+  }
   
   formErrors.value = errors
   return Object.keys(errors).length === 0
@@ -268,12 +303,14 @@ async function saveContactInfo(): Promise<boolean> {
   isSavingContact.value = true
 
   try {
+    const combinedPhone = combinePhone(formData.value.phoneCountryCode || '', formData.value.phoneNumber || '')
+    
     const contactData = {
       firstName: formData.value.firstName,
       lastName: formData.value.lastName,
       email: formData.value.email,
       jobTitle: formData.value.jobTitle,
-      phone: formatPhoneForSave(formData.value.phone),
+      phone: combinedPhone,
       city: formData.value.city,
       stateRegion: formData.value.stateRegion,
       country: formData.value.country,
@@ -869,11 +906,21 @@ async function saveAllUnsaved(): Promise<boolean> {
     
     // Save ALL contact info in one call (store handles POST vs PATCH based on ID)
     try {
+      // Parse and format phone to E.164 if it exists
+      let formattedPhone = props.contactInfo.phone
+      if (formattedPhone) {
+        // If phone doesn't start with +, assume US and add +1
+        if (!formattedPhone.startsWith('+')) {
+          const cleaned = formattedPhone.replace(/[^\d]/g, '')
+          formattedPhone = `+1${cleaned}`
+        }
+      }
+      
       const contactData = {
         firstName: props.contactInfo.firstName,
         lastName: props.contactInfo.lastName,
         email: props.contactInfo.email,
-        phone: props.contactInfo.phone,
+        phone: formattedPhone,
         jobTitle: props.contactInfo.jobTitle,
         city: props.contactInfo.city,
         stateRegion: props.contactInfo.stateRegion,
@@ -1075,7 +1122,7 @@ defineExpose({
           <div class="flex max-sm:flex-col justify-between items-start gap-4">
             <div class="flex-1">
               <label class="block text-sm font-medium mb-1">Phone</label>
-              <p v-if="contactInfo" class="text-base">{{ formatPhoneForDisplay(contactInfo.phone) || 'Not specified' }}</p>
+              <p v-if="contactInfo && contactInfo.phone" class="text-base">{{ formatPhoneForDisplay(contactInfo.phone) }}</p>
               <p v-else class="text-base text-muted italic">Not specified</p>
             </div>
           </div>
@@ -1185,15 +1232,36 @@ defineExpose({
           <div class="flex max-sm:flex-col justify-between items-start gap-4">
             <div class="flex-1">
               <label class="block text-sm font-medium mb-1">Phone</label>
-              <UInput
-                class="w-full rounded"
-                :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': extractedFields.phone }"
-                v-model="formData.phone"
-                v-maska="'+# (###) ###-####'"
-                type="tel"
-                placeholder="+1 (555) 123-4567"
-                :error="!!formErrors.phone"
-              />
+              <div class="flex gap-2">
+                <!-- Country Code -->
+                <div class="w-24">
+                  <UInput
+                    class="rounded"
+                    :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': extractedFields.phone }"
+                    v-model="formData.phoneCountryCode"
+                    v-maska="'###'"
+                    type="tel"
+                    placeholder="1"
+                    :error="!!formErrors.phone"
+                  >
+                    <template #leading>
+                      <span class="text-muted">+</span>
+                    </template>
+                  </UInput>
+                </div>
+                <!-- Phone Number (with mask for formatting) -->
+                <div class="flex-1">
+                  <UInput
+                    class="rounded"
+                    :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': extractedFields.phone }"
+                    v-model="formData.phoneNumber"
+                    v-maska="'(###) ###-####'"
+                    type="tel"
+                    placeholder="(555) 123-4567"
+                    :error="!!formErrors.phone"
+                  />
+                </div>
+              </div>
               <p v-if="formErrors.phone" class="text-sm text-error mt-1">{{ formErrors.phone }}</p>
             </div>
           </div>

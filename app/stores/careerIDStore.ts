@@ -12,8 +12,8 @@ import type {
 
 export const useCareerIDStore = defineStore('careerID', {
   state: () => ({
-    profileId: 'prof_iyuj6m90g1ji',
-    userId: 'user-demo-001',
+    profileId: 'prof_myf2i85se9xri4e4wgsxxim7',
+    userId: 'nswk',
     // Core profile data (flat structure for ease of use)
     profile: null as Profile | null,
     experience: [] as Experience[],
@@ -466,13 +466,19 @@ export const useCareerIDStore = defineStore('careerID', {
       this.error = null
 
       try {
+        // Clean phone number before sending (remove any formatting)
+        const cleanedData = {
+          ...data,
+          phone: data.phone ? data.phone.replace(/[\s\-\(\)\.]/g, '') : null
+        }
+
         const response = await $fetch<{
           success: boolean
           message: string
           data: ContactInfo
         }>(`/api/career-id/profile/${this.profile.id}/contact`, {
           method: 'POST',
-          body: data
+          body: cleanedData
         })
 
         if (!response.success || !response.data) {
@@ -506,13 +512,19 @@ export const useCareerIDStore = defineStore('careerID', {
       this.error = null
 
       try {
+        // Clean phone number before sending (remove any formatting)
+        const cleanedData = {
+          ...data,
+          phone: data.phone ? data.phone.replace(/[\s\-\(\)\.]/g, '') : data.phone
+        }
+
         const response = await $fetch<{
           success: boolean
           message: string
           data: ContactInfo
         }>(`/api/career-id/profile/${this.profile.id}/contact/${id}`, {
           method: 'PATCH',
-          body: data
+          body: cleanedData
         })
 
         if (!response.success || !response.data) {
@@ -745,7 +757,11 @@ export const useCareerIDStore = defineStore('careerID', {
         // API returns data already in camelCase format
         const addedLinks = response.data
 
-        // Add to local state
+        // Remove old extracted links (without IDs) before adding new ones
+        // This prevents duplicates when saving extracted social links
+        this.profileSocialLinks = this.profileSocialLinks.filter(link => link.id)
+        
+        // Add the newly created links with IDs
         this.profileSocialLinks.push(...addedLinks)
         this.lastSaved = new Date().toISOString()
 

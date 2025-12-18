@@ -680,31 +680,19 @@ onMounted(async () => {
           <!-- Info Banner for Redo Onboarding -->
           <UAlert
             v-if="activeStep === 'upload' && isRedoingOnboarding"
-            color="info"
+            color="primary"
             icon="i-lucide-sparkles"
             title="You're redoing onboarding"
-            description="Uploading a new resume will add extracted data alongside your existing profile. Extracted items will have purple borders - you can review and delete any unwanted duplicates."
+            description="Uploading a new resume will add extracted data alongside your existing profile. Extracted items will be highlited so you can review and delete any unwanted entries."
             class="mb-6"
           />
 
-          <!-- ResumeUploadSection - optional first step -->
           <ProfileResumeUploadSection 
             ref="uploadSection"
             v-show="activeStep === 'upload'"
             @upload-complete="handleUploadComplete"
           />
           
-          <!-- ContactSection - single save event with all data -->
-          <!-- OLD VERSION: Uncomment to test old ContactSection -->
-          <!-- <ProfileContactSection 
-            ref="contactSection"
-            v-show="activeStep === 'contact'"
-            :contact-info="careerIDStore.contactInfo"
-            :profile-social-links="careerIDStore.profileSocialLinks"
-            @save="handleSaveContact"
-          /> -->
-          
-          <!-- NEW VERSION: ContactSectionNew with section-based editing -->
           <ProfileContactSectionNew 
             ref="contactSection"
             v-show="activeStep === 'contact'"
@@ -713,66 +701,31 @@ onMounted(async () => {
             @save="handleSaveContact"
           />
           
-          <!-- ExperienceSection - NEW: Individual item editing -->
           <ProfileExperienceSectionNew 
             ref="experienceSection"
             v-show="activeStep === 'experience'"
             :experience="careerIDStore.experience"
           />
           
-          <!-- OLD ExperienceSection - COMMENTED OUT for side-by-side testing -->
-          <!-- <ProfileExperienceSection 
-            ref="experienceSection"
-            v-show="activeStep === 'experience'"
-            :experience="careerIDStore.experience"
-            @save="handleSaveExperience"
-            @save-all="handleSaveAllExperiences"
-            @delete="handleDeleteExperience"
-          /> -->
-          
-          <!-- EducationSection - NEW: Individual item editing -->
+        
           <ProfileEducationSectionNew 
             ref="educationSection"
             v-show="activeStep === 'education'"
             :education="careerIDStore.education"
-          />
+          />     
           
-          <!-- OLD EducationSection - COMMENTED OUT for side-by-side testing -->
-          <!-- <ProfileEducationSection 
-            ref="educationSection"
-            v-show="activeStep === 'education'"
-            :education="careerIDStore.education"
-            @save="handleSaveEducation"
-            @save-all="handleSaveAllEducations"
-            @delete="handleDeleteEducation"
-          /> -->
-          
-          <!-- SkillsSection - NEW: Group-based editing with tag input -->
           <ProfileSkillsSection 
             ref="skillsSection"
             v-show="activeStep === 'skills'"
             :skill-groups="careerIDStore.profileSkills"
           />
           
-          <!-- CertificationsSection - NEW: Individual item editing -->
           <ProfileCertificationsSection 
             ref="certificationsSection"
             v-show="activeStep === 'certifications'"
             :certifications="careerIDStore.certifications"
           />
           
-          <!-- OLD AdditionalSection - COMMENTED OUT for side-by-side testing -->
-          <!-- <ProfileAdditionalSection 
-            ref="additionalSection"
-            v-show="activeStep === 'additional'"
-            :skill-groups="careerIDStore.profileSkills"
-            :certifications="careerIDStore.certifications"
-            @save-skill-group="handleSaveSkillGroup"
-            @delete-skill-group="handleDeleteSkillGroup"
-            @save-certification="handleSaveCertification"
-            @save-all="handleSaveAllAdditional"
-            @delete-certification="handleDeleteCertification"
-          /> -->
         </div>
 
         <!-- Navigation Buttons -->

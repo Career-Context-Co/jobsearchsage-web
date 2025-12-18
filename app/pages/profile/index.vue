@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vMaska } from 'maska/vue'
 import type { ContactInfo } from '#shared/types/careerId'
 import { validateEmail, validatePhone, validateRequired, validateUrls, validateLength, validateUrl } from '~/utils/validation'
 
@@ -22,8 +23,11 @@ const isEditingSummary = ref(false)
 const isAddingSocialLink = ref(false)
 const editingSocialLinkId = ref<number | null>(null)
 
-// Form data - initialized when editing starts
-const formData = ref<Partial<ContactInfo>>({})
+// Form data - initialized when editing starts (extends ContactInfo with phone split)
+const formData = ref<Partial<ContactInfo> & { 
+  phoneCountryCode?: string
+  phoneNumber?: string 
+}>({})
 const formErrors = ref<Record<string, string>>({})
 
 // Social link form data
@@ -64,6 +68,60 @@ function getPlatformById(platformId: number) {
   return socialPlatforms.value.find(p => p.id === platformId)
 }
 
+// Helper to parse phone number into country code and number
+function parsePhone(phone: string | null | undefined): { countryCode: string; number: string } {
+  if (!phone) return { countryCode: '1', number: '' }
+  
+  // Remove + and any formatting
+  const cleaned = phone.replace(/[^\d]/g, '')
+  
+  // Try to extract country code (1-3 digits)
+  if (cleaned.length >= 10) {
+    // Try 1 digit country code first (US/Canada is most common)
+    if (cleaned.startsWith('1') && cleaned.length === 11) {
+      return { countryCode: '1', number: cleaned.slice(1) }
+    }
+    // Try 2 digit country code
+    if (cleaned.length >= 11) {
+      return { countryCode: cleaned.slice(0, 2), number: cleaned.slice(2) }
+    }
+    // Try 3 digit country code
+    if (cleaned.length >= 12) {
+      return { countryCode: cleaned.slice(0, 3), number: cleaned.slice(3) }
+    }
+  }
+  
+  return { countryCode: '1', number: cleaned }
+}
+
+// Helper to format phone number for display in view mode
+function formatPhoneForDisplay(phone: string | null | undefined): string | null {
+  if (!phone) return null
+  
+  const parsed = parsePhone(phone)
+  const cleaned = parsed.number.replace(/[^\d]/g, '')
+  
+  // Format based on length (assuming North American format for 10 digits)
+  if (cleaned.length === 10) {
+    const areaCode = cleaned.slice(0, 3)
+    const prefix = cleaned.slice(3, 6)
+    const line = cleaned.slice(6, 10)
+    return `+${parsed.countryCode} (${areaCode}) ${prefix}-${line}`
+  }
+  
+  // For other formats, just return with country code
+  return `+${parsed.countryCode} ${cleaned}`
+}
+
+// Helper to combine country code and number for save
+function combinePhone(countryCode: string, number: string): string | null {
+  if (!number || !number.trim()) return null
+  const cleanCode = countryCode.replace(/[^\d]/g, '')
+  const cleanNumber = number.replace(/[^\d]/g, '')
+  if (!cleanCode || !cleanNumber) return null
+  return `+${cleanCode}${cleanNumber}`
+}
+
 // Watch for platform selection changes and prefill URL
 watch(() => socialLinkForm.value.platformId, (newPlatformId) => {
   if (newPlatformId) {
@@ -78,12 +136,14 @@ watch(() => socialLinkForm.value.platformId, (newPlatformId) => {
 function startEditingContact() {
   if (!contactInfo.value) return
   
+  const parsed = parsePhone(contactInfo.value.phone)
   formData.value = {
     firstName: contactInfo.value.firstName,
     lastName: contactInfo.value.lastName,
     jobTitle: contactInfo.value.jobTitle,
     email: contactInfo.value.email,
-    phone: contactInfo.value.phone,
+    phoneCountryCode: parsed.countryCode,
+    phoneNumber: parsed.number,
     websites: [...(contactInfo.value.websites || [])],
     city: contactInfo.value.city,
     stateRegion: contactInfo.value.stateRegion,
@@ -142,8 +202,10 @@ function validateContactForm(): boolean {
   
   const emailError = validateEmail(formData.value.email, true)
   if (emailError) errors.email = emailError
-  
-  const phoneError = validatePhone(formData.value.phone || undefined, true)
+
+  // Validate phone (combine country code + number)
+  const combined = combinePhone(formData.value.phoneCountryCode || '', formData.value.phoneNumber || '')
+  const phoneError = validatePhone(combined || '', true)
   if (phoneError) errors.phone = phoneError
   
   const cityError = validateRequired(formData.value.city, 'City')
@@ -199,10 +261,19 @@ async function saveContactInfo() {
   }
   
   try {
-    await careerIDStore.updateContactInfo(
-      contactInfo.value!.id,
-      formData.value as Partial<ContactInfo>
-    )
+    await careerIDStore.updateContactInfo(contactInfo.value!.id, {
+      firstName: formData.value.firstName!,
+      lastName: formData.value.lastName!,
+      jobTitle: formData.value.jobTitle!,
+      email: formData.value.email!,
+      phone: combinePhone(formData.value.phoneCountryCode || '', formData.value.phoneNumber || ''),
+      websites: formData.value.websites || [],
+      city: formData.value.city || null,
+      stateRegion: formData.value.stateRegion || null,
+      country: formData.value.country || null,
+      postalCode: formData.value.postalCode || null,
+      willingToRelocate: formData.value.willingToRelocate || false
+    })
     
     toast.add({
       title: 'Success',
@@ -600,7 +671,7 @@ onMounted(async () => {
         <div class="flex max-sm:flex-col justify-between items-start gap-4">
           <div class="flex-1">
             <label class="block text-sm font-medium mb-1">Phone</label>
-            <p class="text-base">{{ contactInfo.phone || 'Not specified' }}</p>
+            <p class="text-base">{{ formatPhoneForDisplay(contactInfo.phone) || 'Not specified' }}</p>
           </div>
         </div>
 
@@ -719,13 +790,34 @@ onMounted(async () => {
         <div class="flex max-sm:flex-col justify-between items-start gap-4">
           <div class="flex-1">
             <label class="block text-sm font-medium mb-1">Phone <span class="text-error">*</span></label>
-            <UInput
-              class="w-full"
-              v-model="formData.phone"
-              type="tel"
-              placeholder="+1 (555) 123-4567"
-              :error="!!formErrors.phone"
-            />
+            <div class="flex gap-2">
+              <!-- Country Code -->
+              <div class="w-24">
+                <UInput
+                  class="rounded"
+                  v-model="formData.phoneCountryCode"
+                  v-maska="'###'"
+                  type="tel"
+                  placeholder="1"
+                  :error="!!formErrors.phone"
+                >
+                  <template #leading>
+                    <span class="text-muted">+</span>
+                  </template>
+                </UInput>
+              </div>
+              <!-- Phone Number (with mask for formatting) -->
+              <div class="flex-1">
+                <UInput
+                  class="rounded"
+                  v-model="formData.phoneNumber"
+                  v-maska="'(###) ###-####'"
+                  type="tel"
+                  placeholder="(555) 123-4567"
+                  :error="!!formErrors.phone"
+                />
+              </div>
+            </div>
             <p v-if="formErrors.phone" class="text-sm text-error mt-1">{{ formErrors.phone }}</p>
           </div>
         </div>
