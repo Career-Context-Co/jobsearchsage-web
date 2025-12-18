@@ -205,12 +205,12 @@ function validateGroup(group: SkillGroupFormData): boolean {
 }
 
 // Save group
-async function saveGroup() {
+async function saveGroup(): Promise<boolean> {
   const groupIndex = editingGroupIndex.value
-  if (groupIndex === null) return
+  if (groupIndex === null) return false
   
   const group = skillGroups.value[groupIndex]
-  if (!group) return
+  if (!group) return false
   
   if (!validateGroup(group)) {
     toast.add({
@@ -219,7 +219,7 @@ async function saveGroup() {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
-    return
+    return false // Return false to indicate validation failure
   }
   
   // Check for duplicate skills across ALL groups
@@ -238,7 +238,7 @@ async function saveGroup() {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
-    return
+    return false // Validation error
   }
   
   isSavingGroup.value = true
@@ -317,6 +317,7 @@ async function saveGroup() {
     
     editingGroupIndex.value = null
     isAddingGroup.value = false
+    return true // Success
   } catch (err: any) {
     toast.add({
       title: 'Error',
@@ -324,6 +325,7 @@ async function saveGroup() {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
+    return false // API error
   } finally {
     isSavingGroup.value = false
   }
@@ -395,25 +397,21 @@ async function saveAllUnsaved(): Promise<boolean> {
     return true // Nothing to save
   }
   
-  let allSucceeded = true
-  
   for (const group of groupsWithUnsavedSkills) {
     // Start editing this group to trigger validation
     const index = skillGroups.value.indexOf(group)
     startEditingGroup(index)
     
     // Try to save it
-    try {
-      await saveGroup()
-    } catch (error) {
-      console.error('Failed to save skill group:', error)
-      allSucceeded = false
-      // Keep the form open with errors visible
-      break // Stop on first error so user can see and fix it
+    const success = await saveGroup()
+    
+    if (!success) {
+      // Validation or save failed - keep the form open with errors visible
+      return false
     }
   }
   
-  return allSucceeded
+  return true // All saved successfully
 }
 
 function revertChanges() {

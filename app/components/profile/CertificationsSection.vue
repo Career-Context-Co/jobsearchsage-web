@@ -140,7 +140,7 @@ function validateForm(): boolean {
 }
 
 // Save certification (add or update)
-async function saveCertification() {
+async function saveCertification(): Promise<boolean> {
   if (!validateForm()) {
     toast.add({
       title: 'Validation Error',
@@ -148,7 +148,7 @@ async function saveCertification() {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
-    return
+    return false // Return false to indicate validation failure
   }
   
   isSavingCertification.value = true
@@ -210,6 +210,7 @@ async function saveCertification() {
     }
     
     cancelEdit()
+    return true // Success
   } catch (err: any) {
     toast.add({
       title: 'Error',
@@ -217,6 +218,7 @@ async function saveCertification() {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
+    return false // API error
   } finally {
     isSavingCertification.value = false
   }
@@ -278,25 +280,21 @@ async function saveAllUnsaved(): Promise<boolean> {
     return true // Nothing to save
   }
   
-  let allSucceeded = true
-  
   for (const certification of unsavedCertifications) {
     // Start editing this certification to trigger validation
     const index = certificationsList.value.indexOf(certification)
     startEditingCertification(index)
     
     // Try to save it
-    try {
-      await saveCertification()
-    } catch (error) {
-      console.error('Failed to save certification:', error)
-      allSucceeded = false
-      // Keep the form open with errors visible
-      break // Stop on first error so user can see and fix it
+    const success = await saveCertification()
+    
+    if (!success) {
+      // Validation or save failed - keep the form open with errors visible
+      return false
     }
   }
   
-  return allSucceeded
+  return true // All saved successfully
 }
 
 function revertChanges() {

@@ -12,7 +12,8 @@ import type {
 
 export const useCareerIDStore = defineStore('careerID', {
   state: () => ({
-
+    profileId: 'prof_iyuj6m90g1ji',
+    userId: 'user-demo-001',
     // Core profile data (flat structure for ease of use)
     profile: null as Profile | null,
     experience: [] as Experience[],
@@ -151,7 +152,7 @@ export const useCareerIDStore = defineStore('careerID', {
     },
 
     // 5.4.2 Create new profile shell
-    async createProfile(userId: string) {
+    async createProfile() {
       this.isSaving = true
       this.error = null
 
@@ -162,7 +163,7 @@ export const useCareerIDStore = defineStore('careerID', {
           data: { profile: Profile }
         }>('/api/career-id/profile', {
           method: 'POST',
-          body: { userId }
+          body: { userId: this.userId }
         })
 
         if (!response.success || !response.data?.profile) {
@@ -174,11 +175,48 @@ export const useCareerIDStore = defineStore('careerID', {
 
         // Set the new profile in state
         this.profile = profile
+        // Store the profileId for future use
+        this.profileId = profile.id
         this.lastSaved = new Date().toISOString()
 
         return profile
       } catch (error: any) {
         const errorMessage = error?.data?.message || error?.message || 'Failed to create profile'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    async updateProfile(profileId: string, data: { completionStatus?: 'incomplete' | 'partial' | 'complete' }) {
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: Profile
+        }>(`/api/career-id/profile/${profileId}`, {
+          method: 'PATCH',
+          body: data
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to update profile')
+        }
+
+        // API returns data already in camelCase format
+        const profile = response.data
+
+        // Update the profile in state
+        this.profile = profile
+        this.lastSaved = new Date().toISOString()
+
+        return profile
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to update profile'
         this.error = errorMessage
         throw error
       } finally {
@@ -421,7 +459,7 @@ export const useCareerIDStore = defineStore('careerID', {
     // 5.9.1 Create contact info entry
     async createContactInfo(data: Omit<ContactInfo, 'id' | 'internalId' | 'profileId' | 'createdAt' | 'updatedAt'>) {
       if (!this.profile?.id) {
-        throw new Error('No profile loaded')
+        throw new Error('No profile loaded. Please create a profile first.')
       }
 
       this.isSaving = true
@@ -684,7 +722,7 @@ export const useCareerIDStore = defineStore('careerID', {
     // 5.10.1 Add social links (bulk operation)
     async addSocialLinks(links: Array<Omit<ProfileSocialLink, 'id' | 'profileId' | 'platformNameCache' | 'createdAt' | 'updatedAt'>>) {
       if (!this.profile?.id) {
-        throw new Error('No profile loaded')
+        throw new Error('No profile loaded. Please create a profile first.')
       }
 
       this.isSaving = true

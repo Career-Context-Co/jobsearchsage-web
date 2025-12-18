@@ -6,9 +6,6 @@ const careerIDStore = useCareerIDStore()
 const toast = useToast()
 const router = useRouter()
 
-// Get current user - this would typically come from Supabase auth
-// For now, we'll use a mock user ID
-const user = ref({ id: 'prof_myf2i85se9xri4e4wgsxxim7' }) // TODO: Replace with real Supabase user
 
 // Loading state from store
 const isLoading = computed(() => careerIDStore.isLoading)
@@ -403,40 +400,47 @@ async function deleteSocialLink(linkId: number) {
   }
 }
 
+// State to track if profile doesn't exist (for empty state)
+const showEmptyState = ref(false)
+
 // Fetch profile data on mount
 onMounted(async () => {
-  if (!user.value?.id) {
-    toast.add({
-      title: 'Error',
-      description: 'You must be logged in to view your profile',
-      icon: 'i-lucide-alert-circle',
-      color: 'error'
-    })
-    router.push('/login')
+  const profileId = careerIDStore.profileId
+
+  // If no profileId is set, show empty state immediately
+  if (!profileId) {
+    showEmptyState.value = true
     return
   }
 
   try {
     // Only fetch if not already loaded
     if (!careerIDStore.isProfileLoaded) {
-      await careerIDStore.fetchProfile(user.value.id)
+      await careerIDStore.fetchProfile(profileId)
     }
 
-    // If no profile found, redirect to onboarding
+    // If no profile found after fetch, show empty state
     if (!careerIDStore.profile) {
-      toast.add({
-        title: 'No profile found',
-        description: 'Please complete onboarding to create your profile',
-        icon: 'i-lucide-info',
-        color: 'primary'
-      })
-      router.push('/profile/onboarding')
+      showEmptyState.value = true
     }
     
     // Social platforms are hardcoded, no need to fetch
-  } catch (err) {
-    // Error is already set in store
-    console.error('Failed to load profile:', err)
+  } catch (err: any) {
+    // Check if it's a 404 or profile not found error
+    const is404 = err?.status === 404 || err?.statusCode === 404 || 
+                  err?.message?.includes('not found') || 
+                  err?.message?.includes('No profile')
+    
+    if (is404) {
+      // Profile doesn't exist - show empty state instead of error
+      showEmptyState.value = true
+      // Clear the error from the store since we're handling it gracefully
+      careerIDStore.error = null
+    } else {
+      // Other errors - log but still show empty state with option to retry
+      console.error('Failed to load profile:', err)
+      showEmptyState.value = true
+    }
   }
 })
 </script>
@@ -449,8 +453,61 @@ onMounted(async () => {
     <USkeleton class="h-48 w-full" />
   </div>
 
-  <!-- Error State -->
-  <div v-else-if="error">
+  <!-- Empty State - No Profile Found -->
+  <div v-else-if="showEmptyState">
+    <UPageCard
+      title="Welcome to Your Profile"
+      variant="subtle"
+    >
+      <div class="flex flex-col items-center justify-center py-12 gap-6 max-w-md mx-auto text-center">
+        <UIcon name="i-lucide-user-circle" class="w-20 h-20 text-primary" />
+        <div class="space-y-2">
+          <h3 class="text-xl font-semibold">No Profile Yet</h3>
+          <p class="text-muted text-base">
+            You haven't created your professional profile yet. Let's get started by completing your onboarding!
+          </p>
+        </div>
+        <div class="space-y-3 w-full">
+          <UButton
+            label="Start Onboarding"
+            icon="i-lucide-rocket"
+            size="lg"
+            color="primary"
+            block
+            @click="router.push('/profile/onboarding')"
+          />
+          <p class="text-sm text-muted">
+            It only takes a few minutes to set up your profile
+          </p>
+        </div>
+        <UDivider class="my-4" />
+        <div class="text-left w-full space-y-2">
+          <p class="text-sm font-medium">What you'll add:</p>
+          <ul class="space-y-2 text-sm text-muted">
+            <li class="flex items-center gap-2">
+              <UIcon name="i-lucide-check-circle" class="w-4 h-4 text-success" />
+              Contact information & professional summary
+            </li>
+            <li class="flex items-center gap-2">
+              <UIcon name="i-lucide-check-circle" class="w-4 h-4 text-success" />
+              Work experience & education
+            </li>
+            <li class="flex items-center gap-2">
+              <UIcon name="i-lucide-check-circle" class="w-4 h-4 text-success" />
+              Skills & certifications
+            </li>
+            <li class="flex items-center gap-2">
+              <UIcon name="i-lucide-check-circle" class="w-4 h-4 text-success" />
+              Social links & portfolio
+            </li>
+          </ul>
+        </div>
+      </div>
+    </UPageCard>
+  </div>
+
+  <!-- Error State (for non-404 errors) -->
+  <div v-else-if="error && !showEmptyState">
     <UPageCard
       title="Error Loading Profile"
       variant="subtle"
@@ -461,7 +518,7 @@ onMounted(async () => {
         <UButton
           label="Retry"
           color="primary"
-          @click="careerIDStore.fetchProfile(user?.id)"
+          @click="router.push('/profile/onboarding')"
         />
       </div>
     </UPageCard>

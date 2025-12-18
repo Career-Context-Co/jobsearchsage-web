@@ -507,93 +507,80 @@ function handleUploadComplete(extracted: boolean) {
   stepper.value?.next()
 }
 
-// Autosave current step before navigation
-async function autosaveCurrentStep() {
+// Save and validate current step before navigation
+async function saveAndValidateCurrentStep(): Promise<boolean> {
   try {
+    let success = true
+    
     switch (activeStep.value) {
       case 'upload':
-        // No autosave needed for upload step
+        // No save needed for upload step
+        success = true
         break
       case 'contact':
-        await contactSectionRef.value?.triggerSave()
+        success = await contactSectionRef.value?.saveAllUnsaved() ?? true
         break
       case 'experience':
-        await experienceSectionRef.value?.triggerSave()
+        success = await experienceSectionRef.value?.saveAllUnsaved() ?? true
         break
       case 'education':
-        await educationSectionRef.value?.triggerSave()
+        success = await educationSectionRef.value?.saveAllUnsaved() ?? true
         break
       case 'skills':
-        await skillsSectionRef.value?.triggerSave()
+        success = await skillsSectionRef.value?.saveAllUnsaved() ?? true
         break
       case 'certifications':
-        await certificationsSectionRef.value?.triggerSave()
+        success = await certificationsSectionRef.value?.saveAllUnsaved() ?? true
         break
     }
+    
+    if (!success) {
+      toast.add({
+        title: 'Validation Errors',
+        description: 'Please fix the errors in this section before continuing.',
+        icon: 'i-lucide-alert-circle',
+        color: 'error'
+      })
+    }
+    
+    return success
   } catch (error) {
-    console.error('Failed to autosave current step:', error)
+    console.error('Failed to save current step:', error)
+    toast.add({
+      title: 'Error',
+      description: 'Failed to save this section. Please try again.',
+      icon: 'i-lucide-alert-circle',
+      color: 'error'
+    })
+    return false
   }
 }
 
-// Complete profile - use each component's validation and save methods
+// Complete profile - save certifications and redirect
 async function completeProfile() {
   const router = useRouter()
-  const failedSections: string[] = []
   
   try {
-    // Call saveAllUnsaved() on each section component
-    // This will validate and save all unsaved items (including extracted ones)
-    // If validation fails, the component will show errors in its UI and return false
+    // Save certifications section (last step)
+    const success = await saveAndValidateCurrentStep()
     
-    // Contact Section (saves any active edits)
-    const contactSuccess = await contactSectionRef.value?.saveAllUnsaved()
-    if (!contactSuccess) {
-      failedSections.push('Contact')
+    if (!success) {
+      return // Don't redirect if validation failed
     }
     
-    // Experience Section (saves all experiences without IDs)
-    const experienceSuccess = await experienceSectionRef.value?.saveAllUnsaved()
-    if (!experienceSuccess) {
-      failedSections.push('Experience')
-    }
-    
-    // Education Section (saves all education without IDs)
-    const educationSuccess = await educationSectionRef.value?.saveAllUnsaved()
-    if (!educationSuccess) {
-      failedSections.push('Education')
-    }
-    
-    // Skills Section (saves all skill groups with unsaved skills)
-    const skillsSuccess = await skillsSectionRef.value?.saveAllUnsaved()
-    if (!skillsSuccess) {
-      failedSections.push('Skills')
-    }
-    
-    // Certifications Section (saves all certifications without IDs)
-    const certificationsSuccess = await certificationsSectionRef.value?.saveAllUnsaved()
-    if (!certificationsSuccess) {
-      failedSections.push('Certifications')
-    }
-    
-    // Check if all sections saved successfully
-    if (failedSections.length > 0) {
-      toast.add({
-        title: 'Unable to Complete Profile',
-        description: `Please fix validation errors in: ${failedSections.join(', ')}. Check each section for highlighted errors.`,
-        icon: 'i-lucide-alert-circle',
-        color: 'error',
-        timeout: 8000
+    // Update profile completion status to 'complete'
+    if (careerIDStore.profileId) {
+      await careerIDStore.updateProfile(careerIDStore.profileId, {
+        completionStatus: 'complete'
       })
-      return // Don't redirect if any section failed
     }
     
-    // All sections saved successfully! Show success toast and redirect
+    // All done! Show success toast and redirect
     toast.add({
       title: 'Profile Completed! 🎉',
-      description: 'All sections saved successfully. Redirecting to your profile...',
+      description: 'Your profile has been saved successfully. Redirecting...',
       icon: 'i-lucide-check-circle',
-      color: 'success',
-      timeout: 3000
+      color: 'success'
     })
     
     // Redirect to profile page after a brief delay
@@ -612,18 +599,54 @@ async function completeProfile() {
   }
 }
 
-// Fetch profile on mount
+// Fetch or create profile on mount
 onMounted(async () => {
   try {
-    // For demo purposes, fetch a profile
-    // In production, you'd get the profile ID from auth/route
-    const profileId = 'prof_myf2i85se9xri4e4wgsxxim7'
+    const profileId = careerIDStore.profileId
 
-    if (!careerIDStore.profile) {
-      await careerIDStore.fetchProfile(profileId)
+    if (profileId && !careerIDStore.profile) {
+      // Has profileId but not loaded - try to fetch it
+      try {
+        await careerIDStore.fetchProfile(profileId)
+        console.log('Profile loaded successfully')
+      } catch (error: any) {
+        const is404 = error?.status === 404 || error?.statusCode === 404 || 
+                      error?.message?.includes('not found')
+        
+        if (is404) {
+          // Profile doesn't exist - create it
+          console.log('Profile not found, creating new profile...')
+          await careerIDStore.createProfile()
+          toast.add({
+            title: 'Welcome!',
+            description: 'Your profile has been initialized',
+            icon: 'i-lucide-sparkles',
+            color: 'success'
+          })
+        } else {
+          throw error
+        }
+      }
+    } else if (!profileId && !careerIDStore.profile) {
+      // No profileId and no profile - create new profile
+      console.log('No profile found, creating new profile...')
+      await careerIDStore.createProfile()
+      toast.add({
+        title: 'Welcome!',
+        description: 'Your profile has been initialized',
+        icon: 'i-lucide-sparkles',
+        color: 'success'
+      })
     }
-  } catch (error) {
+    // If profile already loaded, do nothing
+  } catch (error: any) {
     console.error('Failed to initialize profile:', error)
+    toast.add({
+      title: 'Error',
+      description: 'Failed to initialize your profile. Please refresh the page.',
+      icon: 'i-lucide-alert-circle',
+      color: 'error'
+    })
   }
 })
 
@@ -643,9 +666,9 @@ onMounted(async () => {
       <div class="flex flex-col gap-6 sm:gap-8 w-full max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
         <!-- Stepper Component-->
         <UStepper
-
           ref="stepper"
           size="lg"
+          disabled
           v-model="activeStep"
           :items="steps"
           orientation="horizontal"
@@ -762,10 +785,7 @@ onMounted(async () => {
             color="neutral"
             variant="subtle"
             :disabled="!stepper?.hasPrev"
-            @click="async () => {
-              await autosaveCurrentStep()
-              stepper?.prev()
-            }"
+            @click="stepper?.prev()"
           />
           
           <div class="flex gap-2">
@@ -777,8 +797,10 @@ onMounted(async () => {
               trailing-icon="i-lucide-chevron-right"
               color="primary"
               @click="async () => {
-                await autosaveCurrentStep()
-                stepper?.next()
+                const success = await saveAndValidateCurrentStep()
+                if (success) {
+                  stepper?.next()
+                }
               }"
             />
             <UButton

@@ -212,7 +212,7 @@ function validateForm(): boolean {
 }
 
 // Save experience (add or update)
-async function saveExperience() {
+async function saveExperience(): Promise<boolean> {
   if (!validateForm()) {
     toast.add({
       title: 'Validation Error',
@@ -220,7 +220,7 @@ async function saveExperience() {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
-    return
+    return false // Return false to indicate validation failure
   }
   
   isSavingExperience.value = true
@@ -291,6 +291,7 @@ async function saveExperience() {
     }
     
     cancelEdit()
+    return true // Success
   } catch (err: any) {
     toast.add({
       title: 'Error',
@@ -298,6 +299,7 @@ async function saveExperience() {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
+    return false // API error
   } finally {
     isSavingExperience.value = false
   }
@@ -359,25 +361,21 @@ async function saveAllUnsaved(): Promise<boolean> {
     return true // Nothing to save
   }
   
-  let allSucceeded = true
-  
   for (const experience of unsavedExperiences) {
     // Start editing this experience to trigger validation
     const index = experiences.value.indexOf(experience)
     startEditingExperience(index)
     
     // Try to save it
-    try {
-      await saveExperience()
-    } catch (error) {
-      console.error('Failed to save experience:', error)
-      allSucceeded = false
-      // Keep the form open with errors visible
-      break // Stop on first error so user can see and fix it
+    const success = await saveExperience()
+    
+    if (!success) {
+      // Validation or save failed - keep the form open with errors visible
+      return false
     }
   }
   
-  return allSucceeded
+  return true // All saved successfully
 }
 
 function revertChanges() {

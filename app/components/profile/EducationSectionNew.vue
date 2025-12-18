@@ -214,7 +214,7 @@ function validateForm(): boolean {
 }
 
 // Save education (add or update)
-async function saveEducation() {
+async function saveEducation(): Promise<boolean> {
   if (!validateForm()) {
     toast.add({
       title: 'Validation Error',
@@ -222,7 +222,7 @@ async function saveEducation() {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
-    return
+    return false // Return false to indicate validation failure
   }
   
   isSavingEducation.value = true
@@ -295,6 +295,7 @@ async function saveEducation() {
     }
     
     cancelEdit()
+    return true // Success
   } catch (err: any) {
     toast.add({
       title: 'Error',
@@ -302,6 +303,7 @@ async function saveEducation() {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
+    return false // API error
   } finally {
     isSavingEducation.value = false
   }
@@ -363,25 +365,21 @@ async function saveAllUnsaved(): Promise<boolean> {
     return true // Nothing to save
   }
   
-  let allSucceeded = true
-  
   for (const education of unsavedEducation) {
     // Start editing this education to trigger validation
     const index = educationList.value.indexOf(education)
     startEditingEducation(index)
     
     // Try to save it
-    try {
-      await saveEducation()
-    } catch (error) {
-      console.error('Failed to save education:', error)
-      allSucceeded = false
-      // Keep the form open with errors visible
-      break // Stop on first error so user can see and fix it
+    const success = await saveEducation()
+    
+    if (!success) {
+      // Validation or save failed - keep the form open with errors visible
+      return false
     }
   }
   
-  return allSucceeded
+  return true // All saved successfully
 }
 
 function revertChanges() {

@@ -41,9 +41,7 @@ function formatDateForAPI(dateString: string | undefined): string | undefined {
   const [, month, year] = match
   return `${year}-${month}-01`
 }
-
-// Get current user
-const user = ref({ id: 'prof_myf2i85se9xri4e4wgsxxim7' }) // TODO: Replace with real Supabase user
+ // TODO: Replace with real Supabase user
 
 // Loading and saving states
 const isLoading = computed(() => careerIDStore.isLoading)
@@ -239,17 +237,44 @@ function formatDate(dateString: string | null | undefined): string {
 }
 
 // Fetch profile data on mount
+// State to track if profile doesn't exist (for empty state)
+const showEmptyState = ref(false)
+
 onMounted(async () => {
-  if (!user.value?.id) {
+  const profileId = careerIDStore.profileId
+
+  // If no profileId is set, show empty state immediately
+  if (!profileId) {
+    showEmptyState.value = true
     return
   }
 
   try {
+    // Only fetch if not already loaded
     if (!careerIDStore.isProfileLoaded) {
-      await careerIDStore.fetchProfile(user.value.id)
+      await careerIDStore.fetchProfile(profileId)
     }
-  } catch (err) {
-    console.error('Failed to load profile:', err)
+
+    // If no profile found after fetch, show empty state
+    if (!careerIDStore.profile) {
+      showEmptyState.value = true
+    }
+  } catch (err: any) {
+    // Check if it's a 404 or profile not found error
+    const is404 = err?.status === 404 || err?.statusCode === 404 || 
+                  err?.message?.includes('not found') || 
+                  err?.message?.includes('No profile')
+    
+    if (is404) {
+      // Profile doesn't exist - show empty state instead of error
+      showEmptyState.value = true
+      // Clear the error from the store since we're handling it gracefully
+      careerIDStore.error = null
+    } else {
+      // Other errors - log but still show empty state
+      console.error('Failed to load profile:', err)
+      showEmptyState.value = true
+    }
   }
 })
 </script>
@@ -259,6 +284,31 @@ onMounted(async () => {
   <div v-if="isLoading" class="space-y-4">
     <USkeleton class="h-32 w-full" />
     <USkeleton class="h-64 w-full" />
+  </div>
+
+  <!-- Empty State - No Profile Found -->
+  <div v-else-if="showEmptyState">
+    <UPageCard
+      title="No Profile Yet"
+      variant="subtle"
+    >
+      <div class="flex flex-col items-center justify-center py-12 gap-6 max-w-md mx-auto text-center">
+        <UIcon name="i-lucide-award" class="w-20 h-20 text-primary" />
+        <div class="space-y-2">
+          <h3 class="text-xl font-semibold">Create Your Profile First</h3>
+          <p class="text-muted text-base">
+            You need to complete your profile onboarding before you can manage your certifications.
+          </p>
+        </div>
+        <UButton
+          label="Start Onboarding"
+          icon="i-lucide-rocket"
+          size="lg"
+          color="primary"
+          @click="$router.push('/profile/onboarding')"
+        />
+      </div>
+    </UPageCard>
   </div>
 
   <!-- Certifications Content -->

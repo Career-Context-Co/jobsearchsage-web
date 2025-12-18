@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { vMaska } from 'maska/vue'
 import type { ContactInfo, ProfileSocialLink } from '~/shared/types/careerId'
 import { validateEmail, validatePhone, validateUrl, validateRequired, validateLength } from '~/utils/validation'
@@ -131,6 +131,37 @@ watch(() => socialLinkForm.value.platformId, (newPlatformId) => {
   }
 })
 
+// Auto-open edit mode for contact info if it doesn't exist (for new users)
+onMounted(() => {
+  if (!props.contactInfo) {
+    // Initialize form with example data for new user
+    formData.value = {
+      firstName: '',
+      lastName: '',
+      email: '',
+      jobTitle: '',
+      phone: '',
+      city: '',
+      stateRegion: '',
+      country: '',
+      postalCode: '',
+      willingToRelocate: false,
+      summary: '10+ year professional with expertise in [your field]. Proven track record of [key achievements]. Passionate about [your interests] and seeking opportunities to [your goals].',
+      websites: ['https://yourportfolio.com']
+    }
+    isEditingContact.value = true
+    
+    // Pre-fill one LinkedIn example for social links
+    localSocialLinks.value = [{
+      platformId: 1, // LinkedIn
+      platformNameCache: 'LinkedIn',
+      url: 'https://linkedin.com/in/yourprofile',
+      displayOrder: 1,
+      isExtracted: false
+    } as ProfileSocialLink]
+  }
+})
+
 // Helper to format phone number for display
 function formatPhoneForDisplay(phone: string | null | undefined): string | null {
   if (!phone) return null
@@ -165,19 +196,34 @@ function formatPhoneForSave(phone: string | null | undefined): string | null {
 // ============================================
 
 function startEditingContact() {
-  if (!props.contactInfo) return
-  
-  formData.value = {
-    firstName: props.contactInfo.firstName,
-    lastName: props.contactInfo.lastName,
-    email: props.contactInfo.email,
-    jobTitle: props.contactInfo.jobTitle,
-    phone: formatPhoneForDisplay(props.contactInfo.phone),
-    city: props.contactInfo.city,
-    stateRegion: props.contactInfo.stateRegion,
-    country: props.contactInfo.country,
-    postalCode: props.contactInfo.postalCode,
-    willingToRelocate: props.contactInfo.willingToRelocate
+  if (props.contactInfo) {
+    // Existing contact info - populate form with current values
+    formData.value = {
+      firstName: props.contactInfo.firstName,
+      lastName: props.contactInfo.lastName,
+      email: props.contactInfo.email,
+      jobTitle: props.contactInfo.jobTitle,
+      phone: formatPhoneForDisplay(props.contactInfo.phone),
+      city: props.contactInfo.city,
+      stateRegion: props.contactInfo.stateRegion,
+      country: props.contactInfo.country,
+      postalCode: props.contactInfo.postalCode,
+      willingToRelocate: props.contactInfo.willingToRelocate
+    }
+  } else {
+    // New user - initialize with empty form
+    formData.value = {
+      firstName: '',
+      lastName: '',
+      email: '',
+      jobTitle: '',
+      phone: '',
+      city: '',
+      stateRegion: '',
+      country: '',
+      postalCode: '',
+      willingToRelocate: false
+    }
   }
   formErrors.value = {}
   isEditingContact.value = true
@@ -208,7 +254,7 @@ function validateContactForm(): boolean {
   return Object.keys(errors).length === 0
 }
 
-async function saveContactInfo() {
+async function saveContactInfo(): Promise<boolean> {
   if (!validateContactForm()) {
     toast.add({
       title: 'Validation Error',
@@ -216,14 +262,13 @@ async function saveContactInfo() {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
-    return
+    return false
   }
-  
+
   isSavingContact.value = true
-  
+
   try {
-    // Call API to update contact info
-    await careerIDStore.updateContactInfo(props.contactInfo.id, {
+    const contactData = {
       firstName: formData.value.firstName,
       lastName: formData.value.lastName,
       email: formData.value.email,
@@ -233,32 +278,44 @@ async function saveContactInfo() {
       stateRegion: formData.value.stateRegion,
       country: formData.value.country,
       postalCode: formData.value.postalCode,
-      willingToRelocate: formData.value.willingToRelocate
-    })
-    
-    // Clear isExtracted flag and extracted fields after successful save
+      willingToRelocate: formData.value.willingToRelocate,
+      // Include websites and summary from props (not edited in contact form)
+      websites: props.contactInfo?.websites || [],
+      summary: props.contactInfo?.summary || null
+    }
+
+    // Store handles POST (no ID) vs PATCH (has ID)
+    if (props.contactInfo?.id) {
+      await careerIDStore.updateContactInfo(props.contactInfo.id, contactData)
+    } else {
+      await careerIDStore.createContactInfo(contactData)
+    }
+
+    // Clear isExtracted flags after successful save
     if (props.contactInfo) {
       props.contactInfo.isExtracted = false
       props.contactInfo.extractedFields = undefined
     }
-    
+
     toast.add({
       title: 'Success',
-      description: 'Contact information updated successfully',
+      description: 'Contact information saved successfully',
       icon: 'i-lucide-check',
       color: 'success'
     })
-    
+
     isEditingContact.value = false
     formData.value = {}
     formErrors.value = {}
+    return true
   } catch (error: any) {
     toast.add({
       title: 'Error',
-      description: error?.message || 'Failed to update contact information',
+      description: error?.message || 'Failed to save contact information',
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
+    return false
   } finally {
     isSavingContact.value = false
   }
@@ -269,10 +326,15 @@ async function saveContactInfo() {
 // ============================================
 
 function startEditingWebsites() {
-  if (!props.contactInfo) return
-  
-  formData.value = {
-    websites: [...(props.contactInfo.websites || [])]
+  if (props.contactInfo) {
+    formData.value = {
+      websites: [...(props.contactInfo.websites || [])]
+    }
+  } else {
+    // New user - provide example website
+    formData.value = {
+      websites: ['https://yourportfolio.com']
+    }
   }
   formErrors.value = {}
   isEditingWebsites.value = true
@@ -315,7 +377,7 @@ function validateWebsitesForm(): boolean {
   return Object.keys(errors).length === 0
 }
 
-async function saveWebsites() {
+async function saveWebsites(): Promise<boolean> {
   if (!validateWebsitesForm()) {
     toast.add({
       title: 'Validation Error',
@@ -323,21 +385,30 @@ async function saveWebsites() {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
-    return
+    return false
   }
-  
+
+  if (!props.contactInfo?.id) {
+    toast.add({
+      title: 'Error',
+      description: 'Please save contact information first',
+      icon: 'i-lucide-alert-circle',
+      color: 'error'
+    })
+    return false
+  }
+
   isSavingWebsites.value = true
-  
+
   try {
-    // Call API to update websites
+    // Store handles UPDATE
     await careerIDStore.updateContactInfo(props.contactInfo.id, {
       websites: formData.value.websites?.filter((w: string) => w && w.trim()) || []
     })
-    
+
     // Clear extracted flag for websites
     if (props.contactInfo?.extractedFields) {
       props.contactInfo.extractedFields.websites = false
-      // Clear isExtracted if no other fields are extracted
       const hasAnyExtracted = Object.entries(props.contactInfo.extractedFields)
         .some(([key, value]) => key !== 'websites' && value === true)
       if (!hasAnyExtracted) {
@@ -345,17 +416,18 @@ async function saveWebsites() {
         props.contactInfo.extractedFields = undefined
       }
     }
-    
+
     toast.add({
       title: 'Success',
       description: 'Websites updated successfully',
       icon: 'i-lucide-check',
       color: 'success'
     })
-    
+
     isEditingWebsites.value = false
     formData.value = {}
     formErrors.value = {}
+    return true
   } catch (error: any) {
     toast.add({
       title: 'Error',
@@ -363,6 +435,7 @@ async function saveWebsites() {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
+    return false
   } finally {
     isSavingWebsites.value = false
   }
@@ -373,7 +446,17 @@ async function saveWebsites() {
 // ============================================
 
 function startEditingSocialLinks() {
-  // Don't need to copy data, we work directly with localSocialLinks
+  // For new users without contact info, pre-fill with LinkedIn example
+  if (!props.contactInfo && localSocialLinks.value.length === 0) {
+    localSocialLinks.value = [{
+      platformId: 1, // LinkedIn
+      platformNameCache: 'LinkedIn',
+      url: 'https://linkedin.com/in/yourprofile',
+      displayOrder: 1,
+      isExtracted: false
+    } as ProfileSocialLink]
+  }
+  
   socialLinkErrors.value = {}
   isEditingSocialLinks.value = true
 }
@@ -392,10 +475,10 @@ function cancelSocialLinksEdit() {
   deletedLinkIds.value = []
 }
 
-async function saveSocialLinks() {
+async function saveSocialLinks(): Promise<boolean> {
   // Validate that no URLs are empty or invalid
   const errors: Record<string, string> = {}
-  
+
   localSocialLinks.value.forEach((link: ProfileSocialLink, index: number) => {
     const urlError = validateUrl(link.url, true)
     if (urlError) {
@@ -403,19 +486,38 @@ async function saveSocialLinks() {
     }
   })
   
+  // Check for duplicate platforms
+  const platformCounts: Record<number, number[]> = {}
+  localSocialLinks.value.forEach((link: ProfileSocialLink, index: number) => {
+    if (!platformCounts[link.platformId]) {
+      platformCounts[link.platformId] = []
+    }
+    platformCounts[link.platformId]!.push(index)
+  })
+  
+  // Flag duplicates
+  Object.entries(platformCounts).forEach(([platformId, indices]) => {
+    if (indices.length > 1) {
+      const platform = getPlatformById(Number(platformId))
+      indices.forEach(index => {
+        errors[`social_${index}`] = `Duplicate ${platform?.display_name || 'platform'}. You can only have one link per platform.`
+      })
+    }
+  })
+
   socialLinkErrors.value = errors
   if (Object.keys(errors).length > 0) {
     toast.add({
       title: 'Validation Error',
-      description: 'Please fix the errors in the form',
+      description: 'Please fix the errors in the social links section before continuing',
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
-    return
+    return false
   }
-  
+
   isSavingSocialLinks.value = true
-  
+
   try {
     // Handle deletions
     for (const deletedId of deletedLinkIds.value) {
@@ -425,7 +527,7 @@ async function saveSocialLinks() {
         console.error('Failed to delete social link:', deletedId, deleteError)
       }
     }
-    
+
     // Handle updates (links with IDs that changed)
     const existingLinks = props.profileSocialLinks || []
     for (const link of localSocialLinks.value) {
@@ -436,51 +538,62 @@ async function saveSocialLinks() {
         }
       }
     }
-    
+
     // Handle new links (no id)
     const linksToAdd = localSocialLinks.value.filter(l => !l.id)
     if (linksToAdd.length > 0) {
-      await careerIDStore.addSocialLinks(linksToAdd.map((l, i) => ({
+      const addedLinks = await careerIDStore.addSocialLinks(linksToAdd.map((l, i) => ({
         platformId: l.platformId,
         url: l.url,
         displayOrder: (props.profileSocialLinks?.length || 0) + i
       })))
+      
+      // Update localSocialLinks with the newly created links (which now have IDs)
+      // Remove the dummy links without IDs
+      localSocialLinks.value = localSocialLinks.value.filter(l => l.id)
+      // Add the new links with IDs from the response
+      if (addedLinks && Array.isArray(addedLinks)) {
+        localSocialLinks.value.push(...addedLinks)
+      }
     }
-    
+
     // Clear isExtracted flags after successful save
     localSocialLinks.value.forEach((link: ProfileSocialLink) => {
       link.isExtracted = false
     })
-    
+
     toast.add({
       title: 'Success',
-      description: 'Social links updated successfully',
+      description: 'Social links saved successfully',
       icon: 'i-lucide-check',
       color: 'success'
     })
-    
+
     // Clear deleted IDs after successful save
     deletedLinkIds.value = []
-    
+
     isEditingSocialLinks.value = false
     isAddingSocialLink.value = false
     editingSocialLinkIndex.value = null
     socialLinkForm.value = { platformId: undefined, url: '' }
     socialLinkErrors.value = {}
+    return true
   } catch (error: any) {
     toast.add({
       title: 'Error',
-      description: error?.message || 'Failed to update social links',
+      description: error?.message || 'Failed to save social links',
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
     
     // Handle API errors (e.g., duplicate platforms)
     handleApiError(error)
+    return false
   } finally {
     isSavingSocialLinks.value = false
   }
 }
+
 
 function startAddingSocialLink() {
   const defaultPlatform = socialPlatforms.value[0]
@@ -575,10 +688,15 @@ function deleteSocialLink(linkIndex: number) {
 // ============================================
 
 function startEditingSummary() {
-  if (!props.contactInfo) return
-  
-  formData.value = {
-    summary: props.contactInfo.summary || ''
+  if (props.contactInfo) {
+    formData.value = {
+      summary: props.contactInfo.summary || ''
+    }
+  } else {
+    // New user - provide example text
+    formData.value = {
+      summary: '10+ year professional with expertise in [your field]. Proven track record of [key achievements]. Passionate about [your interests] and seeking opportunities to [your goals].'
+    }
   }
   formErrors.value = {}
   isEditingSummary.value = true
@@ -600,7 +718,8 @@ function validateSummaryForm(): boolean {
   return Object.keys(errors).length === 0
 }
 
-async function saveSummary() {
+// Internal save function that returns boolean for validation flow
+async function saveSummary(): Promise<boolean> {
   if (!validateSummaryForm()) {
     toast.add({
       title: 'Validation Error',
@@ -608,21 +727,30 @@ async function saveSummary() {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
-    return
+    return false
   }
-  
+
+  if (!props.contactInfo?.id) {
+    toast.add({
+      title: 'Error',
+      description: 'Please save contact information first',
+      icon: 'i-lucide-alert-circle',
+      color: 'error'
+    })
+    return false
+  }
+
   isSavingSummary.value = true
-  
+
   try {
-    // Call API to update summary
+    // Store handles UPDATE
     await careerIDStore.updateContactInfo(props.contactInfo.id, {
       summary: formData.value.summary || null
     })
-    
-    // Clear isExtracted flag and extracted field after successful save
+
+    // Clear isExtracted flag after successful save
     if (props.contactInfo?.extractedFields) {
       props.contactInfo.extractedFields.summary = false
-      // Clear isExtracted if no other fields are extracted
       const hasAnyExtracted = Object.entries(props.contactInfo.extractedFields)
         .some(([key, value]) => key !== 'summary' && value === true)
       if (!hasAnyExtracted) {
@@ -630,17 +758,18 @@ async function saveSummary() {
         props.contactInfo.extractedFields = undefined
       }
     }
-    
+
     toast.add({
       title: 'Success',
       description: 'Professional summary updated successfully',
       icon: 'i-lucide-check',
       color: 'success'
     })
-    
+
     isEditingSummary.value = false
     formData.value = {}
     formErrors.value = {}
+    return true
   } catch (error: any) {
     toast.add({
       title: 'Error',
@@ -648,6 +777,7 @@ async function saveSummary() {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
+    return false
   } finally {
     isSavingSummary.value = false
   }
@@ -709,10 +839,114 @@ function revertChanges() {
 
 // Save all unsaved items (for contact section, just trigger save on any active edits)
 async function saveAllUnsaved(): Promise<boolean> {
-  // Contact section doesn't have "unsaved items" like other sections
-  // Just trigger save if any section is being edited
-  await triggerSave()
-  return true // Contact validation errors will show in the form if any
+  // If any section is currently being edited, save it first
+  if (isEditingContact.value || isEditingWebsites.value || isEditingSocialLinks.value || isEditingSummary.value) {
+    await triggerSave()
+    // Check if there were validation errors
+    if (Object.keys(formErrors.value).length > 0) {
+      return false
+    }
+  }
+  
+  // Check if contact info needs to be saved (extracted or no ID yet)
+  const needsSave = props.contactInfo?.isExtracted || !props.contactInfo?.id
+  
+  if (needsSave && props.contactInfo) {
+    // Validate required contact fields
+    const firstNameError = validateRequired(props.contactInfo.firstName, 'First name')
+    const lastNameError = validateRequired(props.contactInfo.lastName, 'Last name')
+    const emailError = validateEmail(props.contactInfo.email, true)
+    
+    if (firstNameError || lastNameError || emailError) {
+      toast.add({
+        title: 'Validation Error',
+        description: 'Please ensure name and email are filled in',
+        icon: 'i-lucide-alert-circle',
+        color: 'error'
+      })
+      return false
+    }
+    
+    // Save ALL contact info in one call (store handles POST vs PATCH based on ID)
+    try {
+      const contactData = {
+        firstName: props.contactInfo.firstName,
+        lastName: props.contactInfo.lastName,
+        email: props.contactInfo.email,
+        phone: props.contactInfo.phone,
+        jobTitle: props.contactInfo.jobTitle,
+        city: props.contactInfo.city,
+        stateRegion: props.contactInfo.stateRegion,
+        country: props.contactInfo.country,
+        postalCode: props.contactInfo.postalCode,
+        willingToRelocate: props.contactInfo.willingToRelocate,
+        websites: props.contactInfo.websites || [],
+        summary: props.contactInfo.summary || null
+      }
+      
+      // Store handles POST (no ID) vs PATCH (has ID)
+      if (props.contactInfo.id) {
+        await careerIDStore.updateContactInfo(props.contactInfo.id, contactData)
+      } else {
+        await careerIDStore.createContactInfo(contactData)
+      }
+      
+      // Clear isExtracted flags after successful save
+      if (props.contactInfo) {
+        props.contactInfo.isExtracted = false
+        props.contactInfo.extractedFields = undefined
+      }
+    } catch (error: any) {
+      toast.add({
+        title: 'Error',
+        description: error?.message || 'Failed to save contact information',
+        icon: 'i-lucide-alert-circle',
+        color: 'error'
+      })
+      return false
+    }
+  }
+  
+  // Check if there are extracted social links that need to be saved
+  const hasExtractedSocialLinks = localSocialLinks.value.some((link: ProfileSocialLink) => link.isExtracted)
+  if (hasExtractedSocialLinks) {
+    // Validate for duplicates first
+    const errors: Record<string, string> = {}
+    const platformCounts: Record<number, number[]> = {}
+    
+    localSocialLinks.value.forEach((link: ProfileSocialLink, index: number) => {
+      if (!platformCounts[link.platformId]) {
+        platformCounts[link.platformId] = []
+      }
+      platformCounts[link.platformId]!.push(index)
+    })
+    
+    Object.entries(platformCounts).forEach(([platformId, indices]) => {
+      if (indices.length > 1) {
+        const platform = getPlatformById(Number(platformId))
+        indices.forEach(index => {
+          errors[`social_${index}`] = `Duplicate ${platform?.display_name || 'platform'}. You can only have one link per platform.`
+        })
+      }
+    })
+    
+    if (Object.keys(errors).length > 0) {
+      socialLinkErrors.value = errors
+      toast.add({
+        title: 'Validation Error',
+        description: 'Please fix duplicate social platform links',
+        icon: 'i-lucide-alert-circle',
+        color: 'error'
+      })
+      return false
+    }
+    
+    // Save extracted social links
+    const success = await saveSocialLinks()
+    if (!success) return false
+  }
+  
+  return true
 }
 
 function handleApiError(error: any) {
@@ -744,87 +978,7 @@ defineExpose({
 <template>
   <div class="space-y-8">
 
-    <!-- ============================================ -->
-    <!-- PROFESSIONAL SUMMARY SECTION -->
-    <!-- ============================================ -->
-    <div>
-      <UPageCard
-        title="Professional Summary"
-        description="Brief overview of your professional experience and goals"
-        variant="naked"
-        orientation="horizontal"
-        class="mb-4"
-      >
-        <template #title>
-          <div class="flex items-center gap-2">
-            <span>Professional Summary</span>
-            <UBadge 
-              v-if="hasExtractedSummary"
-              color="neutral"
-              class="bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300"
-            >
-              <div class="flex items-center gap-1">
-                <UIcon name="i-lucide-sparkles" class="w-3 h-3" />
-                <span>Extracted</span>
-              </div>
-            </UBadge>
-          </div>
-        </template>
-        <UButton
-          v-if="!isEditingSummary"
-          label="Edit"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-pencil"
-          class="cursor-pointer w-fit lg:ms-auto"
-          @click="startEditingSummary"
-        />
-        <div v-else class="flex gap-2 w-fit lg:ms-auto">
-          <UButton
-            label="Cancel"
-            color="neutral"
-            variant="ghost"
-            class="cursor-pointer"
-            :disabled="isSavingSummary"
-            @click="cancelSummaryEdit"
-          />
-          <UButton
-            label="Save Changes"
-            color="primary"
-            class="cursor-pointer"
-            icon="i-lucide-check"
-            :loading="isSavingSummary"
-            @click="saveSummary"
-          />
-        </div>
-      </UPageCard>
 
-      <UPageCard variant="subtle">
-        <!-- VIEW MODE -->
-        <div v-if="!isEditingSummary" class="prose prose-sm max-w-none">
-          <p v-if="contactInfo.summary" class="whitespace-pre-wrap">{{ contactInfo.summary }}</p>
-          <p v-else class="text-muted italic">No professional summary added yet.</p>
-        </div>
-
-        <!-- EDIT MODE -->
-        <div v-else>
-          <label class="block text-sm font-medium mb-2">Professional Summary</label>
-          <UTextarea
-            v-model="formData.summary"
-            :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': extractedFields.summary }"
-            placeholder="Write a brief overview of your professional experience, key skills, and career goals..."
-            :rows="8"
-            :error="!!formErrors.summary"
-            autoresize
-            class="rounded w-full"
-          />
-          <div class="flex justify-between items-center mt-2">
-            <p v-if="formErrors.summary" class="text-sm text-error">{{ formErrors.summary }}</p>
-            <p class="text-sm text-muted ml-auto">{{ summaryCharCount }} / 5000 characters</p>
-          </div>
-        </div>
-      </UPageCard>
-    </div>
 
     <!-- ============================================ -->
     <!-- CONTACT INFORMATION SECTION -->
@@ -882,13 +1036,14 @@ defineExpose({
       </UPageCard>
 
       <UPageCard variant="subtle">
-        <!-- VIEW MODE -->
+        <!-- VIEW MODE (always show field labels) -->
         <template v-if="!isEditingContact">
           <!-- Name -->
           <div class="flex max-sm:flex-col justify-between items-start gap-4">
             <div class="flex-1">
               <label class="block text-sm font-medium mb-1">Name</label>
-              <p class="text-base">{{ contactInfo.firstName }} {{ contactInfo.lastName }}</p>
+              <p v-if="contactInfo" class="text-base">{{ contactInfo.firstName }} {{ contactInfo.lastName }}</p>
+              <p v-else class="text-base text-muted italic">Not specified</p>
             </div>
           </div>
           
@@ -898,7 +1053,8 @@ defineExpose({
           <div class="flex max-sm:flex-col justify-between items-start gap-4">
             <div class="flex-1">
               <label class="block text-sm font-medium mb-1">Job Title</label>
-              <p class="text-base">{{ contactInfo.jobTitle || 'Not specified' }}</p>
+              <p v-if="contactInfo" class="text-base">{{ contactInfo.jobTitle || 'Not specified' }}</p>
+              <p v-else class="text-base text-muted italic">Not specified</p>
             </div>
           </div>
 
@@ -908,7 +1064,8 @@ defineExpose({
           <div class="flex max-sm:flex-col justify-between items-start gap-4">
             <div class="flex-1">
               <label class="block text-sm font-medium mb-1">Email</label>
-              <p class="text-base">{{ contactInfo.email }}</p>
+              <p v-if="contactInfo" class="text-base">{{ contactInfo.email }}</p>
+              <p v-else class="text-base text-muted italic">Not specified</p>
             </div>
           </div>
 
@@ -918,7 +1075,8 @@ defineExpose({
           <div class="flex max-sm:flex-col justify-between items-start gap-4">
             <div class="flex-1">
               <label class="block text-sm font-medium mb-1">Phone</label>
-              <p class="text-base">{{ formatPhoneForDisplay(contactInfo.phone) || 'Not specified' }}</p>
+              <p v-if="contactInfo" class="text-base">{{ formatPhoneForDisplay(contactInfo.phone) || 'Not specified' }}</p>
+              <p v-else class="text-base text-muted italic">Not specified</p>
             </div>
           </div>
 
@@ -928,7 +1086,7 @@ defineExpose({
           <div class="flex max-sm:flex-col justify-between items-start gap-4">
             <div class="flex-1">
               <label class="block text-sm font-medium mb-1">Location</label>
-              <p class="text-base">
+              <p v-if="contactInfo" class="text-base">
                 <template v-if="contactInfo.city || contactInfo.stateRegion || contactInfo.country">
                   {{ [contactInfo.city, contactInfo.stateRegion, contactInfo.postalCode, contactInfo.country].filter(Boolean).join(', ') }}
                 </template>
@@ -936,6 +1094,7 @@ defineExpose({
                   Not specified
                 </template>
               </p>
+              <p v-else class="text-base text-muted italic">Not specified</p>
             </div>
           </div>
 
@@ -945,7 +1104,8 @@ defineExpose({
           <div class="flex max-sm:flex-col justify-between items-start gap-4">
             <div class="flex-1">
               <label class="block text-sm font-medium mb-1">Willing to Relocate</label>
-              <p class="text-base">{{ contactInfo.willingToRelocate ? 'Yes' : 'No' }}</p>
+              <p v-if="contactInfo" class="text-base">{{ contactInfo.willingToRelocate ? 'Yes' : 'No' }}</p>
+              <p v-else class="text-base text-muted italic">Not specified</p>
             </div>
           </div>
         </template>
@@ -1122,7 +1282,87 @@ defineExpose({
       </UPageCard>
     </div>
 
-    
+        <!-- ============================================ -->
+    <!-- PROFESSIONAL SUMMARY SECTION -->
+    <!-- ============================================ -->
+    <div>
+      <UPageCard
+        title="Professional Summary"
+        description="Brief overview of your professional experience and goals"
+        variant="naked"
+        orientation="horizontal"
+        class="mb-4"
+      >
+        <template #title>
+          <div class="flex items-center gap-2">
+            <span>Professional Summary</span>
+            <UBadge 
+              v-if="hasExtractedSummary"
+              color="neutral"
+              class="bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300"
+            >
+              <div class="flex items-center gap-1">
+                <UIcon name="i-lucide-sparkles" class="w-3 h-3" />
+                <span>Extracted</span>
+              </div>
+            </UBadge>
+          </div>
+        </template>
+        <UButton
+          v-if="!isEditingSummary"
+          label="Edit"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-pencil"
+          class="cursor-pointer w-fit lg:ms-auto"
+          @click="startEditingSummary"
+        />
+        <div v-else class="flex gap-2 w-fit lg:ms-auto">
+          <UButton
+            label="Cancel"
+            color="neutral"
+            variant="ghost"
+            class="cursor-pointer"
+            :disabled="isSavingSummary"
+            @click="cancelSummaryEdit"
+          />
+          <UButton
+            label="Save Changes"
+            color="primary"
+            class="cursor-pointer"
+            icon="i-lucide-check"
+            :loading="isSavingSummary"
+            @click="saveSummary"
+          />
+        </div>
+      </UPageCard>
+
+      <UPageCard variant="subtle">
+        <!-- VIEW MODE (always show) -->
+        <div v-if="!isEditingSummary" class="prose prose-sm max-w-none">
+          <p v-if="contactInfo?.summary" class="whitespace-pre-wrap">{{ contactInfo.summary }}</p>
+          <p v-else class="text-muted italic">Click "Edit" to add your professional summary</p>
+        </div>
+
+        <!-- EDIT MODE -->
+        <div v-else>
+          <label class="block text-sm font-medium mb-2">Professional Summary</label>
+          <UTextarea
+            v-model="formData.summary"
+            :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': extractedFields.summary }"
+            placeholder="Write a brief overview of your professional experience, key skills, and career goals..."
+            :rows="8"
+            :error="!!formErrors.summary"
+            autoresize
+            class="rounded w-full"
+          />
+          <div class="flex justify-between items-center mt-2">
+            <p v-if="formErrors.summary" class="text-sm text-error">{{ formErrors.summary }}</p>
+            <p class="text-sm text-muted ml-auto">{{ summaryCharCount }} / 5000 characters</p>
+          </div>
+        </div>
+      </UPageCard>
+    </div>
 
     <!-- ============================================ -->
     <!-- WEBSITES SECTION -->
@@ -1180,9 +1420,9 @@ defineExpose({
       </UPageCard>
 
       <UPageCard variant="subtle">
-        <!-- VIEW MODE -->
+        <!-- VIEW MODE (always show) -->
         <template v-if="!isEditingWebsites">
-          <div v-if="contactInfo.websites?.length" class="flex max-sm:flex-col justify-between items-start gap-4">
+          <div v-if="contactInfo?.websites?.length" class="flex max-sm:flex-col justify-between items-start gap-4">
             <div class="flex-1">
               <ul class="space-y-1">
                 <li v-for="(website, index) in contactInfo.websites" :key="index">
@@ -1195,7 +1435,7 @@ defineExpose({
           </div>
           <div v-else class="text-center py-8">
             <UIcon name="i-lucide-globe" class="w-12 h-12 text-muted mx-auto mb-3" />
-            <p class="text-muted">No websites added yet.</p>
+            <p class="text-muted">Click "Edit" to add your websites</p>
           </div>
         </template>
 
@@ -1317,7 +1557,7 @@ defineExpose({
           </div>
           <div v-else class="text-center py-8">
             <UIcon name="i-lucide-link" class="w-12 h-12 text-muted mx-auto mb-3" />
-            <p class="text-muted">No social links added yet.</p>
+            <p class="text-muted">Click "Edit" to add your social profiles</p>
           </div>
         </template>
 
