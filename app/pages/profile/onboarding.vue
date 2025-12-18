@@ -11,7 +11,8 @@ const uploadSectionRef = useTemplateRef('uploadSection')
 const contactSectionRef = useTemplateRef('contactSection')
 const experienceSectionRef = useTemplateRef('experienceSection')
 const educationSectionRef = useTemplateRef('educationSection')
-const additionalSectionRef = useTemplateRef('additionalSection')
+const skillsSectionRef = useTemplateRef('skillsSection')
+const certificationsSectionRef = useTemplateRef('certificationsSection')
 
 const steps: StepperItem[] = [
   { 
@@ -35,9 +36,14 @@ const steps: StepperItem[] = [
     value: 'education'
   },
   { 
-    title: 'Additional', 
+    title: 'Skills', 
+    icon: 'i-lucide-lightbulb',
+    value: 'skills'
+  },
+  { 
+    title: 'Certifications', 
     icon: 'i-lucide-award',
-    value: 'additional'
+    value: 'certifications'
   }
 ]
 
@@ -292,101 +298,8 @@ async function handleSaveCertification(data: any) {
   }
 }
 
-// Bulk save handler for all additional information (certifications and skills)
-async function handleSaveAllAdditional(payload: { certifications: any[], skillGroups: any[] }) {
-  try {
-    // 1. Save certifications - POST for new, PATCH for existing
-    for (const cert of payload.certifications) {
-      if (cert.id) {
-        await careerIDStore.updateCertification(cert.id, cert)
-      } else {
-        await careerIDStore.addCertification(cert)
-      }
-    }
-    
-    // 2. Save skills - handle add/update/delete for each group
-    for (const group of payload.skillGroups) {
-      const originalGroupValue = group.originalGroup
-      
-      // Get existing skills in the ORIGINAL group (before any name change)
-      const existingSkillsInGroup = careerIDStore.profileSkills.filter(
-        skill => skill.group === originalGroupValue
-      )
-      
-      const existingIds = new Set(existingSkillsInGroup.map(s => s.id))
-      const currentIds = new Set(group.skills.filter((s: any) => s.id).map((s: any) => s.id))
-      
-      // 1. Handle group name change - update all existing skills in this group
-      if (group.group !== originalGroupValue) {
-        const skillsToUpdateGroup = existingSkillsInGroup.map(skill => ({
-          id: skill.id,
-          group: group.group
-        }))
-        
-        if (skillsToUpdateGroup.length > 0) {
-          await careerIDStore.updateSkills(skillsToUpdateGroup)
-        }
-      }
-      
-      // 2. Find skills to add (no id)
-      const skillsToAdd = group.skills
-        .filter((skill: any) => !skill.id)
-        .map((skill: any) => ({
-          name: skill.name,
-          group: group.group,
-          proficiencyLevel: 'intermediate' as const,
-          yearsExperience: 2,
-          displayOrder: 0
-        }))
-      
-      if (skillsToAdd.length > 0) {
-        await careerIDStore.addSkills(skillsToAdd)
-      }
-      
-      // 3. Find skills to update (has id, name might have changed)
-      const skillsToUpdate = group.skills
-        .filter((skill: any) => skill.id)
-        .map((skill: any) => {
-          const existing = existingSkillsInGroup.find(s => s.id === skill.id)
-          if (existing && existing.name !== skill.name) {
-            return { id: skill.id, name: skill.name, group: group.group }
-          }
-          return null
-        })
-        .filter(Boolean)
-      
-      if (skillsToUpdate.length > 0) {
-        await careerIDStore.updateSkills(skillsToUpdate)
-      }
-      
-      // 4. Find skills to delete (in store but not in current group)
-      const skillsToDelete = existingSkillsInGroup
-        .filter(existing => !currentIds.has(existing.id))
-        .map(s => s.id)
-      
-      if (skillsToDelete.length > 0) {
-        await careerIDStore.deleteSkills(skillsToDelete)
-      }
-    }
-    
-    toast.add({
-      title: 'Saved',
-      description: 'Additional information saved successfully',
-      color: 'success'
-    })
-  } catch (error: any) {
-    console.error('Failed to save additional information:', error)
-    
-    toast.add({
-      title: 'Save Failed',
-      description: error?.data?.error?.message || 'Failed to save additional information',
-      color: 'error'
-    })
-    
-    // Revert changes in child component
-    additionalSectionRef.value?.revertChanges()
-  }
-}
+// NOTE: handleSaveAllAdditional removed - Skills and Certifications now have separate sections
+// Each section handles its own API calls directly (no bulk save needed)
 
 async function handleDeleteExperience(id: number) {
   try {
@@ -452,12 +365,12 @@ async function handleDeleteCertification(id: number) {
       color: 'error'
     })
     
-    // Revert changes in child component
-    additionalSectionRef.value?.revertChanges()
+    // Note: New sections will handle their own reverts
   }
 }
 
-// 5.15.7 Event handlers for AdditionalSection skills
+// 5.15.7 Event handlers for Skills and Certifications sections
+// NOTE: These handlers will be simplified once new sections handle their own API calls directly
 async function handleSaveSkillGroup(index: number, groupData: any) {
   try {
     const originalGroupName = groupData.originalGroup
@@ -536,8 +449,7 @@ async function handleSaveSkillGroup(index: number, groupData: any) {
       color: 'error'
     })
     
-    // Revert changes in child component
-    additionalSectionRef.value?.revertChanges()
+    // Note: New sections will handle their own reverts
   }
 }
 
@@ -572,8 +484,7 @@ async function handleDeleteSkillGroup(groupValue: string | null) {
       color: 'error'
     })
     
-    // Revert changes in child component
-    additionalSectionRef.value?.revertChanges()
+    // Note: New sections will handle their own reverts
   }
 }
 
@@ -612,12 +523,92 @@ async function autosaveCurrentStep() {
       case 'education':
         await educationSectionRef.value?.triggerSave()
         break
-      case 'additional':
-        await additionalSectionRef.value?.triggerSave()
+      case 'skills':
+        await skillsSectionRef.value?.triggerSave()
+        break
+      case 'certifications':
+        await certificationsSectionRef.value?.triggerSave()
         break
     }
   } catch (error) {
     console.error('Failed to autosave current step:', error)
+  }
+}
+
+// Complete profile - use each component's validation and save methods
+async function completeProfile() {
+  const router = useRouter()
+  const failedSections: string[] = []
+  
+  try {
+    // Call saveAllUnsaved() on each section component
+    // This will validate and save all unsaved items (including extracted ones)
+    // If validation fails, the component will show errors in its UI and return false
+    
+    // Contact Section (saves any active edits)
+    const contactSuccess = await contactSectionRef.value?.saveAllUnsaved()
+    if (!contactSuccess) {
+      failedSections.push('Contact')
+    }
+    
+    // Experience Section (saves all experiences without IDs)
+    const experienceSuccess = await experienceSectionRef.value?.saveAllUnsaved()
+    if (!experienceSuccess) {
+      failedSections.push('Experience')
+    }
+    
+    // Education Section (saves all education without IDs)
+    const educationSuccess = await educationSectionRef.value?.saveAllUnsaved()
+    if (!educationSuccess) {
+      failedSections.push('Education')
+    }
+    
+    // Skills Section (saves all skill groups with unsaved skills)
+    const skillsSuccess = await skillsSectionRef.value?.saveAllUnsaved()
+    if (!skillsSuccess) {
+      failedSections.push('Skills')
+    }
+    
+    // Certifications Section (saves all certifications without IDs)
+    const certificationsSuccess = await certificationsSectionRef.value?.saveAllUnsaved()
+    if (!certificationsSuccess) {
+      failedSections.push('Certifications')
+    }
+    
+    // Check if all sections saved successfully
+    if (failedSections.length > 0) {
+      toast.add({
+        title: 'Unable to Complete Profile',
+        description: `Please fix validation errors in: ${failedSections.join(', ')}. Check each section for highlighted errors.`,
+        icon: 'i-lucide-alert-circle',
+        color: 'error',
+        timeout: 8000
+      })
+      return // Don't redirect if any section failed
+    }
+    
+    // All sections saved successfully! Show success toast and redirect
+    toast.add({
+      title: 'Profile Completed! 🎉',
+      description: 'All sections saved successfully. Redirecting to your profile...',
+      icon: 'i-lucide-check-circle',
+      color: 'success',
+      timeout: 3000
+    })
+    
+    // Redirect to profile page after a brief delay
+    setTimeout(() => {
+      router.push('/profile')
+    }, 1500)
+    
+  } catch (error: any) {
+    console.error('Failed to complete profile:', error)
+    toast.add({
+      title: 'Error',
+      description: 'An unexpected error occurred. Please try again.',
+      icon: 'i-lucide-alert-circle',
+      color: 'error'
+    })
   }
 }
 
@@ -699,28 +690,56 @@ onMounted(async () => {
             @save="handleSaveContact"
           />
           
-          <!-- ExperienceSection - props down, events up -->
-          <ProfileExperienceSection 
+          <!-- ExperienceSection - NEW: Individual item editing -->
+          <ProfileExperienceSectionNew 
+            ref="experienceSection"
+            v-show="activeStep === 'experience'"
+            :experience="careerIDStore.experience"
+          />
+          
+          <!-- OLD ExperienceSection - COMMENTED OUT for side-by-side testing -->
+          <!-- <ProfileExperienceSection 
             ref="experienceSection"
             v-show="activeStep === 'experience'"
             :experience="careerIDStore.experience"
             @save="handleSaveExperience"
             @save-all="handleSaveAllExperiences"
             @delete="handleDeleteExperience"
+          /> -->
+          
+          <!-- EducationSection - NEW: Individual item editing -->
+          <ProfileEducationSectionNew 
+            ref="educationSection"
+            v-show="activeStep === 'education'"
+            :education="careerIDStore.education"
           />
           
-          <!-- EducationSection - props down, events up -->
-          <ProfileEducationSection 
+          <!-- OLD EducationSection - COMMENTED OUT for side-by-side testing -->
+          <!-- <ProfileEducationSection 
             ref="educationSection"
             v-show="activeStep === 'education'"
             :education="careerIDStore.education"
             @save="handleSaveEducation"
             @save-all="handleSaveAllEducations"
             @delete="handleDeleteEducation"
+          /> -->
+          
+          <!-- SkillsSection - NEW: Group-based editing with tag input -->
+          <ProfileSkillsSection 
+            ref="skillsSection"
+            v-show="activeStep === 'skills'"
+            :skill-groups="careerIDStore.profileSkills"
           />
           
-          <!-- AdditionalSection - props down, events up -->
-          <ProfileAdditionalSection 
+          <!-- CertificationsSection - NEW: Individual item editing -->
+          <ProfileCertificationsSection 
+            ref="certificationsSection"
+            v-show="activeStep === 'certifications'"
+            :certifications="careerIDStore.certifications"
+          />
+          
+          <!-- OLD AdditionalSection - COMMENTED OUT for side-by-side testing -->
+          <!-- <ProfileAdditionalSection 
             ref="additionalSection"
             v-show="activeStep === 'additional'"
             :skill-groups="careerIDStore.profileSkills"
@@ -730,7 +749,7 @@ onMounted(async () => {
             @save-certification="handleSaveCertification"
             @save-all="handleSaveAllAdditional"
             @delete-certification="handleDeleteCertification"
-          />   
+          /> -->
         </div>
 
         <!-- Navigation Buttons -->
@@ -769,9 +788,7 @@ onMounted(async () => {
               label="Complete Profile"
               trailing-icon="i-lucide-check"
               color="success"
-              @click="async () => {
-                await autosaveCurrentStep()
-              }"
+              @click="completeProfile"
             />
           </div>
         </div>

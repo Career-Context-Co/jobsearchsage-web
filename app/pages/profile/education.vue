@@ -43,7 +43,7 @@ function formatDateForAPI(dateString: string | undefined): string | undefined {
 }
 
 // Get current user
-const user = ref({ id: 'mock-user-id' }) // TODO: Replace with real Supabase user
+const user = ref({ id: 'prof_myf2i85se9xri4e4wgsxxim7' }) // TODO: Replace with real Supabase user
 
 // Loading and saving states
 const isLoading = computed(() => careerIDStore.isLoading)
@@ -595,18 +595,8 @@ onMounted(async () => {
                 </div>
               </div>
 
-              <div v-if="education.coursework.length > 0" class="mt-3">
-                <p class="text-sm font-medium mb-1">Relevant Coursework:</p>
-                <ul class="list-disc list-inside space-y-1">
-                  <li v-for="(course, idx) in education.coursework" :key="idx" class="text-sm">
-                    {{ course }}
-                  </li>
-                </ul>
-              </div>
-
               <div v-if="education.minors.length > 0" class="mt-3">
-                <p class="text-sm font-medium mb-1">Minors:</p>
-                <p class="text-sm">{{ education.minors.join(', ') }}</p>
+                <p class="text-sm font-medium mb-1">Minors: <span class="text-muted">{{ education.minors.join(', ') }}</span></p>
               </div>
 
               <div v-if="education.url" class="mt-3">

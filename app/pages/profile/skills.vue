@@ -6,7 +6,7 @@ const careerIDStore = useCareerIDStore()
 const toast = useToast()
 
 // Get current user
-const user = ref({ id: 'mock-user-id' }) // TODO: Replace with real Supabase user
+const user = ref({ id: 'prof_myf2i85se9xri4e4wgsxxim7' }) // TODO: Replace with real Supabase user
 
 // Loading and saving states
 const isLoading = computed(() => careerIDStore.isLoading)

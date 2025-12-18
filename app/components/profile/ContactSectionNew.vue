@@ -62,7 +62,7 @@ const isEditingWebsites = ref(false)
 const isEditingSocialLinks = ref(false)
 const isEditingSummary = ref(false)
 const isAddingSocialLink = ref(false)
-const editingSocialLinkId = ref<number | null>(null)
+const editingSocialLinkIndex = ref<number | null>(null)
 
 // Loading states for save operations
 const isSavingContact = ref(false)
@@ -381,7 +381,7 @@ function startEditingSocialLinks() {
 function cancelSocialLinksEdit() {
   isEditingSocialLinks.value = false
   isAddingSocialLink.value = false
-  editingSocialLinkId.value = null
+  editingSocialLinkIndex.value = null
   socialLinkForm.value = { platformId: undefined, url: '' }
   socialLinkErrors.value = {}
   
@@ -464,7 +464,7 @@ async function saveSocialLinks() {
     
     isEditingSocialLinks.value = false
     isAddingSocialLink.value = false
-    editingSocialLinkId.value = null
+    editingSocialLinkIndex.value = null
     socialLinkForm.value = { platformId: undefined, url: '' }
     socialLinkErrors.value = {}
   } catch (error: any) {
@@ -492,8 +492,8 @@ function startAddingSocialLink() {
   isAddingSocialLink.value = true
 }
 
-function startEditingSocialLink(linkId: number, currentUrl: string) {
-  editingSocialLinkId.value = linkId
+function startEditingSocialLink(linkIndex: number, currentUrl: string) {
+  editingSocialLinkIndex.value = linkIndex
   socialLinkForm.value = {
     platformId: undefined,
     url: currentUrl
@@ -503,7 +503,7 @@ function startEditingSocialLink(linkId: number, currentUrl: string) {
 
 function cancelSocialLinkEdit() {
   isAddingSocialLink.value = false
-  editingSocialLinkId.value = null
+  editingSocialLinkIndex.value = null
   socialLinkForm.value = { platformId: undefined, url: '' }
   socialLinkErrors.value = {}
 }
@@ -549,20 +549,18 @@ function addSocialLink() {
   cancelSocialLinkEdit()
 }
 
-function updateSocialLink(linkId: number) {
+function updateSocialLink(linkIndex: number) {
   if (!validateSocialLinkForm(true)) return
   
-  const linkIndex = localSocialLinks.value.findIndex((link: ProfileSocialLink) => link.id === linkId)
-  if (linkIndex !== -1) {
+  if (linkIndex !== -1 && linkIndex < localSocialLinks.value.length) {
     localSocialLinks.value[linkIndex].url = socialLinkForm.value.url
   }
   
   cancelSocialLinkEdit()
 }
 
-function deleteSocialLink(linkId: number) {
-  const linkIndex = localSocialLinks.value.findIndex((link: ProfileSocialLink) => link.id === linkId)
-  if (linkIndex !== -1) {
+function deleteSocialLink(linkIndex: number) {
+  if (linkIndex >= 0 && linkIndex < localSocialLinks.value.length) {
     const link = localSocialLinks.value[linkIndex]
     // If the link has an ID (exists in database), track it for deletion
     if (link.id !== undefined) {
@@ -698,7 +696,7 @@ function revertChanges() {
   isEditingSocialLinks.value = false
   isEditingSummary.value = false
   isAddingSocialLink.value = false
-  editingSocialLinkId.value = null
+  editingSocialLinkIndex.value = null
   formData.value = {}
   formErrors.value = {}
   socialLinkForm.value = { platformId: undefined, url: '' }
@@ -707,6 +705,14 @@ function revertChanges() {
   
   // Reset local social links to props
   localSocialLinks.value = (props.profileSocialLinks || []).map(link => ({ ...link }))
+}
+
+// Save all unsaved items (for contact section, just trigger save on any active edits)
+async function saveAllUnsaved(): Promise<boolean> {
+  // Contact section doesn't have "unsaved items" like other sections
+  // Just trigger save if any section is being edited
+  await triggerSave()
+  return true // Contact validation errors will show in the form if any
 }
 
 function handleApiError(error: any) {
@@ -729,6 +735,7 @@ function handleApiError(error: any) {
 
 defineExpose({
   triggerSave,
+  saveAllUnsaved,
   revertChanges,
   handleApiError
 })
@@ -754,7 +761,7 @@ defineExpose({
             <UBadge 
               v-if="hasExtractedSummary"
               color="neutral"
-              class="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+              class="bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300"
             >
               <div class="flex items-center gap-1">
                 <UIcon name="i-lucide-sparkles" class="w-3 h-3" />
@@ -804,7 +811,7 @@ defineExpose({
           <label class="block text-sm font-medium mb-2">Professional Summary</label>
           <UTextarea
             v-model="formData.summary"
-            :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': extractedFields.summary }"
+            :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': extractedFields.summary }"
             placeholder="Write a brief overview of your professional experience, key skills, and career goals..."
             :rows="8"
             :error="!!formErrors.summary"
@@ -836,7 +843,7 @@ defineExpose({
             <UBadge 
               v-if="hasExtractedContactInfo"
               color="neutral"
-              class="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+              class="bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300"
             >
               <div class="flex items-center gap-1">
                 <UIcon name="i-lucide-sparkles" class="w-3 h-3" />
@@ -951,7 +958,7 @@ defineExpose({
               <label class="block text-sm font-medium mb-1">First Name <span class="text-error">*</span></label>
               <UInput
                 class="w-full rounded"
-                :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': extractedFields.firstName }"
+                :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': extractedFields.firstName }"
                 v-model="formData.firstName"
                 placeholder="Enter your first name"
                 :error="!!formErrors.firstName"
@@ -968,7 +975,7 @@ defineExpose({
               <label class="block text-sm font-medium mb-1">Last Name <span class="text-error">*</span></label>
               <UInput
                 class="w-full rounded"
-                :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': extractedFields.lastName }"
+                :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': extractedFields.lastName }"
                 v-model="formData.lastName"
                 placeholder="Enter your last name"
                 :error="!!formErrors.lastName"
@@ -985,7 +992,7 @@ defineExpose({
               <label class="block text-sm font-medium mb-1">Job Title</label>
               <UInput
                 class="w-full rounded"
-                :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': extractedFields.jobTitle }"
+                :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': extractedFields.jobTitle }"
                 v-model="formData.jobTitle"
                 placeholder="e.g. Senior Software Engineer"
                 :error="!!formErrors.jobTitle"
@@ -1002,7 +1009,7 @@ defineExpose({
               <label class="block text-sm font-medium mb-1">Email <span class="text-error">*</span></label>
               <UInput
                 class="w-full rounded"
-                :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': extractedFields.email }"
+                :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': extractedFields.email }"
                 v-model="formData.email"
                 type="email"
                 placeholder="your.email@example.com"
@@ -1020,7 +1027,7 @@ defineExpose({
               <label class="block text-sm font-medium mb-1">Phone</label>
               <UInput
                 class="w-full rounded"
-                :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': extractedFields.phone }"
+                :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': extractedFields.phone }"
                 v-model="formData.phone"
                 v-maska="'+# (###) ###-####'"
                 type="tel"
@@ -1039,7 +1046,7 @@ defineExpose({
               <label class="block text-sm font-medium mb-1">City</label>
               <UInput
                 class="w-full rounded"
-                :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': extractedFields.city }"
+                :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': extractedFields.city }"
                 v-model="formData.city"
                 placeholder="Enter your city"
                 :error="!!formErrors.city"
@@ -1056,7 +1063,7 @@ defineExpose({
               <label class="block text-sm font-medium mb-1">State/Region</label>
               <UInput
                 class="w-full rounded"
-                :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': extractedFields.stateRegion }"
+                :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': extractedFields.stateRegion }"
                 v-model="formData.stateRegion"
                 placeholder="e.g. California, Ontario"
                 :error="!!formErrors.stateRegion"
@@ -1073,7 +1080,7 @@ defineExpose({
               <label class="block text-sm font-medium mb-1">Country</label>
               <UInput
                 class="w-full rounded"
-                :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': extractedFields.country }"
+                :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': extractedFields.country }"
                 v-model="formData.country"
                 placeholder="e.g. United States, Canada"
                 :error="!!formErrors.country"
@@ -1090,7 +1097,7 @@ defineExpose({
               <label class="block text-sm font-medium mb-1">Postal Code</label>
               <UInput
                 class="w-full rounded"
-                :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': extractedFields.postalCode }"
+                :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': extractedFields.postalCode }"
                 v-model="formData.postalCode"
                 placeholder="e.g. 12345"
                 :error="!!formErrors.postalCode"
@@ -1134,7 +1141,7 @@ defineExpose({
             <UBadge 
               v-if="hasExtractedWebsites"
               color="neutral"
-              class="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+              class="bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300"
             >
               <div class="flex items-center gap-1">
                 <UIcon name="i-lucide-sparkles" class="w-3 h-3" />
@@ -1199,7 +1206,7 @@ defineExpose({
               <div v-for="(website, index) in formData.websites" :key="index" class="flex gap-2">
                 <UInput
                   v-model="formData.websites[index]"
-                  :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': extractedFields.websites }"
+                  :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': extractedFields.websites }"
                   placeholder="https://example.com"
                   class="flex-1 rounded"
                   :error="!!formErrors[`website_${index}`]"
@@ -1244,7 +1251,7 @@ defineExpose({
             <UBadge 
               v-if="hasExtractedSocialLinks"
               color="neutral"
-              class="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+              class="bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300"
             >
               <div class="flex items-center gap-1">
                 <UIcon name="i-lucide-sparkles" class="w-3 h-3" />
@@ -1290,7 +1297,7 @@ defineExpose({
               v-for="(link, linkIndex) in localSocialLinks"
               :key="linkIndex"
               class="flex items-center gap-4 p-3 rounded-lg border border-default"
-              :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': link?.isExtracted }"
+              :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': link?.isExtracted }"
             >
               <div class="flex items-center gap-3 flex-1">
                 <UIcon 
@@ -1321,12 +1328,12 @@ defineExpose({
             <div v-if="localSocialLinks.length > 0" class="space-y-3">
               <div
                 v-for="(link, linkIndex) in localSocialLinks"
-                :key="linkIndex"
+                :key="link.id || linkIndex"
                 class="space-y-2 rounded"
-                :class="{ 'ring-1 ring-purple-500 dark:ring-purple-400': link?.isExtracted }"
+                :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': link?.isExtracted }"
               >
                 <!-- Individual Link Edit Mode -->
-                <template v-if="editingSocialLinkId === link.id">
+                <template v-if="editingSocialLinkIndex === linkIndex">
                   <div class="p-3 border border-default rounded-lg space-y-2" >
                     <div class="flex items-center gap-2">
                       <UIcon 
@@ -1363,7 +1370,7 @@ defineExpose({
                         size="sm"
                         icon="i-lucide-check"
                         class="cursor-pointer"
-                        @click="updateSocialLink(link.id!)"
+                        @click="updateSocialLink(linkIndex)"
                       />
                     </div>
                   </div>
@@ -1391,7 +1398,7 @@ defineExpose({
                         color="neutral"
                         variant="ghost"
                         size="sm"
-                        @click="startEditingSocialLink(link.id!, link.url)"
+                        @click="startEditingSocialLink(linkIndex, link.url)"
                       />
                       <UButton
                         class="cursor-pointer"
@@ -1399,7 +1406,7 @@ defineExpose({
                         color="error"
                         variant="ghost"
                         size="sm"
-                        @click="deleteSocialLink(link.id!)"
+                        @click="deleteSocialLink(linkIndex)"
                       />
                     </div>
                   </div>

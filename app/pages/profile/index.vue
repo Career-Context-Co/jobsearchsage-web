@@ -8,7 +8,7 @@ const router = useRouter()
 
 // Get current user - this would typically come from Supabase auth
 // For now, we'll use a mock user ID
-const user = ref({ id: 'mock-user-id' }) // TODO: Replace with real Supabase user
+const user = ref({ id: 'prof_myf2i85se9xri4e4wgsxxim7' }) // TODO: Replace with real Supabase user
 
 // Loading state from store
 const isLoading = computed(() => careerIDStore.isLoading)

@@ -42,8 +42,8 @@ function formatDateForAPI(dateString: string | undefined): string | undefined {
   return `${year}-${month}-01`
 }
 
-// Get current user
-const user = ref({ id: 'mock-user-id' }) // TODO: Replace with real Supabase user
+// Get current user 
+const user = ref({ id: 'prof_myf2i85se9xri4e4wgsxxim7' }) // TODO: Replace with real Supabase user
 
 // Loading and saving states
 const isLoading = computed(() => careerIDStore.isLoading)
@@ -608,14 +608,6 @@ onMounted(async () => {
                 <p class="text-sm">{{ experience.summary }}</p>
               </div>
 
-              <div v-if="experience.highlights.length > 0" class="mt-3">
-                <ul class="list-disc list-inside space-y-1">
-                  <li v-for="(highlight, idx) in experience.highlights" :key="idx" class="text-sm">
-                    {{ highlight }}
-                  </li>
-                </ul>
-              </div>
-
               <div v-if="experience.url" class="mt-3">
                 <a
                   :href="experience.url"
@@ -759,11 +751,13 @@ onMounted(async () => {
             <div>
               <label class="block text-sm font-medium mb-1">Key Achievements <span class="text-error">*</span></label>
               <div class="space-y-2">
-                <div v-for="(highlight, index) in formData.highlights" :key="index" class="flex gap-2">
-                  <UInput
+                <div v-for="(highlight, index) in formData.highlights" :key="index" class="flex gap-2 items-start">
+                  <UTextarea
                     v-model="formData.highlights![index]"
-                    placeholder="e.g. Led team of 5 engineers to deliver..."
-                    class="flex-1 w-full"
+                    placeholder="Describe a key achievement or responsibility..."
+                    autoresize
+                    :rows="2"
+                    class="flex-1"
                   />
                   <UButton
                     v-if="formData.highlights!.length > 1"
@@ -798,7 +792,7 @@ onMounted(async () => {
                 :disabled="isSaving"
               />
               <UButton
-                label="Update Experience"
+                label="Save Changes"
                 color="primary"
                 icon="i-lucide-check"
                 class="cursor-pointer"
