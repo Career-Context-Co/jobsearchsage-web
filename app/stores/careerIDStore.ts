@@ -12,8 +12,8 @@ import type {
 
 export const useCareerIDStore = defineStore('careerID', {
   state: () => ({
-    profileId: 'prof_myf2i85se9xri4e4wgsxxim7',
-    userId: 'nswk',
+    profileId: '',
+    userId: 'test12345678',
     // Core profile data (flat structure for ease of use)
     profile: null as Profile | null,
     experience: [] as Experience[],
@@ -1156,16 +1156,20 @@ export const useCareerIDStore = defineStore('careerID', {
         this.certifications = [...this.certifications, ...result.certifications as Certification[]]
       }
 
-      // Merge social links - keep both old and new
+      // Merge social links - replace dummy links (no id) with extracted ones
       if (result.socialLinks && result.socialLinks.length > 0) {
-        // Transform to ProfileSocialLink format
+        // Remove any dummy social links (links without IDs)
+        const savedLinks = this.profileSocialLinks.filter(link => link.id !== undefined)
+        
+        // Transform extracted links to ProfileSocialLink format
         const transformedLinks = result.socialLinks.map(link => ({
           ...link,
           platformNameCache: this.getPlatformNameById(link.platformId),
           isExtracted: true
         })) as ProfileSocialLink[]
 
-        this.profileSocialLinks = [...this.profileSocialLinks, ...transformedLinks]
+        // Keep only saved links + extracted links (removing dummy data)
+        this.profileSocialLinks = [...savedLinks, ...transformedLinks]
       }
 
       // Clear extraction result after applying

@@ -84,12 +84,16 @@ function startAddingCertification() {
   isAddingCertification.value = true
 }
 
+// Track which certification object we're editing (to handle extracted items)
+const editingCertificationRef = ref<Certification | null>(null)
+
 // Start editing existing certification - accepts INDEX not object
 function startEditingCertification(certIndex: number) {
   const certification = certificationsList.value[certIndex]
   if (!certification) return
   
   editingCertificationIndex.value = certIndex
+  editingCertificationRef.value = certification // Store reference to the actual object
   formData.value = {
     name: certification.name,
     issuer: certification.issuer,
@@ -104,6 +108,7 @@ function startEditingCertification(certIndex: number) {
 function cancelEdit() {
   isAddingCertification.value = false
   editingCertificationIndex.value = null
+  editingCertificationRef.value = null
   formData.value = {}
   formErrors.value = {}
 }
@@ -181,23 +186,15 @@ async function saveCertification(): Promise<boolean> {
       })
     } else {
       // Add new certification (includes: new items, extracted items being saved for first time)
-      // Find the extracted certification we're saving (if any)
-      const extractedCertification = certificationsList.value.find(cert => 
-        !cert.id && 
-        cert.name === formData.value.name &&
-        cert.issuer === formData.value.issuer &&
-        cert.isExtracted
-      )
-      
       await careerIDStore.addCertification({
         ...certificationData,
         displayOrder: certificationsList.value.length + 1
       })
       
-      // Remove the extracted version after successful save to avoid duplicates
-      if (extractedCertification) {
+      // If we were editing an extracted certification (no ID), remove it after successful save
+      if (editingCertificationRef.value && !editingCertificationRef.value.id && editingCertificationRef.value.isExtracted) {
         careerIDStore.certifications = careerIDStore.certifications.filter(
-          cert => cert !== extractedCertification
+          cert => cert !== editingCertificationRef.value
         )
       }
       

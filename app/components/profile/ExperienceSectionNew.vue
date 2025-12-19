@@ -117,12 +117,16 @@ function startAddingExperience() {
   isAddingExperience.value = true
 }
 
+// Track which experience object we're editing (to handle extracted items)
+const editingExperienceRef = ref<Experience | null>(null)
+
 // Start editing existing experience
 function startEditingExperience(expIndex: number) {
   const experience = experiences.value[expIndex]
   if (!experience) return
   
   editingExperienceIndex.value = expIndex
+  editingExperienceRef.value = experience // Store reference to the actual object
   formData.value = {
     employmentType: experience.employmentType,
     employer: experience.employer,
@@ -143,6 +147,7 @@ function startEditingExperience(expIndex: number) {
 function cancelEdit() {
   isAddingExperience.value = false
   editingExperienceIndex.value = null
+  editingExperienceRef.value = null
   formData.value = {}
   formErrors.value = {}
 }
@@ -262,23 +267,15 @@ async function saveExperience(): Promise<boolean> {
       })
     } else {
       // Add new experience (includes: new items, extracted items being saved for first time)
-      // Find the extracted experience we're saving (if any)
-      const extractedExperience = experiences.value.find(exp => 
-        !exp.id && 
-        exp.employer === formData.value.employer &&
-        exp.title === formData.value.title &&
-        exp.isExtracted
-      )
-      
       await careerIDStore.addExperience({
         ...experienceData,
         displayOrder: experiences.value.length + 1
       })
       
-      // Remove the extracted version after successful save
-      if (extractedExperience) {
+      // If we were editing an extracted experience (no ID), remove it after successful save
+      if (editingExperienceRef.value && !editingExperienceRef.value.id && editingExperienceRef.value.isExtracted) {
         careerIDStore.experience = careerIDStore.experience.filter(
-          exp => exp !== extractedExperience
+          exp => exp !== editingExperienceRef.value
         )
       }
       

@@ -132,36 +132,8 @@ watch(() => socialLinkForm.value.platformId, (newPlatformId) => {
   }
 })
 
-// Auto-open edit mode for contact info if it doesn't exist (for new users)
-onMounted(() => {
-  if (!props.contactInfo) {
-    // Initialize form with example data for new user
-    formData.value = {
-      firstName: '',
-      lastName: '',
-      email: '',
-      jobTitle: '',
-      phone: '',
-      city: '',
-      stateRegion: '',
-      country: '',
-      postalCode: '',
-      willingToRelocate: false,
-      summary: '10+ year professional with expertise in [your field]. Proven track record of [key achievements]. Passionate about [your interests] and seeking opportunities to [your goals].',
-      websites: ['https://yourportfolio.com']
-    }
-    isEditingContact.value = true
-    
-    // Pre-fill one LinkedIn example for social links
-    localSocialLinks.value = [{
-      platformId: 1, // LinkedIn
-      platformNameCache: 'LinkedIn',
-      url: 'https://linkedin.com/in/yourprofile',
-      displayOrder: 1,
-      isExtracted: false
-    } as ProfileSocialLink]
-  }
-})
+// Note: Contact info section starts in view mode (closed) by default
+// Users can click "Edit" to open it when needed
 
 // Helper to parse phone number into country code and number
 function parsePhone(phone: string | null | undefined): { countryCode: string; number: string } {
@@ -368,9 +340,9 @@ function startEditingWebsites() {
       websites: [...(props.contactInfo.websites || [])]
     }
   } else {
-    // New user - provide example website
+    // New user - start with empty array
     formData.value = {
-      websites: ['https://yourportfolio.com']
+      websites: []
     }
   }
   formErrors.value = {}
@@ -483,17 +455,6 @@ async function saveWebsites(): Promise<boolean> {
 // ============================================
 
 function startEditingSocialLinks() {
-  // For new users without contact info, pre-fill with LinkedIn example
-  if (!props.contactInfo && localSocialLinks.value.length === 0) {
-    localSocialLinks.value = [{
-      platformId: 1, // LinkedIn
-      platformNameCache: 'LinkedIn',
-      url: 'https://linkedin.com/in/yourprofile',
-      displayOrder: 1,
-      isExtracted: false
-    } as ProfileSocialLink]
-  }
-  
   socialLinkErrors.value = {}
   isEditingSocialLinks.value = true
 }
@@ -730,9 +691,9 @@ function startEditingSummary() {
       summary: props.contactInfo.summary || ''
     }
   } else {
-    // New user - provide example text
+    // New user - start with empty
     formData.value = {
-      summary: '10+ year professional with expertise in [your field]. Proven track record of [key achievements]. Passionate about [your interests] and seeking opportunities to [your goals].'
+      summary: ''
     }
   }
   formErrors.value = {}

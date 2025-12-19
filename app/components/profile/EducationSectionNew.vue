@@ -98,12 +98,16 @@ function startAddingEducation() {
   isAddingEducation.value = true
 }
 
+// Track which education object we're editing (to handle extracted items)
+const editingEducationRef = ref<Education | null>(null)
+
 // Start editing existing education - accepts INDEX not object
 function startEditingEducation(eduIndex: number) {
   const education = educationList.value[eduIndex]
   if (!education) return
   
   editingEducationIndex.value = eduIndex
+  editingEducationRef.value = education // Store reference to the actual object
   formData.value = {
     degreeType: education.degreeType,
     areaOfStudy: education.areaOfStudy,
@@ -123,6 +127,7 @@ function startEditingEducation(eduIndex: number) {
 function cancelEdit() {
   isAddingEducation.value = false
   editingEducationIndex.value = null
+  editingEducationRef.value = null
   formData.value = {}
   formErrors.value = {}
 }
@@ -266,23 +271,15 @@ async function saveEducation(): Promise<boolean> {
       })
     } else {
       // Add new education (includes: new items, extracted items being saved for first time)
-      // Find the extracted education we're saving (if any)
-      const extractedEducation = educationList.value.find(edu => 
-        !edu.id && 
-        edu.institution === formData.value.institution &&
-        edu.areaOfStudy === formData.value.areaOfStudy &&
-        edu.isExtracted
-      )
-      
       await careerIDStore.addEducation({
         ...educationData,
         displayOrder: educationList.value.length + 1
       })
       
-      // Remove the extracted version after successful save to avoid duplicates
-      if (extractedEducation) {
+      // If we were editing an extracted education (no ID), remove it after successful save
+      if (editingEducationRef.value && !editingEducationRef.value.id && editingEducationRef.value.isExtracted) {
         careerIDStore.education = careerIDStore.education.filter(
-          edu => edu !== extractedEducation
+          edu => edu !== editingEducationRef.value
         )
       }
       
