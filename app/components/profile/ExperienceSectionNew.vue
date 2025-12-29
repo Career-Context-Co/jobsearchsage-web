@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nextTick } from 'vue'
 import type { Experience } from '#shared/types/careerId'
 import { vMaska } from 'maska/vue'
 import { validateRequired, validateUrl, validateMonthYear, validateDateRange } from '~/utils/validation'
@@ -58,6 +59,12 @@ const experiences = computed(() => {
 const isAddingExperience = ref(false)
 const editingExperienceIndex = ref<number | null>(null)
 const isSavingExperience = ref(false)
+
+// Enhancement states (component-level tracking, similar to isExtracted pattern)
+const isEnhancingExperience = ref(false)
+const enhancedHighlights = ref<Set<number>>(new Set()) // Track which highlight indices are enhanced
+const originalHighlights = ref<Map<number, string>>(new Map()) // Store original text before enhancement for undo
+const isProgrammaticUpdate = ref(false) // Flag to prevent watch from clearing flags during AI enhancement
 
 // Form data
 interface ExperienceFormData {
@@ -150,6 +157,8 @@ function cancelEdit() {
   editingExperienceRef.value = null
   formData.value = {}
   formErrors.value = {}
+  enhancedHighlights.value.clear() // Clear enhancement tracking
+  originalHighlights.value.clear() // Clear original text storage
 }
 
 // Add highlight field
@@ -173,6 +182,25 @@ watch(() => formData.value.currentPosition, (isCurrent) => {
     formData.value.endDate = ''
   }
 })
+
+// Watch highlights for manual edits - clear enhanced flag if user modifies
+const highlightsSnapshot = ref<string[]>([])
+watch(() => formData.value.highlights, (newHighlights, oldHighlights) => {
+  if (!newHighlights || !oldHighlights) return
+  
+  // Skip if this is a programmatic update (AI enhancement in progress)
+  if (isProgrammaticUpdate.value) {
+    return
+  }
+  
+  // Check each highlight for changes
+  newHighlights.forEach((highlight, index) => {
+    if (oldHighlights[index] !== highlight && enhancedHighlights.value.has(index)) {
+      // User manually edited an enhanced highlight - remove enhanced flag
+      enhancedHighlights.value.delete(index)
+    }
+  })
+}, { deep: true })
 
 // Validate form
 function validateForm(): boolean {
@@ -340,6 +368,90 @@ function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return 'Present'
   const date = new Date(dateString)
   return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
+// Enhance experience achievements using AI
+async function enhanceExperience() {
+  // Validation: ensure we have highlights to enhance
+  const nonEmptyHighlights = formData.value.highlights?.filter(h => h && h.trim()) || []
+  
+  if (nonEmptyHighlights.length === 0) {
+    toast.add({
+      title: 'No Achievements to Enhance',
+      description: 'Please add at least one achievement before enhancing',
+      icon: 'i-lucide-alert-circle',
+      color: 'warning'
+    })
+    return
+  }
+
+  isEnhancingExperience.value = true
+  
+  try {
+    // Build experience slice for AI enhancement
+    const experienceSlice = {
+      employmentType: formData.value.employmentType || 'full_time',
+      employer: formData.value.employer || '',
+      title: formData.value.title || '',
+      url: formData.value.url,
+      summary: formData.value.summary,
+      highlights: nonEmptyHighlights
+    }
+
+    // Call store action to enhance achievements
+    const enhanced = await careerIDStore.enhanceExperience(experienceSlice)
+
+    // Replace highlights with enhanced versions
+    if (formData.value.highlights) {
+      // Set flag to prevent watch from clearing our enhancement flags
+      isProgrammaticUpdate.value = true
+      
+      let enhancedIndex = 0
+      formData.value.highlights = formData.value.highlights.map((highlight, index) => {
+        if (highlight && highlight.trim()) {
+          // Store original before replacement
+          originalHighlights.value.set(index, highlight)
+          // Track this highlight as enhanced
+          enhancedHighlights.value.add(index)
+          return enhanced[enhancedIndex++]
+        }
+        return highlight
+      })
+      
+      // Wait for next tick to ensure Vue has processed the updates
+      await nextTick()
+      
+      // Clear the flag after updates are complete
+      isProgrammaticUpdate.value = false
+    }
+
+    toast.add({
+      title: 'Achievements Enhanced',
+      description: 'Your achievements have been polished successfully',
+      icon: 'i-lucide-sparkles',
+      color: 'success'
+    })
+  } catch (error: any) {
+    // Error message already set in store, just show toast
+    toast.add({
+      title: 'Enhancement Failed',
+      description: error?.message || 'Failed to enhance achievements. Please try again.',
+      icon: 'i-lucide-alert-circle',
+      color: 'error'
+    })
+  } finally {
+    isEnhancingExperience.value = false
+  }
+}
+
+// Undo AI enhancement for a specific highlight
+function undoEnhancement(index: number) {
+  const original = originalHighlights.value.get(index)
+  if (original && formData.value.highlights) {
+    formData.value.highlights[index] = original
+    enhancedHighlights.value.delete(index)
+    originalHighlights.value.delete(index)
+  }
 }
 
 // Exposed methods for compatibility with onboarding.vue
@@ -548,28 +660,72 @@ defineExpose({
 
         <!-- Highlights/Achievements -->
         <div>
-          <label class="block text-sm font-medium mb-1">Key Achievements/Highlights <span class="text-error">*</span></label>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-sm font-medium">Key Achievements/Highlights <span class="text-error">*</span></label>
+            <UButton
+              :label="isEnhancingExperience ? 'Enhancing...' : 'Enhance with AI'"
+              icon="i-lucide-sparkles"
+              color="primary"
+              variant="outline"
+              size="xs"
+              class="cursor-pointer"
+              :loading="isEnhancingExperience"
+              :disabled="isEnhancingExperience"
+              @click="enhanceExperience"
+            />
+          </div>
           <div class="space-y-2">
             <div
               v-for="(highlight, index) in formData.highlights"
               :key="index"
               class="flex gap-2 items-start"
             >
-              <UTextarea
-                v-model="formData.highlights![index]"
-                placeholder="Describe a key achievement or responsibility..."
-                :rows="2"
-                class="flex-1"
-              />
-              <UButton
-                v-if="formData.highlights!.length > 1"
-                icon="i-lucide-trash-2"
-                color="error"
-                variant="ghost"
-                size="sm"
-                class="cursor-pointer mt-2"
-                @click="removeHighlight(index)"
-              />
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <UBadge
+                    v-if="enhancedHighlights.has(index)"
+                    color="neutral"
+                    size="xs"
+                    class="bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300"
+                  >
+                    <div class="flex items-center gap-1">
+                      <UIcon name="i-lucide-sparkles" class="w-3 h-3" />
+                      <span>Enhanced</span>
+                    </div>
+                  </UBadge>
+                </div>
+                <UTextarea
+                  v-model="formData.highlights![index]"
+                  placeholder="Describe a key achievement or responsibility..."
+                  :rows="2"
+                  autoresize
+                  class="w-full"
+                  :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': enhancedHighlights.has(index) }"
+                />
+              </div>
+              <div class="flex gap-1">
+                <!-- Undo button (only show if enhanced) -->
+                <UButton
+                  v-if="enhancedHighlights.has(index)"
+                  icon="i-lucide-undo-2"
+                  color="primary"
+                  variant="ghost"
+                  size="sm"
+                  title="Undo enhancement"
+                  class="cursor-pointer mt-7"
+                  @click="undoEnhancement(index)"
+                />
+                <!-- Delete button -->
+                <UButton
+                  v-if="formData.highlights!.length > 1"
+                  icon="i-lucide-trash-2"
+                  color="error"
+                  variant="ghost"
+                  size="sm"
+                  class="cursor-pointer mt-7"
+                  @click="removeHighlight(index)"
+                />
+              </div>
             </div>
             <UButton
               label="Add Highlight"
@@ -808,28 +964,72 @@ defineExpose({
 
             <!-- Highlights/Achievements -->
             <div>
-              <label class="block text-sm font-medium mb-1">Key Achievements/Highlights <span class="text-error">*</span></label>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-sm font-medium">Key Achievements/Highlights <span class="text-error">*</span></label>
+                <UButton
+                  :label="isEnhancingExperience ? 'Enhancing...' : 'Enhance with AI'"
+                  icon="i-lucide-sparkles"
+                  color="primary"
+                  variant="outline"
+                  size="xs"
+                  class="cursor-pointer"
+                  :loading="isEnhancingExperience"
+                  :disabled="isEnhancingExperience"
+                  @click="enhanceExperience"
+                />
+              </div>
               <div class="space-y-2">
                 <div
                   v-for="(highlight, index) in formData.highlights"
                   :key="index"
                   class="flex gap-2 items-start"
                 >
-                  <UTextarea
-                    v-model="formData.highlights![index]"
-                    placeholder="Describe a key achievement or responsibility..."
-                    autoresize
-                    :rows="2"
-                    class="flex-1"
-                  />
-                  <UButton
-                    v-if="formData.highlights!.length > 1"
-                    icon="i-lucide-x"
-                    color="neutral"
-                    variant="ghost"
-                    class="cursor-pointer"
-                    @click="removeHighlight(index)"
-                  />
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                      <UBadge
+                        v-if="enhancedHighlights.has(index)"
+                        color="neutral"
+                        size="xs"
+                        class="bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300"
+                      >
+                        <div class="flex items-center gap-1">
+                          <UIcon name="i-lucide-sparkles" class="w-3 h-3" />
+                          <span>Enhanced</span>
+                        </div>
+                      </UBadge>
+                    </div>
+                    <UTextarea
+                      v-model="formData.highlights![index]"
+                      placeholder="Describe a key achievement or responsibility..."
+                      autoresize
+                      :rows="2"
+                      class="w-full"
+                      :class="{ 'ring-1 ring-cyan-500 dark:ring-cyan-400': enhancedHighlights.has(index) }"
+                    />
+                  </div>
+                  <div class="flex gap-1">
+                    <!-- Undo button (only show if enhanced) -->
+                    <UButton
+                      v-if="enhancedHighlights.has(index)"
+                      icon="i-lucide-undo-2"
+                      color="primary"
+                      variant="ghost"
+                      size="sm"
+                      title="Undo enhancement"
+                      class="cursor-pointer mt-7"
+                      @click="undoEnhancement(index)"
+                    />
+                    <!-- Delete button -->
+                    <UButton
+                      v-if="formData.highlights!.length > 1"
+                      icon="i-lucide-x"
+                      color="neutral"
+                      variant="ghost"
+                      size="sm"
+                      class="cursor-pointer mt-7"
+                      @click="removeHighlight(index)"
+                    />
+                  </div>
                 </div>
                 <UButton
                   label="Add Highlight"
