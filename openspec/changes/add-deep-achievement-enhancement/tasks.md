@@ -33,9 +33,9 @@
 ## PHASE 2: BACKEND
 
 ### BE-001: XYZ Method Enhancement Utility
-- [ ] Create `server/utils/profile-experience-enhancer.ts` utility module
-- [ ] Implement `gatherExperienceContext()` function (uses Context Gathering Prompt, generates 5-7 questions)
-- [ ] Implement `enhanceExperienceBullets()` function (uses Bullet Writing Prompt, generates 3-5 bullets)
+- [ ] Create `server/utils/xyz-enhancer.ts` utility module
+- [ ] Implement `generateXYZQuestions()` function (uses Context Gathering Prompt, generates 5-7 questions)
+- [ ] Implement `generateXYZBullets()` function (uses Bullet Writing Prompt, generates 3-5 bullets)
 - [ ] Add AI Gateway integration using GPT-4o model
 - [ ] Load system prompts from `deliverables/prompts/` directory
 - [ ] Add employment type handling (full-time, part-time, contract, internship)
@@ -50,7 +50,7 @@
 ---
 
 ### BE-002: XYZ Question Generation Endpoint
-- [ ] Create `server/api/career-id/profile/[profile-id]/experience/[id]/gather-context.post.ts`
+- [ ] Create `server/api/career-id/enhancement/generate-questions.post.ts`
 - [ ] Accept request body: `{ experienceId: number, experience: Experience }`
 - [ ] Validate required fields (experienceId, experience with title, employer, employmentType, highlights)
 - [ ] Call `generateXYZQuestions()` from xyz-enhancer utility
@@ -66,7 +66,7 @@
 ---
 
 ### BE-003: XYZ Bullet Generation Endpoint
-- [ ] Create `server/api/career-id/profile/[profile-id]/experience/[id]/enhance-acheivements.post.ts`
+- [ ] Create `server/api/career-id/enhancement/generate-bullets.post.ts`
 - [ ] Accept request body: `{ experienceId: number, experience: Experience, answers: [{ questionId, answer }] }`
 - [ ] Validate required fields and answer format
 - [ ] Call `generateXYZBullets()` from xyz-enhancer utility
