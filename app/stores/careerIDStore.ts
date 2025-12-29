@@ -13,7 +13,7 @@ import type {
 export const useCareerIDStore = defineStore('careerID', {
   state: () => ({
     profileId: '',
-    userId: 'test12345678',
+    userId: 'test12349',
     // Core profile data (flat structure for ease of use)
     profile: null as Profile | null,
     experience: [] as Experience[],
