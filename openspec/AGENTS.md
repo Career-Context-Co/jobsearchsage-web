@@ -77,6 +77,7 @@ After deployment, create separate PR to:
 - Prefer modifying existing specs over creating duplicates
 - Use `openspec show [spec]` to review current state
 - If request is ambiguous, ask 1–2 clarifying questions before scaffolding
+- DO NOT create README.md for proposals or changes, the other files have enough context
 
 ### Search Guidance
 - Enumerate specs: `openspec spec list --long` (or `--json` for scripts)

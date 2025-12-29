@@ -13,7 +13,7 @@ import type {
 export const useCareerIDStore = defineStore('careerID', {
   state: () => ({
     profileId: '',
-    userId: 'test12345678',
+    userId: 'test123456',
     // Core profile data (flat structure for ease of use)
     profile: null as Profile | null,
     experience: [] as Experience[],
@@ -40,7 +40,10 @@ export const useCareerIDStore = defineStore('careerID', {
       education: Array<Omit<Education, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>
       profileSkills: string[]
       certifications: Array<Omit<Certification, 'id' | 'profileId' | 'createdAt' | 'updatedAt'>>
-    } | null
+    } | null,
+
+    // Achievement enhancement state
+    isEnhancingExperience: false
   }),
 
   getters: {
@@ -1218,6 +1221,68 @@ export const useCareerIDStore = defineStore('careerID', {
       
       this.hasPerformedExtraction = false
       console.log('Cleared all extracted and unsaved data')
+    },
+
+    /**
+     * Enhance achievement descriptions using AI-powered light polish
+     * 
+     * This action sends an experience slice (job context + achievements) to the 
+     * AI enhancement endpoint and returns polished achievement descriptions.
+     * Components track enhancement state locally (similar to isExtracted pattern).
+     *
+     * @param experienceSlice - Experience data slice containing job context and achievement highlights
+     * @returns Promise resolving to enhanced highlights array in same order as input
+     * @throws Error with user-friendly message on enhancement failure
+     */
+    async enhanceExperience(experienceSlice: {
+      employmentType: string
+      employer: string
+      title: string
+      url?: string
+      summary?: string
+      highlights: string[]
+    }): Promise<string[]> {
+      this.isEnhancingExperience = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          enhanced: {
+            highlights: string[]
+          }
+          duration: number
+        }>('/api/career-id/resume/achievementEnhancer', {
+          method: 'POST',
+          body: experienceSlice
+        })
+
+        if (!response.success || !response.enhanced?.highlights) {
+          throw new Error('Enhancement failed: Invalid response format')
+        }
+
+        return response.enhanced.highlights
+      } catch (error: any) {
+        let errorMessage = 'Failed to enhance achievements'
+
+        // Handle different error types with user-friendly messages
+        if (error?.data?.error?.code === 'TIMEOUT' || error?.data?.error?.code === 'ENHANCEMENT_TIMEOUT') {
+          errorMessage = 'Enhancement timed out. Please try again.'
+        } else if (error?.data?.error?.code === 'INVALID_INPUT') {
+          errorMessage = 'Invalid experience data provided.'
+        } else if (error?.data?.error?.code === 'ENHANCEMENT_SERVICE_ERROR' || error?.data?.error?.code === 'AI_PROVIDER_ERROR') {
+          errorMessage = 'Enhancement service is temporarily unavailable. Please try again.'
+        } else if (error?.data?.error?.message) {
+          errorMessage = error.data.error.message
+        } else if (error?.message) {
+          errorMessage = error.message
+        }
+
+        this.error = errorMessage
+        throw new Error(errorMessage)
+      } finally {
+        this.isEnhancingExperience = false
+      }
     }
   }
 })
