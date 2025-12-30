@@ -17,31 +17,32 @@
 
 ## PHASE 1: DATABASE
 
-### DB-001: Add Enhancement Tracking Column
-- [ ] Design migration to add `last_enhanced_at` column to `career_id.experience` table
-- [ ] Create migration file: `deliverables/migrations/015_add_experience_enhancement_tracking.sql`
-- [ ] Add column as nullable TIMESTAMPTZ (defaults to NULL for existing records)
-- [ ] Add column comment explaining purpose
-- [ ] Test migration on development database
+### DB-001: Add Enhancement Tracking & Context Columns
+- [x] Design migration to add `last_enhanced_at` and `context_notes` columns to `career_id.experience` table
+- [x] Create migration file: `deliverables/migrations/015_add_experience_enhancement_tracking.sql`
+- [x] Add `last_enhanced_at` as nullable TIMESTAMPTZ (defaults to NULL for existing records)
+- [x] Add `context_notes` as nullable TEXT (stores user's interview/achievement context)
+- [x] Add column comments explaining purpose
+- [x] Test migration on development database
 
 **Dependencies:** None  
-**Testable by:** Database team (verify column added, check existing records unaffected)  
-**Success criteria:** Column added successfully, no data loss, existing queries still work
+**Testable by:** Database team (verify columns added, check existing records unaffected)  
+**Success criteria:** Columns added successfully, no data loss, existing queries still work
 
 ---
 
 ## PHASE 2: BACKEND
 
 ### BE-001: XYZ Method Enhancement Utility
-- [ ] Create `server/utils/xyz-enhancer.ts` utility module
-- [ ] Implement `generateXYZQuestions()` function (uses Context Gathering Prompt, generates 5-7 questions)
-- [ ] Implement `generateXYZBullets()` function (uses Bullet Writing Prompt, generates 3-5 bullets)
-- [ ] Add AI Gateway integration using GPT-4o model
-- [ ] Load system prompts from `deliverables/prompts/` directory
-- [ ] Add employment type handling (full-time, part-time, contract, internship)
-- [ ] Add error handling for AI provider errors
-- [ ] Add timeout handling (15s for questions, 20s for bullets)
-- [ ] Export `XYZEnhancementError` class for error handling
+- [x] Create `server/utils/profile-experience-enhancer.ts` utility module (consolidated implementation)
+- [x] Implement `generateXYZQuestions()` function (uses Context Gathering Prompt, multi-round flow with questionGroups)
+- [x] Implement `generateXYZBullets()` function (uses Bullet Writing Prompt, generates primary/secondary bullet pairs)
+- [x] Add AI Gateway integration using GPT-4o model (upgraded from gpt-4o-mini)
+- [x] System prompts embedded in utility with improved formatting
+- [x] Add employment type handling (full-time, part-time, contract, internship)
+- [x] Add error handling for AI provider errors
+- [x] Add timeout handling (30s for questions, 20s for bullets)
+- [x] Export `XYZEnhancementError` class for error handling
 
 **Dependencies:** None
 **Testable by:** Backend team (unit tests with mock AI responses, test all employment types)
@@ -50,14 +51,14 @@
 ---
 
 ### BE-002: XYZ Question Generation Endpoint
-- [ ] Create `server/api/career-id/enhancement/generate-questions.post.ts`
-- [ ] Accept request body: `{ experienceId: number, experience: Experience }`
-- [ ] Validate required fields (experienceId, experience with title, employer, employmentType, highlights)
-- [ ] Call `generateXYZQuestions()` from xyz-enhancer utility
-- [ ] Return response: `{ success: true, questions: [{ id, text }] }` (5-7 questions)
-- [ ] Add comprehensive error handling (validation, timeout, AI errors)
-- [ ] Add request/response logging
-- [ ] Document endpoint in API spec
+- [x] Create `server/api/career-id/profile/[profileId]/experience/[id]/gather-context.post.ts` endpoint
+- [x] Accept request body: `{ experience: Experience, context?: ContextObject }`
+- [x] Validate required fields (experience with title, employer, employmentType; optional context)
+- [x] Call `generateXYZQuestions()` from profile-experience-enhancer utility
+- [x] Return response: `{ success: true, data: { questionGroups: [...], notes: [...] } }` (grouped questions)
+- [x] Add comprehensive error handling (validation, timeout, AI errors)
+- [x] Add request/response logging with metrics
+- [x] Document endpoint in JSDoc comments
 
 **Dependencies:** BE-001
 **Testable by:** Backend team (test with different employment types, verify question quality)
@@ -66,14 +67,14 @@
 ---
 
 ### BE-003: XYZ Bullet Generation Endpoint
-- [ ] Create `server/api/career-id/enhancement/generate-bullets.post.ts`
-- [ ] Accept request body: `{ experienceId: number, experience: Experience, answers: [{ questionId, answer }] }`
-- [ ] Validate required fields and answer format
-- [ ] Call `generateXYZBullets()` from xyz-enhancer utility
-- [ ] Return response: `{ success: true, bullets: string[] }` (3-5 bullets)
-- [ ] Add comprehensive error handling
-- [ ] Add request/response logging
-- [ ] Document endpoint in API spec
+- [x] Create `server/api/career-id/profile/[profileId]/experience/[id]/enhance-achievements.post.ts` endpoint
+- [x] Accept request body: `{ experience: Experience, notes: StoryNote[] }`
+- [x] Validate required fields and notes format
+- [x] Call `generateXYZBullets()` from profile-experience-enhancer utility
+- [x] Return response: `{ success: true, data: { bullets: [{ primary, secondary }] } }` (structured pairs)
+- [x] Add comprehensive error handling
+- [x] Add request/response logging
+- [x] Document endpoint in JSDoc comments
 
 **Dependencies:** BE-001
 **Testable by:** Backend team (test with various answer qualities, verify XYZ format)
@@ -85,211 +86,223 @@
 
 ### FE-001: XYZ Enhancement Types
 - [ ] Create `shared/types/enhancement.ts` file
-- [ ] Define `XYZQuestion` type (id, text)
-- [ ] Define `XYZAnswer` type (questionId, answer)
-- [ ] Define `XYZEnhancementSession` type (experienceId, questions, answers, bullets)
-- [ ] Define `EnhancementStatus` type (not_enhanced, enhanced, enhancing)
-- [ ] Update `shared/types/careerId.ts` to add `lastEnhancedAt?: string` to Experience type
+- [ ] Define `XYZQuestion` type (id: string, text: string)
+- [ ] Define `QuestionGroup` type (category: string, questions: XYZQuestion[])
+- [ ] Define `StoryNote` type (title?: string, text: string, type: 'project' | 'initiative' | 'responsibility' | 'achievement')
+- [ ] Define `ContextObject` type (notes: StoryNote[], answeredQuestions: Array<{ id: string, answer: string }>)
+- [ ] Define `BulletPair` type (primary: string, secondary: string)
+- [ ] Update `shared/types/careerId.ts` to add:
+  - [ ] `lastEnhancedAt?: string | null` to Experience type
+  - [ ] `contextNotes?: string | null` to Experience type
 
 **Dependencies:** None
 **Testable by:** Frontend team (type checking)
-**Success criteria:** All XYZ-specific types defined, no TypeScript errors
+**Success criteria:** All XYZ-specific types defined, no TypeScript errors, types match backend implementation
 
 ---
 
 ### FE-002: Store XYZ Enhancement Actions
 - [ ] Update `app/stores/careerIDStore.ts` with XYZ enhancement state
-- [ ] Add state: `isGeneratingQuestions`, `isGeneratingBullets`, `enhancementError`
-- [ ] Add action: `generateXYZQuestions(experienceId)` - calls BE-002
-- [ ] Add action: `generateXYZBullets(experienceId, experience, answers)` - calls BE-003
-- [ ] Add action: `saveEnhancedBullets(experienceId, bullets)` - calls existing PATCH endpoint
+- [ ] Add state: `enhancingExperienceId: number | null`, `enhancementRound: 1 | 2 | 3`, `enhancementContext`, `isGeneratingQuestions`, `isGeneratingBullets`, `enhancementError`, `generatedBullets`
+- [ ] Add action: `generateInitialQuestions(experience)` - calls `/gather-context` endpoint (Round 1)
+  - [ ] Returns `{ questionGroups: QuestionGroup[], notes: StoryNote[] }`
+  - [ ] Stores notes in `enhancementContext.storyNotes`
+- [ ] Add action: `generateFollowUpQuestions(experience, context)` - calls `/gather-context` endpoint (Round 2+)
+  - [ ] Accepts context with answeredQuestions from previous round
+  - [ ] Returns follow-up questions (if any) and updated notes
+- [ ] Add action: `generateFinalBullets(experience, contextNotes)` - calls `/enhance-achievements` endpoint (Round 3)
+  - [ ] Returns `{ bullets: BulletPair[] }` (3-5 primary/secondary pairs)
+  - [ ] Stores in `generatedBullets` state
+- [ ] Add action: `saveEnhancedBullets(experienceId, bullets, contextNotes)` - calls existing PATCH endpoint
+  - [ ] Updates experience with selected bullets and contextNotes
+  - [ ] Updates `lastEnhancedAt` timestamp
+- [ ] Add action: `updateAnsweredQuestions(questions)` - updates context with latest answers
+- [ ] Add action: `cancelEnhancement()` - clears all enhancement state
 - [ ] Add error handling for all enhancement actions
 - [ ] Add loading state management
 
 **Dependencies:** FE-001, BE-002, BE-003
-**Testable by:** Frontend team (test store actions with mock API)
-**Success criteria:** Store actions work correctly, XYZ bullets generated properly
+**Testable by:** Frontend team (test store actions with mock API, test multi-round flow)
+**Success criteria:** Store actions work correctly, context tracking works across 3 rounds, bullets generated properly
 
 ---
 
-## PHASE 3B: FRONTEND - ENHANCEMENT PAGE
+## PHASE 3B: FRONTEND - ENHANCEMENT PANE (INTEGRATED INTO EXPERIENCE PAGE)
 
-### FE-003: Enhancement Page Layout
-- [ ] Create `app/pages/profile/enhance.vue` page
-- [ ] Add page title and description
-- [ ] Fetch all experiences from store on mount
-- [ ] Display experience list with cards (company, title, dates)
-- [ ] Show enhancement status badge for each experience (Not Enhanced / Enhanced on [date])
-- [ ] Add "Enhance" button to each experience card
-- [ ] Add "Enhance All" button at top of page
-- [ ] Add empty state if no experiences exist
-- [ ] Add navigation link from profile dashboard
-
-**Dependencies:** FE-002  
-**Testable by:** Frontend team (visual testing, navigation)  
-**Success criteria:** Page displays correctly, shows all experiences, status indicators work
+### Overview
+Enhance profile experiences directly on `/profile/experience` page with a 50% slide-out pane triggered by `?enhance=<id>` query parameter. Three-round flow embedded in pane: Round 1 (initial questions) → Round 2 (follow-ups) → Round 3 (context review & save).
 
 ---
 
-### FE-004: Enhancement Flow Modal
-- [ ] Create `app/components/profile/EnhancementFlow.vue` component
-- [ ] Implement modal/wizard UI with steps indicator
-- [ ] Add Step 1: Question Generation (loading state)
-- [ ] Add Step 2: Question Answering (form with text inputs)
-- [ ] Add Step 3: Follow-up Questions (conditional, similar to Step 2)
-- [ ] Add Step 4: Preview & Accept (comparison view)
-- [ ] Add navigation between steps (Next, Back, Cancel)
-- [ ] Add progress indicator
-- [ ] Handle modal open/close state
+### FE-003: Modify experience.vue for Enhancement Pane Integration
+- [ ] Add query parameter handling:
+  - [ ] Read `enhance` query param using `useRoute()`
+  - [ ] Display EnhancementPane conditionally when `route.query.enhance` exists
+  - [ ] Highlight experience card matching `route.query.enhance` param
+- [ ] Add "Enhance" button to experience card view mode (next to "Edit" button)
+  - [ ] Clicking button sets `?enhance=<id>` query param
+- [ ] Add "Enhance" button to experience card edit mode (as additional action)
+  - [ ] Clicking button sets `?enhance=<id>` query param
+- [ ] Implement pane open/close:
+  - [ ] Open: Set query param `?enhance=<id>`
+  - [ ] Close: Remove query param (via `useRouter()`)
+  - [ ] Add close button (X) in pane header
+- [ ] Add CSS for 50% width pane (or full-width on mobile)
+- [ ] Add Tailwind transitions for smooth slide-in animation
 
-**Dependencies:** FE-003  
-**Testable by:** Frontend team (test modal flow, step navigation)  
-**Success criteria:** Modal displays correctly, steps navigate properly, UI is intuitive
-
----
-
-### FE-005: XYZ Question Form Component
-- [ ] Create `app/components/profile/XYZQuestionForm.vue` component
-- [ ] Accept props: `questions` (5-7 XYZ questions), `answers` (for pre-filling on regenerate)
-- [ ] Display all questions or queue them (UI decision)
-- [ ] Provide textarea input for each question
-- [ ] Add "Skip" option for each question
-- [ ] Add validation (at least one question answered)
-- [ ] Emit `submit` event with answers array
-- [ ] Add loading state during bullet generation
-
-**Dependencies:** FE-001
-**Testable by:** Frontend team (test with 5-7 questions, skip functionality)
-**Success criteria:** Form displays XYZ questions, collects answers, validates properly
+**Dependencies:** FE-002
+**Testable by:** Frontend team (query param management, visual display, button functionality)
+**Success criteria:** Pane opens/closes with query param, card highlights, buttons trigger correctly
 
 ---
 
-### FE-006: XYZ Bullet Preview Component
-- [ ] Create `app/components/profile/XYZBulletPreview.vue` component
-- [ ] Accept props: `originalHighlights`, `xyzBullets` (3-5 XYZ-format bullets)
-- [ ] Display side-by-side comparison (original vs XYZ bullets)
-- [ ] Highlight XYZ components (X=achievement, Y=metric, Z=method)
-- [ ] Show employment-type-appropriate verbs used
-- [ ] Add "Accept" button (emits `accept` event)
-- [ ] Add "Regenerate" button (emits `regenerate` event)
-- [ ] Add "Cancel" button (emits `cancel` event)
-- [ ] Show loading state during save
+### FE-004: Create EnhancementPane.vue Component
+- [ ] Build main pane container with left/right layout structure
+- [ ] Implement step navigation logic (Round 1 → Round 2 → Round 3 → Save/Cancel)
+- [ ] Add step indicator at top showing progress (e.g., "Step 1 of 3" or "Round X")
+- [ ] Add pane header with title and close button (X)
+- [ ] Conditionally render appropriate step component based on current round:
+  - [ ] Round 1: `<EnhancementStep1 />`
+  - [ ] Round 2: `<EnhancementStep2 />` (only if follow-up questions exist)
+  - [ ] Round 3: `<EnhancementStep3 />`
+- [ ] Implement round progression logic:
+  - [ ] "Next" button advances to next round
+  - [ ] "Back" button returns to previous round (disable on Round 1)
+  - [ ] Auto-advance from Round 2 if no follow-up questions (jump to Round 3)
+- [ ] Handle pane close on "Cancel" or after successful "Save"
+- [ ] Pass relevant state to child components via props
+- [ ] Emit state updates back to parent (experience.vue)
 
-**Dependencies:** FE-001
-**Testable by:** Frontend team (test XYZ bullet display, verify metrics present)
-**Success criteria:** Preview displays XYZ bullets correctly, highlights X/Y/Z components
-
----
-
-### FE-007: XYZ Enhancement Flow Integration
-- [ ] Integrate EnhancementFlow component into enhance.vue page
-- [ ] Implement XYZ enhancement flow logic:
-  - [ ] Step 1: Call `generateXYZQuestions()` on experience selection
-  - [ ] Step 2: Display XYZQuestionForm (5-7 questions), collect answers
-  - [ ] Step 3: Call `generateXYZBullets()` with answers
-  - [ ] Step 4: Display XYZBulletPreview (3-5 bullets), handle accept/regenerate
-- [ ] Store answers in component state for regeneration
-- [ ] Handle accept: call `saveEnhancedBullets()`, update experience, close modal
-- [ ] Handle regenerate: return to Step 2 with pre-filled answers
-- [ ] Handle cancel: clear state, close modal
-- [ ] Add error handling with toast notifications
-
-**Dependencies:** FE-004, FE-005, FE-006, FE-002
-**Testable by:** Frontend team (end-to-end XYZ flow testing)
-**Success criteria:** XYZ flow works, bullets follow formula, regeneration works
+**Dependencies:** FE-003
+**Testable by:** Frontend team (step navigation, conditional rendering)
+**Success criteria:** Pane displays correct step, navigation works, rounds progress properly
 
 ---
 
-### FE-008: Bulk Enhancement Flow
-- [ ] Add "Enhance All" button to enhance.vue page
-- [ ] Implement sequential enhancement logic:
-  - [ ] Filter unenhanced experiences
-  - [ ] Start enhancement flow for first experience
-  - [ ] After accept, automatically start next experience
-  - [ ] Show progress indicator (e.g., "2 of 5 enhanced")
-  - [ ] Allow cancel at any time
-- [ ] Save progress after each individual enhancement
-- [ ] Handle completion (all experiences enhanced)
-- [ ] Add toast notification for bulk completion
+### FE-005: Create EnhancementStep1.vue Component (Round 1: Initial Questions)
+- [ ] Accept props: `questionGroups: QuestionGroup[]`, `isLoading: boolean`
+- [ ] Display loading state while questions are being generated
+- [ ] Display grouped questions organized by category:
+  - [ ] Show category header (e.g., "General Role Context", "Key Achievements", etc.)
+  - [ ] List 5-7 questions per group with textarea inputs
+  - [ ] Add "Skip" checkbox option for each question (optional)
+- [ ] Implement answer collection:
+  - [ ] Store answers in component state: `answeredQuestions: Array<{ id, answer }>`
+  - [ ] Validate: at least one question must be answered
+  - [ ] Show validation error if user clicks "Next" with no answers
+- [ ] Add button layout: "Next" (enabled when valid), "Cancel"
+- [ ] Emit event when user clicks "Next": `@proceed:round1="answers"`
+- [ ] Show helpful text explaining Round 1 purpose
 
-**Dependencies:** FE-007  
-**Testable by:** Frontend team (test bulk flow, cancellation, progress)  
-**Success criteria:** Bulk enhancement works, progress tracked, can cancel anytime
-
----
-
-## PHASE 3C: FRONTEND - PROFILE DASHBOARD INTEGRATION
-
-### FE-009: Profile Dashboard Enhancement Indicators
-- [ ] Update `app/pages/profile/index.vue` profile dashboard
-- [ ] Add enhancement status badge to experience cards
-- [ ] Show "Enhanced on [date]" if `lastEnhancedAt` exists
-- [ ] Add "Deep Enhance" button to each experience card
-- [ ] Link "Deep Enhance" button to enhancement page with pre-selected experience
-- [ ] Add navigation link to enhancement page in profile section
-- [ ] Update experience card styling to show enhancement status
-
-**Dependencies:** FE-007  
-**Testable by:** Frontend team (visual testing, navigation)  
-**Success criteria:** Dashboard shows enhancement status, navigation works
+**Dependencies:** FE-001, FE-004
+**Testable by:** Frontend team (question display, answer collection, validation)
+**Success criteria:** Questions display grouped by category, answers collected, validation works
 
 ---
 
-## PHASE 4: TESTING & REFINEMENT
+### FE-006: Create EnhancementStep2.vue Component (Round 2: Follow-up Questions)
+- [ ] Accept props: `storyNotes: StoryNote[]`, `questionGroups: QuestionGroup[]`, `isLoading: boolean`
+- [ ] Display accumulated story notes as read-only cards above questions:
+  - [ ] Show notes from Round 1 (generated by AI from initial answers)
+  - [ ] Format nicely with card styling
+  - [ ] Include note type badge (project, initiative, responsibility, achievement)
+- [ ] Display new follow-up questions (if any):
+  - [ ] Same structure as Step 1 (grouped by category)
+  - [ ] May have fewer questions than Round 1 (targeted follow-ups)
+- [ ] Implement answer collection (same as Step 1):
+  - [ ] Store answers, validate at least one question answered
+- [ ] Add button layout: "Back", "Next" (enabled when valid), "Cancel"
+- [ ] Emit events:
+  - [ ] `@back="returnToRound1"` 
+  - [ ] `@proceed:round2="answers"` when Next clicked
+- [ ] Show round indicator (e.g., "Round 2: Follow-up Questions")
 
-### TEST-001: End-to-End Testing
-- [ ] Test full enhancement flow with various experience types
-- [ ] Test question generation quality with different achievement styles
-- [ ] Test answer processing with vague vs detailed answers
-- [ ] Test follow-up question generation
-- [ ] Test enhancement quality (metrics, verbs, structure)
-- [ ] Test regeneration flow with modified answers
-- [ ] Test bulk enhancement with multiple experiences
-- [ ] Test error scenarios (timeouts, API failures, network errors)
-
-**Dependencies:** All FE tasks  
-**Testable by:** QA team, Frontend team  
-**Success criteria:** All flows work correctly, errors handled gracefully
-
----
-
-### TEST-002: AI Prompt Refinement
-- [ ] Gather sample enhancements from testing
-- [ ] Evaluate question relevance and quality
-- [ ] Evaluate enhancement quality (metrics, clarity, professionalism)
-- [ ] Refine system prompts based on results
-- [ ] Test refined prompts with same examples
-- [ ] Iterate until quality meets standards
-
-**Dependencies:** TEST-001  
-**Testable by:** Product team, AI team  
-**Success criteria:** Questions are relevant, enhancements are high quality
+**Dependencies:** FE-001, FE-004
+**Testable by:** Frontend team (story notes display, question display, multi-round flow)
+**Success criteria:** Story notes display, follow-up questions display, answers collected, Back/Next work
 
 ---
 
-### TEST-003: Performance Optimization
-- [ ] Measure API response times for question generation
-- [ ] Measure API response times for answer processing
-- [ ] Optimize AI prompts for faster responses
-- [ ] Add caching if applicable
-- [ ] Test with slow network conditions
-- [ ] Ensure loading states provide good UX
+### FE-007: Create EnhancementStep3.vue Component (Round 3: Context Review & Save)
+- [ ] Accept props: `storyNotes: StoryNote[]`, `bulletPairs: BulletPair[]`, `isLoading: boolean`
+- [ ] Display accumulated story notes (read-only cards):
+  - [ ] Show all notes from Round 1 + Round 2
+  - [ ] Format consistently with Step 2
+- [ ] Add editable context notes textarea:
+  - [ ] Label: "Additional Context (Optional)"
+  - [ ] Placeholder: "Add any additional context about your achievements, metrics, or accomplishments..."
+  - [ ] Store in component state for submission
+- [ ] Display generated XYZ bullets preview:
+  - [ ] Show 3-5 bullet pairs (primary/secondary)
+  - [ ] Format: `• [Primary bullet]` with secondary underneath as read-only reference
+  - [ ] Highlight X/Y/Z components or show inline badges
+- [ ] Add button layout: "Back", "Save", "Cancel"
+- [ ] Emit events:
+  - [ ] `@back="returnToRound2"`
+  - [ ] `@save="{ bullets, contextNotes }"` when Save clicked
+  - [ ] `@cancel="close"`
+- [ ] Handle save loading state (disable Save button during submission)
 
-**Dependencies:** TEST-001  
-**Testable by:** Engineering team  
-**Success criteria:** Response times acceptable, UX smooth even with delays
+**Dependencies:** FE-001, FE-004
+**Testable by:** Frontend team (display of notes/bullets, context notes editing)
+**Success criteria:** Story notes & bullets display, context notes editable, Save/Back/Cancel work
 
 ---
 
-## VALIDATION CHECKLIST
+### FE-008: Implement Multi-Round Enhancement Flow Logic
+- [ ] In experience.vue, orchestrate the 3-round flow:
+  - [ ] **Initialization:** When `?enhance=<id>` is set, fetch experience and start Round 1
+  - [ ] **Round 1:** Call `generateInitialQuestions(experience)`, display EnhancementStep1
+  - [ ] **User Submits Round 1 Answers:** Store in `enhancementContext.answeredQuestions`
+  - [ ] **Round 2:** Call `generateFollowUpQuestions(experience, context)`, display EnhancementStep2
+  - [ ] **User Submits Round 2 Answers:** Append to `answeredQuestions`, update `storyNotes`
+  - [ ] **Check for More Rounds:** If questionGroups empty, skip to Round 3; else repeat Round 2
+  - [ ] **Round 3:** Display EnhancementStep3 with story notes and editable context textarea
+  - [ ] **On Save:** Call `generateFinalBullets(experience, contextNotes)`, then wait for bullets
+  - [ ] **Display Bullets:** Show XYZ bullets in Step 3, allow user to accept
+- [ ] Implement error handling:
+  - [ ] Catch API errors at each round
+  - [ ] Show toast error notification
+  - [ ] Allow user to retry without losing answers
+- [ ] Implement cancel flow:
+  - [ ] Clear all enhancement state on cancel
+  - [ ] Remove `?enhance` query param
+  - [ ] Close pane
+- [ ] Implement save flow:
+  - [ ] Call `saveEnhancedBullets(experienceId, selectedBullets, contextNotes)`
+  - [ ] Update experience card with new bullets and `lastEnhancedAt` timestamp
+  - [ ] Show success toast notification
+  - [ ] Close pane and remove `?enhance` query param
+  - [ ] Optionally highlight the saved experience card for review
 
-Before marking this change as complete:
+**Dependencies:** FE-003, FE-004, FE-005, FE-006, FE-007, FE-002
+**Testable by:** Frontend team (end-to-end flow testing, error scenarios)
+**Success criteria:** Full 3-round flow works, errors handled gracefully, bullets saved correctly
 
-- [ ] User story exists in context/ folder and is documented ✅
-- [ ] Tasks use ID system (DB-001, BE-001, FE-001) ✅
-- [ ] Phases in correct order (Database → Backend → Frontend) ✅
-- [ ] Tasks grouped by logical unit (one testable unit per task) ✅
-- [ ] Dependencies listed for every task ✅
-- [ ] Completed tasks show actual deliverables (not descriptions)
-- [ ] No task too broad (must be completable in one focused effort) ✅
-- [ ] All acceptance criteria from user story covered ✅
+---
+
+### FE-009: Update Profile Dashboard Enhancement Status (Optional)
+- [ ] Update `app/pages/profile/index.vue` experience cards
+- [ ] Add enhancement status badge to each experience:
+  - [ ] "Enhanced" badge if `lastEnhancedAt` exists (show date: "Enhanced on Jan 15")
+  - [ ] "Not Enhanced" subtle text if `lastEnhancedAt` is null
+- [ ] Add "Deep Enhance" link/button to experience card (next to existing actions)
+- [ ] Clicking "Deep Enhance" sets `?enhance=<id>` param on `/profile/experience` page
+- [ ] Optional: Add small indicator icon showing enhancement status
+
+**Dependencies:** FE-008
+**Testable by:** Frontend team (badge display, navigation)
+**Success criteria:** Enhancement status displays, Deep Enhance button navigates to experience page
+
+
+## KEY ARCHITECTURAL CHANGES (from previous plan)
+
+| Change | Previous | New | Reason |
+|--------|----------|-----|--------|
+| **Page Location** | Dedicated `/profile/enhance` page | Integrated into `/profile/experience` page with query param | Better context visibility, simpler UX |
+| **Flow Triggering** | Separate page navigation | `?enhance=<id>` query parameter | Keeps user in context |
+| **Pane Style** | Modal dialog | 50% slide-out pane from right | Better for showing experience list + pane together |
+| **Context Persistence** | Stored in component state only | Added `context_notes` column to database | Enables future regenerations |
+| **Bulk Enhancement** | Separate "Enhance All" feature | Removed (individual flow per experience) | Reduces complexity, each experience needs iterative input |
+| **Preview/Accept** | Final step in modal | Integrated into Step 3 with context review | More natural flow with context visible |
+| **Component Count** | 8 components (flow, form, preview, etc.) | 5 components (pane, step1, step2, step3, + modified experience.vue) | Simpler architecture |

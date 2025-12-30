@@ -14,17 +14,19 @@ This transforms generic statements like "Managed projects for the engineering te
 
 ## What Changes
 
-- Add new dedicated enhancement page at [`/profile/enhance`](../../app/pages/profile/enhance.vue) accessible from profile dashboard
+- Integrate XYZ enhancement flow into [`/profile/experience`](../../app/pages/profile/experience.vue) page with 50% slide-out pane triggered by `?enhance=<id>` query parameter
 - Implement **XYZ Method** with two specialized AI prompts:
   - **Context Gathering Prompt:** Generates 5-7 targeted questions to extract X (achievement), Y (metrics), Z (methods)
   - **Bullet Writing Prompt:** Generates 3-5 XYZ-format bullets with employment-type-appropriate verbs
 - Create question generation endpoint using Context Gathering Prompt
 - Create bullet generation endpoint using Bullet Writing Prompt
-- Add database migration to add `last_enhanced_at` timestamp column to [`career_id.experience`](../../openspec/changes/archive/2025-12-11-add-profile-builder-form/deliverables/migrations/003_create_experience.sql) table
-- Build enhancement page UI showing all work experiences with enhancement status indicators
-- Implement XYZ enhancement flow: select experience → answer 5-7 questions → preview 3-5 XYZ bullets → accept/regenerate
-- Store user answers per experience to enable regeneration without re-asking questions
-- Update profile dashboard to show enhancement status and provide "Deep Enhance" action for each experience
+- Add database migration to add `last_enhanced_at` timestamp and `context_notes` columns to [`career_id.experience`](../../openspec/changes/archive/2025-12-11-add-profile-builder-form/deliverables/migrations/003_create_experience.sql) table
+- Build 50% slide-out pane UI with 3-round enhancement flow (Round 1: initial questions → Round 2: follow-ups → Round 3: context review & save)
+- Implement XYZ enhancement flow: click "Enhance" button → pane opens with `?enhance=<id>` param → answer 5-7 questions across 3 rounds → edit context notes → preview 3-5 XYZ bullets → accept/regenerate
+- Store user answers and context notes per experience to enable regeneration within the same session
+- Persist context notes to database for future reference and regenerations
+- Update experience cards to show "Enhance" button in view and edit modes
+- Update profile dashboard to show enhancement status and provide "Deep Enhance" link to experience enhancement page
 - Handle enhancement failures gracefully without blocking profile usage
 
 ## Impact
@@ -35,22 +37,23 @@ This transforms generic statements like "Managed projects for the engineering te
 ### Affected Code
 
 **Backend:**
-- New endpoint: `server/api/career-id/enhancement/generate-questions.post.ts` - XYZ Context Gathering (5-7 questions)
-- New endpoint: `server/api/career-id/enhancement/generate-bullets.post.ts` - XYZ Bullet Writing (3-5 bullets)
-- New utility: `server/utils/xyz-enhancer.ts` - AI Gateway integration with XYZ Method prompts
-- New migration: `server/migrations/015_add_experience_enhancement_tracking.sql` - Add `last_enhanced_at` column
+- New endpoint: `server/api/career-id/profile/[profileId]/experience/[id]/gather-context.post.ts` - XYZ Context Gathering (5-7 questions)
+- New endpoint: `server/api/career-id/profile/[profileId]/experience/[id]/enhance-achievements.post.ts` - XYZ Bullet Writing (3-5 bullets)
+- New utility: `server/utils/profile-experience-enhancer.ts` - AI Gateway integration with XYZ Method prompts
+- New migration: `server/migrations/015_add_experience_enhancement_tracking.sql` - Add `last_enhanced_at` and `context_notes` columns
 
 **Frontend:**
-- New page: [`app/pages/profile/enhance.vue`](../../app/pages/profile/enhance.vue) - Dedicated enhancement page
-- New component: `app/components/profile/EnhancementFlow.vue` - XYZ enhancement wizard
-- New component: `app/components/profile/XYZQuestionForm.vue` - Question answering interface (5-7 questions)
-- New component: `app/components/profile/XYZBulletPreview.vue` - Preview XYZ bullets with X/Y/Z highlighting
-- Update: [`app/pages/profile/index.vue`](../../app/pages/profile/index.vue) - Add "Deep Enhance" button to experience cards
-- Update: [`app/stores/careerIDStore.ts`](../../app/stores/careerIDStore.ts) - Add XYZ enhancement actions and answer storage
+- Modified: [`app/pages/profile/experience.vue`](../../app/pages/profile/experience.vue) - Add query param handling, "Enhance" buttons, pane rendering
+- New component: `app/components/profile/EnhancementPane.vue` - Main pane container with step navigation
+- New component: `app/components/profile/EnhancementStep1.vue` - Round 1: Initial questions
+- New component: `app/components/profile/EnhancementStep2.vue` - Round 2: Follow-up questions with story notes
+- New component: `app/components/profile/EnhancementStep3.vue` - Round 3: Context notes + bullet preview
+- Update: [`app/pages/profile/index.vue`](../../app/pages/profile/index.vue) - Add enhancement status badge and "Deep Enhance" link to experience cards
+- Update: [`app/stores/careerIDStore.ts`](../../app/stores/careerIDStore.ts) - Add XYZ enhancement actions and multi-round state tracking
 
 **Types:**
-- Update: [`shared/types/careerId.ts`](../../shared/types/careerId.ts) - Add `lastEnhancedAt` to Experience type
-- New: `shared/types/enhancement.ts` - XYZ question and answer types
+- Update: [`shared/types/careerId.ts`](../../shared/types/careerId.ts) - Add `lastEnhancedAt` and `contextNotes` to Experience type
+- New: `shared/types/enhancement.ts` - XYZ question, story notes, context, and bullet pair types
 
 **Deliverables:**
 - [`deliverables/prompts/xyz-method-guide.md`](deliverables/prompts/xyz-method-guide.md) - XYZ Method overview
@@ -66,7 +69,8 @@ This transforms generic statements like "Managed projects for the engineering te
 None - This is an additive feature that enhances existing profile functionality
 
 ### Migration Notes
-- Database migration adds nullable `last_enhanced_at` column to existing `career_id.experience` table
-- No data migration required - column defaults to NULL for existing records
-- Enhancement answers stored in component state (not persisted to database between sessions)
-- Feature is opt-in via dedicated enhancement page (users can skip entirely)
+- Database migration adds nullable `last_enhanced_at` and `context_notes` columns to existing `career_id.experience` table
+- No data migration required - columns default to NULL for existing records
+- Enhancement answers stored in component state during session (not persisted to database between sessions)
+- Context notes persist to database for future reference and regenerations
+- Feature is opt-in via query parameter on experience page (users can skip entirely)
