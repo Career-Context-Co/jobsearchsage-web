@@ -157,21 +157,21 @@ Enhance profile experiences directly on `/profile/experience` page with a 50% sl
 ---
 
 ### FE-004: Create EnhancementPane.vue Component
-- [ ] Build main pane container with left/right layout structure
-- [ ] Implement step navigation logic (Round 1 → Round 2 → Round 3 → Save/Cancel)
-- [ ] Add step indicator at top showing progress (e.g., "Step 1 of 3" or "Round X")
-- [ ] Add pane header with title and close button (X)
-- [ ] Conditionally render appropriate step component based on current round:
-  - [ ] Round 1: `<EnhancementQuestionRound :round="1" />`
-  - [ ] Round 2: `<EnhancementQuestionRound :round="2" :storyNotes="..." />` (only if follow-up questions exist)
-  - [ ] Round 3: `<EnhancementStep3 />`
-- [ ] Implement round progression logic:
-  - [ ] "Next" button advances to next round
-  - [ ] "Back" button returns to previous round (disable on Round 1)
-  - [ ] Auto-advance from Round 2 if no follow-up questions (jump to Round 3)
-- [ ] Handle pane close on "Cancel" or after successful "Save"
-- [ ] Pass relevant state to child components via props
-- [ ] Emit state updates back to parent (experience.vue)
+- [x] Build main pane container with left/right layout structure
+- [x] Implement step navigation logic (Round 1 → Round 2 → Round 3 → Save/Cancel)
+- [x] Add step indicator at top showing progress (e.g., "Step 1 of 3" or "Round X")
+- [x] Add pane header with title and close button (X)
+- [x] Conditionally render appropriate step component based on current round:
+  - [x] Round 1: `<EnhancementQuestionRound :round="1" />`
+  - [x] Round 2: `<EnhancementQuestionRound :round="2" :storyNotes="..." />` (only if follow-up questions exist)
+  - [x] Round 3: `<EnhancementStep3 />`
+- [x] Implement round progression logic:
+  - [x] "Next" button advances to next round
+  - [x] "Back" button returns to previous round (disable on Round 1)
+  - [x] Auto-advance from Round 2 if no follow-up questions (jump to Round 3)
+- [x] Handle pane close on "Cancel" or after successful "Save"
+- [x] Pass relevant state to child components via props
+- [x] Emit state updates back to parent (experience.vue)
 
 **Dependencies:** FE-003
 **Testable by:** Frontend team (step navigation, conditional rendering)

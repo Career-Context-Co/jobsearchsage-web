@@ -111,6 +111,11 @@ const enhancingExperience = computed(() => {
   return experiences.value.find(exp => exp.id === enhancingExperienceId.value) || null
 })
 
+// Handle enhancement pane close
+function handleEnhancementClose() {
+  closeEnhancementPane()
+}
+
 // Employment type options
 const employmentTypes = [
   { value: 'full_time', label: 'Full-time' },
@@ -925,45 +930,23 @@ onMounted(async () => {
     v-model:open="isEnhancementPaneOpen"
     direction="right"
     inset
+    :handle="false"
     :modal="false"
+    :dismissible="false"
     @update:open="(open) => { if (!open) closeEnhancementPane() }"
   >
     <!-- Hidden trigger (drawer controlled via query param) -->
     <div class="hidden" />
 
     <!-- Drawer Content -->
-    <template #header>
-      <div class="flex items-center justify-between w-full">
-        <div>
-          <h2 class="text-lg font-semibold">Enhance Achievements</h2>
-          <p v-if="enhancingExperience" class="text-sm text-muted mt-1">
-            {{ enhancingExperience.title }} @ {{ enhancingExperience.employer }}
-          </p>
-        </div>
-        <UButton
-          icon="i-lucide-x"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          class="cursor-pointer"
-          @click="closeEnhancementPane"
-        />
-      </div>
-    </template>
-
     <template #body>
-      <div class="p-4 w-xl">
-        <p class="text-muted">EnhancementPane component will go here</p>
-        <p v-if="enhancingExperienceId" class="text-xs text-muted mt-2">
-          Enhancing experience ID: {{ enhancingExperienceId }}
-        </p>
+      <div class="w-xl">
+        <ProfileEnhancementPane
+        :experience="enhancingExperience"
+        @close="handleEnhancementClose"
+      />
       </div>
     </template>
 
-    <template #footer>
-      <div class="flex gap-2 justify-end">
-        <p class="text-xs text-muted">Action buttons will go here</p>
-      </div>
-    </template>
   </UDrawer>
 </template>
