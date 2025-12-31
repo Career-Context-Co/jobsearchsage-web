@@ -84,16 +84,16 @@
 
 ## PHASE 3A: FRONTEND - TYPES & STORE
 
-### FE-001: XYZ Enhancement Types
-- [ ] Create `shared/types/enhancement.ts` file
-- [ ] Define `XYZQuestion` type (id: string, text: string)
-- [ ] Define `QuestionGroup` type (category: string, questions: XYZQuestion[])
-- [ ] Define `StoryNote` type (title?: string, text: string, type: 'project' | 'initiative' | 'responsibility' | 'achievement')
-- [ ] Define `ContextObject` type (notes: StoryNote[], answeredQuestions: Array<{ id: string, answer: string }>)
-- [ ] Define `BulletPair` type (primary: string, secondary: string)
-- [ ] Update `shared/types/careerId.ts` to add:
-  - [ ] `lastEnhancedAt?: string | null` to Experience type
-  - [ ] `contextNotes?: string | null` to Experience type
+### FE-001: Context Enhancement Types
+- [x] Create `shared/types/enhancement.ts` file
+- [x] Define `ContextQuestion` type (id: string, text: string)
+- [x] Define `QuestionGroup` type (category: string, questions: ContextQuestion[])
+- [x] Define `ContextStory` type (title?: string, text: string, type: 'project' | 'initiative' | 'responsibility' | 'achievement')
+- [x] Define `ContextObject` type (notes: ContextStory[], answeredQuestions: Array<{ id: string, answer: string }>)
+- [x] Define `ResumeBullet` type (primary: string, secondary: string)
+- [x] Update `shared/types/careerId.ts` to add:
+  - [x] `lastEnhancedAt?: string | null` to Experience type
+  - [x] `contextNotes?: string | null` to Experience type
 
 **Dependencies:** None
 **Testable by:** Frontend team (type checking)
@@ -101,29 +101,29 @@
 
 ---
 
-### FE-002: Store XYZ Enhancement Actions
-- [ ] Update `app/stores/careerIDStore.ts` with XYZ enhancement state
-- [ ] Add state: `enhancingExperienceId: number | null`, `enhancementRound: 1 | 2 | 3`, `enhancementContext`, `isGeneratingQuestions`, `isGeneratingBullets`, `enhancementError`, `generatedBullets`
-- [ ] Add action: `generateInitialQuestions(experience)` - calls `/gather-context` endpoint (Round 1)
-  - [ ] Returns `{ questionGroups: QuestionGroup[], notes: StoryNote[] }`
-  - [ ] Stores notes in `enhancementContext.storyNotes`
-- [ ] Add action: `generateFollowUpQuestions(experience, context)` - calls `/gather-context` endpoint (Round 2+)
-  - [ ] Accepts context with answeredQuestions from previous round
-  - [ ] Returns follow-up questions (if any) and updated notes
-- [ ] Add action: `generateFinalBullets(experience, contextNotes)` - calls `/enhance-achievements` endpoint (Round 3)
-  - [ ] Returns `{ bullets: BulletPair[] }` (3-5 primary/secondary pairs)
-  - [ ] Stores in `generatedBullets` state
-- [ ] Add action: `saveEnhancedBullets(experienceId, bullets, contextNotes)` - calls existing PATCH endpoint
-  - [ ] Updates experience with selected bullets and contextNotes
-  - [ ] Updates `lastEnhancedAt` timestamp
-- [ ] Add action: `updateAnsweredQuestions(questions)` - updates context with latest answers
-- [ ] Add action: `cancelEnhancement()` - clears all enhancement state
-- [ ] Add error handling for all enhancement actions
-- [ ] Add loading state management
+### FE-002: Store Context Enhancement Actions (API Layer Only)
+- [x] Update `app/stores/careerIDStore.ts` with minimal API state
+- [x] Add state: `isGeneratingQuestions: boolean`, `isGeneratingBullets: boolean` (loading indicators only)
+- [x] Add action: `generateInitialQuestions(experience)` - calls `/gather-context` endpoint (Round 1)
+  - [x] Returns `{ questionGroups: QuestionGroup[], notes: ContextStory[] }`
+  - [x] Component stores results locally
+- [x] Add action: `generateFollowUpQuestions(experience, context)` - calls `/gather-context` endpoint (Round 2+)
+  - [x] Accepts context with answeredQuestions from previous rounds
+  - [x] Returns follow-up questions (if any) and updated notes
+  - [x] Component accumulates results locally
+- [x] Add action: `generateFinalBullets(experience, notes)` - calls `/enhance-achievements` endpoint (Round 3)
+  - [x] Accepts accumulated `notes: ContextStory[]` from component
+  - [x] Returns `ResumeBullet[]` (3-5 primary/secondary pairs)
+  - [x] Component stores bullets locally until save
+- [x] Component calls existing `updateExperience()` to save bullets + contextNotes + lastEnhancedAt
+- [x] Add error handling for all API actions
+- [x] Add loading state management
+
+**Note:** Component-specific state (rounds, context, bullets, errors) managed in EnhancementPane.vue, not in store
 
 **Dependencies:** FE-001, BE-002, BE-003
-**Testable by:** Frontend team (test store actions with mock API, test multi-round flow)
-**Success criteria:** Store actions work correctly, context tracking works across 3 rounds, bullets generated properly
+**Testable by:** Frontend team (test store API actions return correct data)
+**Success criteria:** Store provides clean API layer; component manages enhancement flow state locally
 
 ---
 
@@ -135,20 +135,20 @@ Enhance profile experiences directly on `/profile/experience` page with a 50% sl
 ---
 
 ### FE-003: Modify experience.vue for Enhancement Pane Integration
-- [ ] Add query parameter handling:
-  - [ ] Read `enhance` query param using `useRoute()`
-  - [ ] Display EnhancementPane conditionally when `route.query.enhance` exists
-  - [ ] Highlight experience card matching `route.query.enhance` param
-- [ ] Add "Enhance" button to experience card view mode (next to "Edit" button)
-  - [ ] Clicking button sets `?enhance=<id>` query param
-- [ ] Add "Enhance" button to experience card edit mode (as additional action)
-  - [ ] Clicking button sets `?enhance=<id>` query param
-- [ ] Implement pane open/close:
-  - [ ] Open: Set query param `?enhance=<id>`
-  - [ ] Close: Remove query param (via `useRouter()`)
-  - [ ] Add close button (X) in pane header
-- [ ] Add CSS for 50% width pane (or full-width on mobile)
-- [ ] Add Tailwind transitions for smooth slide-in animation
+- [x] Add query parameter handling:
+  - [x] Read `enhance` query param using `useRoute()`
+  - [x] Display EnhancementPane conditionally when `route.query.enhance` exists
+  - [x] Highlight experience card matching `route.query.enhance` param
+- [x] Add "Enhance" button to experience card view mode (next to "Edit" button)
+  - [x] Clicking button sets `?enhance=<id>` query param
+- [x] Add "Enhance" button to experience card edit mode (as additional action)
+  - [x] Clicking button sets `?enhance=<id>` query param
+- [x] Implement pane open/close:
+  - [x] Open: Set query param `?enhance=<id>`
+  - [x] Close: Remove query param (via `useRouter()`)
+  - [x] Add close button (X) in pane header
+- [x] Add CSS for 50% width pane (or full-width on mobile)
+- [x] Add Tailwind transitions for smooth slide-in animation
 
 **Dependencies:** FE-002
 **Testable by:** Frontend team (query param management, visual display, button functionality)
@@ -162,8 +162,8 @@ Enhance profile experiences directly on `/profile/experience` page with a 50% sl
 - [ ] Add step indicator at top showing progress (e.g., "Step 1 of 3" or "Round X")
 - [ ] Add pane header with title and close button (X)
 - [ ] Conditionally render appropriate step component based on current round:
-  - [ ] Round 1: `<EnhancementStep1 />`
-  - [ ] Round 2: `<EnhancementStep2 />` (only if follow-up questions exist)
+  - [ ] Round 1: `<EnhancementQuestionRound :round="1" />`
+  - [ ] Round 2: `<EnhancementQuestionRound :round="2" :storyNotes="..." />` (only if follow-up questions exist)
   - [ ] Round 3: `<EnhancementStep3 />`
 - [ ] Implement round progression logic:
   - [ ] "Next" button advances to next round
@@ -179,52 +179,40 @@ Enhance profile experiences directly on `/profile/experience` page with a 50% sl
 
 ---
 
-### FE-005: Create EnhancementStep1.vue Component (Round 1: Initial Questions)
-- [ ] Accept props: `questionGroups: QuestionGroup[]`, `isLoading: boolean`
+### FE-005: Create EnhancementQuestionRound.vue Component (Rounds 1 & 2: Question Collection)
+- [ ] Accept props: `round: 1 | 2`, `questionGroups: QuestionGroup[]`, `storyNotes?: ContextStory[]`, `isLoading?: boolean`
 - [ ] Display loading state while questions are being generated
+- [ ] Conditionally display story notes (only for Round 2):
+  - [ ] Show accumulated story notes as read-only cards above questions when `round === 2` and `storyNotes` exists
+  - [ ] Format nicely with card styling
+  - [ ] Include note type badge (project, initiative, responsibility, achievement)
 - [ ] Display grouped questions organized by category:
   - [ ] Show category header (e.g., "General Role Context", "Key Achievements", etc.)
-  - [ ] List 5-7 questions per group with textarea inputs
+  - [ ] List questions per group with textarea inputs
   - [ ] Add "Skip" checkbox option for each question (optional)
 - [ ] Implement answer collection:
   - [ ] Store answers in component state: `answeredQuestions: Array<{ id, answer }>`
   - [ ] Validate: at least one question must be answered
   - [ ] Show validation error if user clicks "Next" with no answers
-- [ ] Add button layout: "Next" (enabled when valid), "Cancel"
-- [ ] Emit event when user clicks "Next": `@proceed:round1="answers"`
-- [ ] Show helpful text explaining Round 1 purpose
-
-**Dependencies:** FE-001, FE-004
-**Testable by:** Frontend team (question display, answer collection, validation)
-**Success criteria:** Questions display grouped by category, answers collected, validation works
-
----
-
-### FE-006: Create EnhancementStep2.vue Component (Round 2: Follow-up Questions)
-- [ ] Accept props: `storyNotes: StoryNote[]`, `questionGroups: QuestionGroup[]`, `isLoading: boolean`
-- [ ] Display accumulated story notes as read-only cards above questions:
-  - [ ] Show notes from Round 1 (generated by AI from initial answers)
-  - [ ] Format nicely with card styling
-  - [ ] Include note type badge (project, initiative, responsibility, achievement)
-- [ ] Display new follow-up questions (if any):
-  - [ ] Same structure as Step 1 (grouped by category)
-  - [ ] May have fewer questions than Round 1 (targeted follow-ups)
-- [ ] Implement answer collection (same as Step 1):
-  - [ ] Store answers, validate at least one question answered
-- [ ] Add button layout: "Back", "Next" (enabled when valid), "Cancel"
+- [ ] Add button layout with conditional rendering:
+  - [ ] Round 1: "Next" (enabled when valid), "Cancel"
+  - [ ] Round 2: "Back", "Next" (enabled when valid), "Cancel"
 - [ ] Emit events:
-  - [ ] `@back="returnToRound1"` 
-  - [ ] `@proceed:round2="answers"` when Next clicked
-- [ ] Show round indicator (e.g., "Round 2: Follow-up Questions")
+  - [ ] `@proceed` with round number and answers when Next clicked
+  - [ ] `@back` when Back clicked (only for Round 2)
+  - [ ] `@cancel` when Cancel clicked
+- [ ] Show helpful text explaining round purpose:
+  - [ ] Round 1: "Initial questions to understand your achievements"
+  - [ ] Round 2: "Follow-up questions based on your previous answers"
 
 **Dependencies:** FE-001, FE-004
-**Testable by:** Frontend team (story notes display, question display, multi-round flow)
-**Success criteria:** Story notes display, follow-up questions display, answers collected, Back/Next work
+**Testable by:** Frontend team (question display, answer collection, validation, conditional story notes display)
+**Success criteria:** Questions display grouped by category, answers collected, validation works, story notes show for Round 2 only, Back button only for Round 2
 
 ---
 
 ### FE-007: Create EnhancementStep3.vue Component (Round 3: Context Review & Save)
-- [ ] Accept props: `storyNotes: StoryNote[]`, `bulletPairs: BulletPair[]`, `isLoading: boolean`
+- [ ] Accept props: `storyNotes: ContextStory[]`, `bulletPairs: ResumeBullet[]`, `isLoading: boolean`
 - [ ] Display accumulated story notes (read-only cards):
   - [ ] Show all notes from Round 1 + Round 2
   - [ ] Format consistently with Step 2
@@ -252,9 +240,9 @@ Enhance profile experiences directly on `/profile/experience` page with a 50% sl
 ### FE-008: Implement Multi-Round Enhancement Flow Logic
 - [ ] In experience.vue, orchestrate the 3-round flow:
   - [ ] **Initialization:** When `?enhance=<id>` is set, fetch experience and start Round 1
-  - [ ] **Round 1:** Call `generateInitialQuestions(experience)`, display EnhancementStep1
+  - [ ] **Round 1:** Call `generateInitialQuestions(experience)`, display EnhancementQuestionRound with `round="1"`
   - [ ] **User Submits Round 1 Answers:** Store in `enhancementContext.answeredQuestions`
-  - [ ] **Round 2:** Call `generateFollowUpQuestions(experience, context)`, display EnhancementStep2
+  - [ ] **Round 2:** Call `generateFollowUpQuestions(experience, context)`, display EnhancementQuestionRound with `round="2"` and `storyNotes`
   - [ ] **User Submits Round 2 Answers:** Append to `answeredQuestions`, update `storyNotes`
   - [ ] **Check for More Rounds:** If questionGroups empty, skip to Round 3; else repeat Round 2
   - [ ] **Round 3:** Display EnhancementStep3 with story notes and editable context textarea
@@ -275,7 +263,7 @@ Enhance profile experiences directly on `/profile/experience` page with a 50% sl
   - [ ] Close pane and remove `?enhance` query param
   - [ ] Optionally highlight the saved experience card for review
 
-**Dependencies:** FE-003, FE-004, FE-005, FE-006, FE-007, FE-002
+**Dependencies:** FE-003, FE-004, FE-005, FE-007, FE-002
 **Testable by:** Frontend team (end-to-end flow testing, error scenarios)
 **Success criteria:** Full 3-round flow works, errors handled gracefully, bullets saved correctly
 
@@ -305,4 +293,4 @@ Enhance profile experiences directly on `/profile/experience` page with a 50% sl
 | **Context Persistence** | Stored in component state only | Added `context_notes` column to database | Enables future regenerations |
 | **Bulk Enhancement** | Separate "Enhance All" feature | Removed (individual flow per experience) | Reduces complexity, each experience needs iterative input |
 | **Preview/Accept** | Final step in modal | Integrated into Step 3 with context review | More natural flow with context visible |
-| **Component Count** | 8 components (flow, form, preview, etc.) | 5 components (pane, step1, step2, step3, + modified experience.vue) | Simpler architecture |
+| **Component Count** | 8 components (flow, form, preview, etc.) | 4 components (pane, questionRound, step3, + modified experience.vue) | Simpler architecture, combined question rounds |

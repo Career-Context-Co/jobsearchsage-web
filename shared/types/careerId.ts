@@ -32,6 +32,8 @@ export interface Experience {
   highlights: string[];
   displayOrder: number;
   isExtracted?: boolean;
+  lastEnhancedAt?: string | null;
+  contextNotes?: string | null;
   createdAt: string;
   updatedAt: string;
 }
