@@ -49,11 +49,16 @@ The enhancement flow is integrated into the experience page with a 50% slide-out
     │   ├── New follow-up questions
     │   └── Answer textarea inputs
     │
-    └── Round 3: Context Review & Save
+    ├── Round 3: Context Review & Edit
+    │   ├── Read-only accumulated story notes
+    │   ├── Editable context notes textarea
+    │   └── Next/Back/Cancel buttons
+    │
+    └── Round 4: Bullet Selection & Save
         ├── Read-only accumulated story notes
-        ├── Editable context notes textarea
-        ├── Generated XYZ bullets preview (3-5 pairs)
-        └── Save/Cancel buttons
+        ├── Generated XYZ bullets (3-5 pairs)
+        ├── User selects preferred option for each bullet (primary vs secondary)
+        └── Save/Back/Cancel buttons
 ```
 
 **Component Hierarchy:**
@@ -63,9 +68,9 @@ experience.vue
 │   └── ExperienceCard (modified with Enhance button)
 │
 └── EnhancementPane (NEW, conditional based on ?enhance param)
-    ├── EnhancementStep1 (Round 1)
-    ├── EnhancementStep2 (Round 2)
-    └── EnhancementStep3 (Round 3)
+    ├── EnhancementQuestionRound (Round 1 & 2)
+    ├── EnhancementContextReview (Round 3: Context Review)
+    └── EnhancementBulletReview (Round 4: Bullet Selection)
 ```
 
 **Key UX Features:**
@@ -73,7 +78,7 @@ experience.vue
 - Active experience card highlighted when pane is open
 - 50% width pane on desktop, full-width on mobile
 - Smooth slide-in animation from right
-- Three-round conversational flow (no dedicated page needed)
+- Four-round conversational flow: gather context → review context → generate bullets → select bullets
 
 ### Backend Architecture
 
@@ -127,16 +132,15 @@ graph TD
     J --> K[User answers follow-ups]
     K --> G
     H -->|No| L[Round 3: Display story notes + context textarea]
-    L --> M[User edits context notes, clicks Save]
-    M --> N[Call enhance-achievements with notes]
-    N --> O[Display 3-5 XYZ bullets in Step 3]
-    O --> P{User action?}
-    P -->|Accept| Q[Call PATCH endpoint to save]
-    Q --> R[Populate edit card with bullets]
+    L --> M[User edits context notes, clicks Next]
+    M --> N[Call enhance-achievements with accumulated context]
+    N --> O[Round 4: Display 3-5 bullet pairs with selection UI]
+    O --> P[User selects preferred bullet for each pair]
+    P --> Q[User clicks Save]
+    Q --> R[Call PATCH endpoint to save selected bullets]
     R --> S[Update lastEnhancedAt timestamp]
     S --> T[Close pane, remove ?enhance param]
-    P -->|Regenerate| G
-    P -->|Cancel| U[Close pane without saving]
+    T --> U[Show success message]
 ```
 
 **Three-Round Flow:**
@@ -156,18 +160,28 @@ graph TD
    - User answers follow-ups (optional, can skip round)
    - Append new answers and notes to context state
 
-3. **Round 3: Context Review & Save**
+3. **Round 3: Context Review & Edit**
    - Display accumulated story notes (read-only)
-   - Show editable context notes textarea for user to add context
-   - Call `enhance-achievements(experience, contextNotes)` to generate final bullets
-   - Display 3-5 XYZ bullets with X/Y/Z highlighting
-   - User accepts (saves to DB) or regenerates (returns to Round 1 with context preserved)
+   - Show editable context notes textarea for user to add/refine context
+   - User modifies context notes or keeps them as-is
+   - Click "Next" to proceed to bullet generation
+
+4. **Round 4: Bullet Selection & Save**
+   - Call `enhance-achievements(experience, accumulatedContext)` with all collected context
+   - Display 3-5 XYZ bullet pairs
+   - Each bullet shows primary AND secondary as equal, selectable options (radio buttons or toggle)
+   - Visual indicator shows selected option for each bullet
+   - User reviews and adjusts selections as needed
+   - Click "Save" to persist selected bullets to profile
+   - Click "Back" to return to Round 3 context editing
+   - Click "Cancel" to discard and close pane
 
 **Key Workflow Changes from Original Design:**
-- **Multi-round with context accumulation:** Rounds 1-2 focus on context gathering with follow-ups; Round 3 focuses on refinement
-- **Story notes accumulate:** Each round adds to story notes (shown in next round as context)
-- **Context notes persist:** Stored in database for future reference and regenerations
-- **Query param driven:** Pane opens/closes with `?enhance=<id>`, keeps user in experience list context
+- **Four-round flow:** Separated context review (Round 3) from bullet selection (Round 4)
+- **Deferred bullet generation:** Bullets generated AFTER context review, giving users chance to refine context first
+- **Bullet selection UI:** Both primary and secondary options are now equal choices, not just "alternative"
+- **User control:** Users can select preferred wording for each bullet before saving
+- **Context accumulation:** All story notes and context fed into single bullet generation call
 
 ## Decisions
 
@@ -249,29 +263,30 @@ COMMENT ON COLUMN career_id.experience.context_notes IS
 - Full-screen modal - Rejected: Blocks view of other experiences
 - Inline enhancement on card - Rejected: Too much UI complexity on card itself
 
-### Decision 5: Multi-Round Context Gathering vs Single Pass
+### Decision 5: Four-Round Flow with Separated Context Review & Bullet Selection
 
-**Choice:** Three-round flow with follow-up questions and context accumulation
+**Choice:** Split into four rounds: context gathering (1-2) → context review (3) → bullet generation & selection (4)
 
 **Rationale:**
-- Round 1: Generates targeted initial questions (5-7 questions)
-- Round 2+: Generates follow-up questions based on Round 1 answers, accumulates story notes
-- Round 3: Allows user to edit context notes before final bullet generation
-- Follow-ups enable deeper context extraction without overwhelming initial prompt
-- Context accumulation (story notes) improves final bullet quality
-- Users can see progress through rounds with clear step indicators
+- **Round 1-2:** Focus on context gathering through questions
+- **Round 3:** Dedicated step for user to review, refine, and add final context before bullet generation
+- **Round 4:** Generate bullets with complete context, then display both primary & secondary as equal choices
+- Separates concerns: information gathering → context refinement → option selection
+- Gives users explicit control point to adjust context before AI generates bullets
+- Primary and secondary bullets become real alternatives users can choose between
+- Reduces cognitive load: one focused task per round
 
 **Implementation:**
-- Store answers + story notes across rounds in component state
-- Auto-advance from Round 2 if no follow-up questions exist
-- Display accumulated story notes at each round for user review
-- Allow Back button for round navigation (except Round 1)
-- Context notes editable in Round 3 only (final refinement)
+- Round 3 does NOT generate bullets; just shows context editing UI
+- "Next" from Round 3 triggers bullet generation endpoint with merged context
+- Round 4 displays bullets with radio buttons or toggle for each pair
+- Selected options stored in component state
+- "Save" button persists selected bullets to database
 
 **Alternatives Considered:**
-- Single-pass with all questions at once - Rejected: Less focused, harder to extract deep context
-- Conversational chatbot flow - Rejected: More complex UI, unclear when done
-- Bulk "Enhance All" - Rejected: Each experience needs iterative user input
+- Three-round with bullets auto-generated at end - Rejected: Less user control, users can't refine context before bullet generation
+- Single selection UI - Rejected: Only showing primary confuses users about secondary option
+- Bulk regenerate - Rejected: Four-round flow makes regeneration clearer with explicit context refinement step
 
 ## Risks / Trade-offs
 
@@ -347,21 +362,24 @@ COMMENT ON COLUMN career_id.experience.context_notes IS
 2. Update `careerId.ts` type definitions
 3. Update store (`careerIDStore.ts`) with multi-round enhancement state
 4. Modify `experience.vue` for query param handling and pane rendering
-5. Create `EnhancementPane.vue` with step navigation
-6. Create `EnhancementStep1.vue`, `EnhancementStep2.vue`, `EnhancementStep3.vue`
-7. Add "Enhance" buttons to experience cards (view and edit modes)
-8. Update profile dashboard with enhancement status badge
-9. Add navigation links from profile dashboard
+5. Create `EnhancementPane.vue` with step navigation (4 rounds)
+6. Create `EnhancementQuestionRound.vue` (Rounds 1 & 2)
+7. Create `EnhancementStep3.vue` (Round 3: Context Review)
+8. Create `EnhancementStep4.vue` (Round 4: Bullet Selection)
+9. Add "Enhance" buttons to experience cards (view and edit modes)
+10. Update profile dashboard with enhancement status badge
+11. Add navigation links from profile dashboard
 
 ### Phase 4: Testing & Refinement
-1. Test full 3-round enhancement flow end-to-end
+1. Test full 4-round enhancement flow end-to-end
 2. Test query parameter handling (`?enhance=<id>`)
 3. Test error scenarios (timeouts, API failures, network errors)
 4. Test multi-round context accumulation
-5. Test mobile responsiveness (full-width pane)
-6. Gather user feedback
-7. Refine AI prompts based on results
-8. Optimize performance
+5. Test bullet selection and persistence
+6. Test mobile responsiveness (full-width pane)
+7. Gather user feedback
+8. Refine AI prompts based on results
+9. Optimize performance
 
 ### Phase 5: Deployment
 1. Deploy database migration to production
@@ -385,7 +403,7 @@ COMMENT ON COLUMN career_id.experience.context_notes IS
    - **Recommendation:** Full-width on mobile (easier interaction), 50% on desktop
 
 3. **Round Limit:** What's the maximum number of rounds allowed?
-   - **Recommendation:** 3-4 rounds max (Round 1: initial, Round 2-3: follow-ups, Final: review)
+   - **Recommendation:** 4 rounds (Round 1: initial, Round 2: follow-ups, Round 3: context review, Round 4: bullet selection)
 
 4. **Skip to Final:** Should users be able to skip rounds and jump directly to final?
    - **Recommendation:** Allow skip from Round 2 if questions are too similar, but not from Round 1

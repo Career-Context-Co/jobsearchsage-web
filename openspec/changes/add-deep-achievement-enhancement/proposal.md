@@ -21,8 +21,8 @@ This transforms generic statements like "Managed projects for the engineering te
 - Create question generation endpoint using Context Gathering Prompt
 - Create bullet generation endpoint using Bullet Writing Prompt
 - Add database migration to add `last_enhanced_at` timestamp and `context_notes` columns to [`career_id.experience`](../../openspec/changes/archive/2025-12-11-add-profile-builder-form/deliverables/migrations/003_create_experience.sql) table
-- Build 50% slide-out pane UI with 3-round enhancement flow (Round 1: initial questions → Round 2: follow-ups → Round 3: context review & save)
-- Implement XYZ enhancement flow: click "Enhance" button → pane opens with `?enhance=<id>` param → answer 5-7 questions across 3 rounds → edit context notes → preview 3-5 XYZ bullets → accept/regenerate
+- Build 50% slide-out pane UI with 4-round enhancement flow (Round 1: initial questions → Round 2: follow-ups → Round 3: context review → Round 4: bullet selection & save)
+- Implement XYZ enhancement flow: click "Enhance" button → pane opens with `?enhance=<id>` param → answer 5-7 questions across 2 rounds → review and edit context notes → select preferred bullet from each pair → save
 - Store user answers and context notes per experience to enable regeneration within the same session
 - Persist context notes to database for future reference and regenerations
 - Update experience cards to show "Enhance" button in view and edit modes
@@ -45,9 +45,9 @@ This transforms generic statements like "Managed projects for the engineering te
 **Frontend:**
 - Modified: [`app/pages/profile/experience.vue`](../../app/pages/profile/experience.vue) - Add query param handling, "Enhance" buttons, pane rendering
 - New component: `app/components/profile/EnhancementPane.vue` - Main pane container with step navigation
-- New component: `app/components/profile/EnhancementStep1.vue` - Round 1: Initial questions
-- New component: `app/components/profile/EnhancementStep2.vue` - Round 2: Follow-up questions with story notes
-- New component: `app/components/profile/EnhancementStep3.vue` - Round 3: Context notes + bullet preview
+- New component: `app/components/profile/EnhancementQuestionRound.vue` - Rounds 1 & 2: Question collection
+- New component: `app/components/profile/EnhancementContextReview.vue` - Round 3: Context review & edit
+- New component: `app/components/profile/EnhancementBulletReview.vue` - Round 4: Bullet selection
 - Update: [`app/pages/profile/index.vue`](../../app/pages/profile/index.vue) - Add enhancement status badge and "Deep Enhance" link to experience cards
 - Update: [`app/stores/careerIDStore.ts`](../../app/stores/careerIDStore.ts) - Add XYZ enhancement actions and multi-round state tracking
 

@@ -411,6 +411,7 @@ Map tags to XYZ:
 - Overstate responsibility
 - Understate genuine ownership
 - Make unsupported impact claims
+- Use tags from the input format
 </requirements>
 
 <output_format>

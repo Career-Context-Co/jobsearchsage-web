@@ -130,7 +130,7 @@
 ## PHASE 3B: FRONTEND - ENHANCEMENT PANE (INTEGRATED INTO EXPERIENCE PAGE)
 
 ### Overview
-Enhance profile experiences directly on `/profile/experience` page with a 50% slide-out pane triggered by `?enhance=<id>` query parameter. Three-round flow embedded in pane: Round 1 (initial questions) → Round 2 (follow-ups) → Round 3 (context review & save).
+Enhance profile experiences directly on `/profile/experience` page with a 50% slide-out pane triggered by `?enhance=<id>` query parameter. Four-round flow embedded in pane: Round 1 (initial questions) → Round 2 (follow-ups) → Round 3 (context review) → Round 4 (bullet selection & save).
 
 ---
 
@@ -180,30 +180,30 @@ Enhance profile experiences directly on `/profile/experience` page with a 50% sl
 ---
 
 ### FE-005: Create EnhancementQuestionRound.vue Component (Rounds 1 & 2: Question Collection)
-- [ ] Accept props: `round: 1 | 2`, `questionGroups: QuestionGroup[]`, `storyNotes?: ContextStory[]`, `isLoading?: boolean`
-- [ ] Display loading state while questions are being generated
-- [ ] Conditionally display story notes (only for Round 2):
-  - [ ] Show accumulated story notes as read-only cards above questions when `round === 2` and `storyNotes` exists
-  - [ ] Format nicely with card styling
-  - [ ] Include note type badge (project, initiative, responsibility, achievement)
-- [ ] Display grouped questions organized by category:
-  - [ ] Show category header (e.g., "General Role Context", "Key Achievements", etc.)
-  - [ ] List questions per group with textarea inputs
-  - [ ] Add "Skip" checkbox option for each question (optional)
-- [ ] Implement answer collection:
-  - [ ] Store answers in component state: `answeredQuestions: Array<{ id, answer }>`
-  - [ ] Validate: at least one question must be answered
-  - [ ] Show validation error if user clicks "Next" with no answers
-- [ ] Add button layout with conditional rendering:
-  - [ ] Round 1: "Next" (enabled when valid), "Cancel"
-  - [ ] Round 2: "Back", "Next" (enabled when valid), "Cancel"
-- [ ] Emit events:
-  - [ ] `@proceed` with round number and answers when Next clicked
-  - [ ] `@back` when Back clicked (only for Round 2)
-  - [ ] `@cancel` when Cancel clicked
-- [ ] Show helpful text explaining round purpose:
-  - [ ] Round 1: "Initial questions to understand your achievements"
-  - [ ] Round 2: "Follow-up questions based on your previous answers"
+- [x] Accept props: `round: 1 | 2`, `questionGroups: QuestionGroup[]`, `storyNotes?: ContextStory[]`, `isLoading?: boolean`
+- [x] Display loading state while questions are being generated
+- [x] Conditionally display story notes (only for Round 2):
+  - [x] Show accumulated story notes as read-only cards above questions when `round === 2` and `storyNotes` exists
+  - [x] Format nicely with card styling
+  - [x] Include note type badge (project, initiative, responsibility, achievement)
+- [x] Display grouped questions organized by category:
+  - [x] Show category header (e.g., "General Role Context", "Key Achievements", etc.)
+  - [x] List questions per group with textarea inputs
+  - [x] Add "Skip" checkbox option for each question (optional)
+- [x] Implement answer collection:
+  - [x] Store answers in component state: `answeredQuestions: Array<{ id, answer }>`
+  - [x] Validate: at least one question must be answered
+  - [x] Show validation error if user clicks "Next" with no answers
+- [x] Add button layout with conditional rendering:
+  - [x] Round 1: "Next" (enabled when valid), "Cancel"
+  - [x] Round 2: "Back", "Next" (enabled when valid), "Cancel"
+- [x] Emit events:
+  - [x] `@proceed` with round number and answers when Next clicked
+  - [x] `@back` when Back clicked (only for Round 2)
+  - [x] `@cancel` when Cancel clicked
+- [x] Show helpful text explaining round purpose:
+  - [x] Round 1: "Initial questions to understand your achievements"
+  - [x] Round 2: "Follow-up questions based on your previous answers"
 
 **Dependencies:** FE-001, FE-004
 **Testable by:** Frontend team (question display, answer collection, validation, conditional story notes display)
@@ -211,25 +211,22 @@ Enhance profile experiences directly on `/profile/experience` page with a 50% sl
 
 ---
 
-### FE-007: Create EnhancementStep3.vue Component (Round 3: Context Review & Save)
-- [ ] Accept props: `storyNotes: ContextStory[]`, `bulletPairs: ResumeBullet[]`, `isLoading: boolean`
-- [ ] Display accumulated story notes (read-only cards):
-  - [ ] Show all notes from Round 1 + Round 2
-  - [ ] Format consistently with Step 2
-- [ ] Add editable context notes textarea:
-  - [ ] Label: "Additional Context (Optional)"
-  - [ ] Placeholder: "Add any additional context about your achievements, metrics, or accomplishments..."
-  - [ ] Store in component state for submission
-- [ ] Display generated XYZ bullets preview:
-  - [ ] Show 3-5 bullet pairs (primary/secondary)
-  - [ ] Format: `• [Primary bullet]` with secondary underneath as read-only reference
-  - [ ] Highlight X/Y/Z components or show inline badges
-- [ ] Add button layout: "Back", "Save", "Cancel"
-- [ ] Emit events:
-  - [ ] `@back="returnToRound2"`
-  - [ ] `@save="{ bullets, contextNotes }"` when Save clicked
-  - [ ] `@cancel="close"`
-- [ ] Handle save loading state (disable Save button during submission)
+### FE-007: Create EnhancementContextReview.vue Component (Round 3: Context Review & Edit)
+- [x] Accept props: `storyNotes: ContextStory[]`, `isLoading: boolean`
+- [x] Display accumulated story notes (read-only cards):
+  - [x] Show all notes from Round 1 + Round 2
+  - [x] Format consistently with EnhancementQuestionRound.vue (Step 2)
+- [x] Add editable context notes textarea:
+  - [x] Label: "Additional Context (Optional)"
+  - [x] Placeholder: "Add any additional context about your achievements, metrics, or accomplishments..."
+  - [x] Store in component state for submission
+- [x] Add button layout: "Back", "Next: Review Bullets", "Cancel"
+- [x] Emit events:
+  - [x] `@back` when Back clicked
+  - [x] `@proceed` with contextNotes when Next clicked
+  - [x] `@cancel` when Cancel clicked
+- [x] Import EnhancementContextReview in EnhancementPane.vue
+- [x] Pass props correctly: story notes and loading state
 
 **Dependencies:** FE-001, FE-004
 **Testable by:** Frontend team (display of notes/bullets, context notes editing)
@@ -237,50 +234,86 @@ Enhance profile experiences directly on `/profile/experience` page with a 50% sl
 
 ---
 
-### FE-008: Implement Multi-Round Enhancement Flow Logic
-- [ ] In experience.vue, orchestrate the 3-round flow:
-  - [ ] **Initialization:** When `?enhance=<id>` is set, fetch experience and start Round 1
-  - [ ] **Round 1:** Call `generateInitialQuestions(experience)`, display EnhancementQuestionRound with `round="1"`
-  - [ ] **User Submits Round 1 Answers:** Store in `enhancementContext.answeredQuestions`
-  - [ ] **Round 2:** Call `generateFollowUpQuestions(experience, context)`, display EnhancementQuestionRound with `round="2"` and `storyNotes`
-  - [ ] **User Submits Round 2 Answers:** Append to `answeredQuestions`, update `storyNotes`
-  - [ ] **Check for More Rounds:** If questionGroups empty, skip to Round 3; else repeat Round 2
-  - [ ] **Round 3:** Display EnhancementStep3 with story notes and editable context textarea
-  - [ ] **On Save:** Call `generateFinalBullets(experience, contextNotes)`, then wait for bullets
-  - [ ] **Display Bullets:** Show XYZ bullets in Step 3, allow user to accept
-- [ ] Implement error handling:
-  - [ ] Catch API errors at each round
-  - [ ] Show toast error notification
-  - [ ] Allow user to retry without losing answers
-- [ ] Implement cancel flow:
-  - [ ] Clear all enhancement state on cancel
-  - [ ] Remove `?enhance` query param
-  - [ ] Close pane
-- [ ] Implement save flow:
-  - [ ] Call `saveEnhancedBullets(experienceId, selectedBullets, contextNotes)`
-  - [ ] Update experience card with new bullets and `lastEnhancedAt` timestamp
-  - [ ] Show success toast notification
-  - [ ] Close pane and remove `?enhance` query param
-  - [ ] Optionally highlight the saved experience card for review
+### FE-008: Create EnhancementBulletReview.vue Component (Round 4: Bullet Selection & Save)
+- [x] Accept props: `storyNotes: ContextStory[]`, `bulletPairs: ResumeBullet[]`, `isLoading: boolean`
+- [x] Display accumulated story notes (read-only, same format as Step 3):
+  - [x] Show all notes from Rounds 1 & 2
+  - [x] Format consistently with previous rounds
+- [x] Display generated XYZ bullets as selectable options:
+  - [x] Show 3-5 bullet pairs
+  - [x] Each bullet displays BOTH primary AND secondary as equal options
+  - [x] Radio button or toggle UI to select preferred option for each bullet
+  - [x] Visual indicator showing which option is currently selected
+  - [x] Format: `• [Option A]` with `• [Option B]` underneath or side-by-side
+- [x] Add selection state tracking:
+  - [x] Initialize with primary selected by default
+  - [x] Allow user to switch selections
+  - [x] Store selected option for each bullet
+- [x] Add button layout: "Back", "Save", "Cancel"
+- [x] Emit events:
+  - [x] `@back` when Back clicked
+  - [x] `@save="{ selectedBullets }"` with array of selected bullet texts when Save clicked
+  - [x] `@cancel` when Cancel clicked
+- [x] Handle save loading state (disable Save button during submission)
+- [x] Show visual feedback when option is selected
 
-**Dependencies:** FE-003, FE-004, FE-005, FE-007, FE-002
+**Dependencies:** FE-001, FE-004
+**Testable by:** Frontend team (bullet display, selection interaction, emission)
+**Success criteria:** Bullets display with both options, user can select preferences, selections persist and emit correctly
+
+---
+
+### FE-009: Implement Multi-Round Enhancement Flow Logic
+- [x] In EnhancementPane.vue, orchestrate the 4-round flow:
+  - [x] **Initialization:** When `?enhance=<id>` is set, fetch experience and start Round 1
+  - [x] **Round 1:** Call `generateInitialQuestions(experience)`, display EnhancementQuestionRound with `round="1"`
+  - [x] **User Submits Round 1 Answers:** Store in `enhancementContext.answeredQuestions`
+  - [x] **Round 2:** Call `generateFollowUpQuestions(experience, context)`, display EnhancementQuestionRound with `round="2"` and `storyNotes`
+  - [x] **User Submits Round 2 Answers:** Append to `answeredQuestions`, update `storyNotes`
+  - [x] **Check for More Rounds:** If questionGroups empty, skip to Round 3; else repeat Round 2
+  - [x] **Round 3:** Display EnhancementContextReview with story notes and editable context textarea
+  - [x] **User Reviews Context:** Call `generateFinalBullets(experience, accumulatedContext)` when Next clicked
+  - [x] **Round 4:** Display EnhancementBulletReview with bullet pairs and selection UI
+  - [x] **User Selects Bullets:** Store selected bullets in component state
+  - [x] **On Save:** Call existing `updateExperience()` with selected bullets and context notes
+- [x] Implement error handling:
+  - [x] Catch API errors at each round
+  - [x] Show toast error notification (TODO: implement toast in components)
+  - [x] Allow user to retry without losing answers
+- [x] Implement cancel flow:
+  - [x] Clear all enhancement state on cancel
+  - [x] Remove `?enhance` query param (parent handles this)
+  - [x] Close pane
+- [x] Implement save flow:
+  - [x] Call `updateExperience(experienceId, { highlights: selectedBullets, contextNotes, lastEnhancedAt })`
+  - [x] Update experience card with new bullets and `lastEnhancedAt` timestamp
+  - [x] Show success toast notification (TODO: implement toast)
+  - [x] Close pane and remove `?enhance` query param
+  - [x] Optionally highlight the saved experience card for review (parent handles this)
+
+**Dependencies:** FE-003, FE-004, FE-005, FE-007, FE-008, FE-002
 **Testable by:** Frontend team (end-to-end flow testing, error scenarios)
-**Success criteria:** Full 3-round flow works, errors handled gracefully, bullets saved correctly
+**Success criteria:** Full 4-round flow works, errors handled gracefully, selected bullets saved correctly
 
 ---
 
 ### FE-009: Update Profile Dashboard Enhancement Status (Optional)
-- [ ] Update `app/pages/profile/index.vue` experience cards
-- [ ] Add enhancement status badge to each experience:
-  - [ ] "Enhanced" badge if `lastEnhancedAt` exists (show date: "Enhanced on Jan 15")
-  - [ ] "Not Enhanced" subtle text if `lastEnhancedAt` is null
-- [ ] Add "Deep Enhance" link/button to experience card (next to existing actions)
-- [ ] Clicking "Deep Enhance" sets `?enhance=<id>` param on `/profile/experience` page
-- [ ] Optional: Add small indicator icon showing enhancement status
+- [x] Add enhancement status badge to experience cards on `/profile/experience` page
+  - [x] Display "Enhanced on [date]" badge if `lastEnhancedAt` exists (green success color)
+  - [x] Display "Not enhanced yet" text if `lastEnhancedAt` is null (muted/italic)
+  - [x] Add to both view mode and edit mode card headers
+- [x] Badge includes sparkles icon for visual identification
+- [x] Enhancement status now visible alongside experience details
+
+**Implementation Details:**
+- Added to view mode: Below the date/location/employment type info
+- Added to edit mode: In the header next to "Edit Work Experience" title
+- Uses semantic `success` color for enhanced experiences
+- Integrates with existing `formatDate()` utility
 
 **Dependencies:** FE-008
-**Testable by:** Frontend team (badge display, navigation)
-**Success criteria:** Enhancement status displays, Deep Enhance button navigates to experience page
+**Testable by:** Frontend team (badge display on experience cards)
+**Success criteria:** Enhancement status displays on all experience cards, "Enhance" button still navigates to enhancement flow
 
 
 ## KEY ARCHITECTURAL CHANGES (from previous plan)

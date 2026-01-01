@@ -669,6 +669,20 @@ onMounted(async () => {
                     <span>• {{ locationTypes.find(t => t.value === experience.locationType)?.label }}</span>
                     <span>• {{ employmentTypes.find(t => t.value === experience.employmentType)?.label }}</span>
                   </div>
+
+                  <!-- Enhancement Status Badge -->
+                  <div class="flex items-center gap-2 mt-3">
+                    <UBadge
+                      v-if="experience.lastEnhancedAt"
+                      color="success"
+                      variant="soft"
+                      size="sm"
+                    >
+                      <UIcon name="i-lucide-sparkles" class="w-3 h-3 mr-1" />
+                      Enhanced on {{ formatDate(experience.lastEnhancedAt) }}
+                    </UBadge>
+                    <span v-else class="text-xs text-muted italic">Not enhanced yet</span>
+                  </div>
                 </div>
                 <div class="flex gap-2">
                   <UButton
@@ -721,7 +735,19 @@ onMounted(async () => {
         <!-- Edit Mode -->
         <UPageCard v-else variant="subtle">
           <div class="space-y-4">
-            <h3 class="text-lg font-semibold">Edit Work Experience</h3>
+            <div class="flex items-center justify-between gap-4">
+              <h3 class="text-lg font-semibold">Edit Work Experience</h3>
+              <!-- Enhancement Status Badge in Edit Mode -->
+              <UBadge
+                v-if="experience.lastEnhancedAt"
+                color="success"
+                variant="soft"
+                size="sm"
+              >
+                <UIcon name="i-lucide-sparkles" class="w-3 h-3 mr-1" />
+                Enhanced
+              </UBadge>
+            </div>
             
             <!-- Employment Type and Company -->
             <div class="flex gap-4 max-sm:flex-col">

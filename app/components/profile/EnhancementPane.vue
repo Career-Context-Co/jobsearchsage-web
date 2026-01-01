@@ -14,8 +14,11 @@ const emit = defineEmits<{
 
 const careerIDStore = useCareerIDStore()
 
+// Reference to question round component to call proceed
+const questionRoundRef = ref<any>()
+
 // Enhancement pane state - all managed internally
-const currentRound = ref<1 | 2 | 3>(1)
+const currentRound = ref<1 | 2 | 3 | 4>(1)
 const questionGroups = ref<QuestionGroup[]>([])
 const storyNotes = ref<ContextStory[]>([])
 const bullets = ref<ResumeBullet[]>([])
@@ -36,11 +39,12 @@ const isLoading = computed(() => isGeneratingQuestions.value || isGeneratingBull
 const roundLabels = {
   1: 'Initial Questions',
   2: 'Follow-up Questions',
-  3: 'Review & Save'
+  3: 'Review Context',
+  4: 'Select Bullets'
 }
 
 // Computed for step text
-const stepText = computed(() => `Round ${currentRound.value} of 3: ${roundLabels[currentRound.value]}`)
+const stepText = computed(() => `Round ${currentRound.value} of 4: ${roundLabels[currentRound.value]}`)
 
 // Initialize Round 1 when component mounts
 onMounted(async () => {
@@ -48,48 +52,17 @@ onMounted(async () => {
 })
 
 async function initializeRound1() {
-  // TODO: Uncomment when ready to use real API
-  // try {
-  //   const result = await careerIDStore.generateInitialQuestions(props.experience)
-  //   questionGroups.value = result.questionGroups
-  //   storyNotes.value = result.notes
-  // } catch (error: any) {
-  //   console.error('Failed to generate initial questions:', error)
-  //   // TODO: Show error toast
-  // }
-
-  // Temporary: Dummy data for UI development
-  isGeneratingQuestions.value = true
-  await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API delay
-  
-  questionGroups.value = [
-    {
-      category: 'General Role Context',
-      questions: [
-        { id: 'q1', text: 'What was your primary responsibility in this role?' },
-        { id: 'q2', text: 'How many people were on your team or did you manage?' },
-        { id: 'q3', text: 'What was the main goal or objective of your position?' }
-      ]
-    },
-    {
-      category: 'Key Achievements',
-      questions: [
-        { id: 'q4', text: 'Can you quantify any improvements you made? (e.g., percentage, dollar amount, time saved)' },
-        { id: 'q5', text: 'What specific projects or initiatives did you lead or contribute to?' },
-        { id: 'q6', text: 'What tools, technologies, or methodologies did you use?' }
-      ]
-    }
-  ]
-  
-  storyNotes.value = [
-    {
-      title: 'Role Overview',
-      text: 'Primary responsibility was software development and team collaboration',
-      type: 'responsibility'
-    }
-  ]
-  
-  isGeneratingQuestions.value = false
+  try {
+    isGeneratingQuestions.value = true
+    const result = await careerIDStore.generateInitialQuestions(props.experience)
+    questionGroups.value = result.questionGroups
+    storyNotes.value = result.notes
+  } catch (error: any) {
+    console.error('Failed to generate initial questions:', error)
+    // TODO: Show error toast
+  } finally {
+    isGeneratingQuestions.value = false
+  }
 }
 
 // Handle question round proceed
@@ -104,128 +77,84 @@ async function handleQuestionRoundProceed(event: any) {
 
 // Handle next button click
 async function handleNext() {
-  if (currentRound.value === 1) {
-    // Move to Round 2
-    await proceedToRound2()
-  } else if (currentRound.value === 2) {
-    // Move to Round 3
-    await proceedToRound3()
+  if (currentRound.value === 1 || currentRound.value === 2) {
+    // For question rounds, call the component's proceed method which will emit the event
+    questionRoundRef.value?.handleProceed()
+  } else if (currentRound.value === 3) {
+    // Move to Round 4 (generate bullets)
+    await proceedToRound4()
   }
 }
 
 async function proceedToRound2() {
-  // TODO: Uncomment when ready to use real API
-  // // Build context from Round 1 answers
-  // const context: ContextObject = {
-  //   notes: storyNotes.value,
-  //   answeredQuestions: answeredQuestions.value
-  // }
-  // 
-  // try {
-  //   const result = await careerIDStore.generateFollowUpQuestions(props.experience, context)
-  //   
-  //   // If no follow-up questions, skip to Round 3
-  //   if (!result.questionGroups || result.questionGroups.length === 0) {
-  //     await proceedToRound3()
-  //     return
-  //   }
-  // 
-  //   questionGroups.value = result.questionGroups
-  //   storyNotes.value = [...storyNotes.value, ...result.notes]
-  //   currentRound.value = 2
-  // } catch (error: any) {
-  //   console.error('Failed to generate follow-up questions:', error)
-  //   // TODO: Show error toast
-  // }
-
-  // Temporary: Dummy data for UI development
-  isGeneratingQuestions.value = true
-  await new Promise(resolve => setTimeout(resolve, 800)) // Simulate API delay
-  
-  // Simulate follow-up questions (or skip to Round 3 if no follow-ups)
-  const hasFollowUps = true // Set to false to test auto-skip to Round 3
-  
-  if (!hasFollowUps) {
-    await proceedToRound3()
-    return
+  try {
+    isGeneratingQuestions.value = true
+    // Build context from Round 1 answers
+    const context: ContextObject = {
+      notes: storyNotes.value,
+      answeredQuestions: answeredQuestions.value
+    }
+    
+    const result = await careerIDStore.generateFollowUpQuestions(props.experience, context)
+    
+    // If no follow-up questions, skip to Round 3
+    if (!result.questionGroups || result.questionGroups.length === 0) {
+      await proceedToRound3()
+      return
+    }
+    
+    questionGroups.value = result.questionGroups
+    storyNotes.value = [...storyNotes.value, ...result.notes]
+    currentRound.value = 2
+  } catch (error: any) {
+    console.error('Failed to generate follow-up questions:', error)
+    // TODO: Show error toast
+  } finally {
+    isGeneratingQuestions.value = false
   }
-  
-  questionGroups.value = [
-    {
-      category: 'Metrics & Impact',
-      questions: [
-        { id: 'q7', text: 'Can you estimate the percentage of time saved or latency reduced?' },
-        { id: 'q8', text: 'What was the baseline before this change?' }
-      ]
-    },
-    {
-      category: 'Tools & Technologies',
-      questions: [
-        { id: 'q9', text: 'What specific tools, languages, or libraries did you utilize?' }
-      ]
-    }
-  ]
-  
-  storyNotes.value = [
-    ...storyNotes.value,
-    {
-      title: 'Project Impact',
-      text: 'Implemented caching system to reduce API latency',
-      type: 'achievement'
-    },
-    {
-      title: 'Technical Details',
-      text: 'Used Redis and Node.js for the implementation',
-      type: 'project'
-    }
-  ]
-  
-  currentRound.value = 2
-  isGeneratingQuestions.value = false
 }
 
 async function proceedToRound3() {
-  // TODO: Uncomment when ready to use real API
-  // try {
-  //   const result = await careerIDStore.generateFinalBullets(props.experience, storyNotes.value)
-  //   bullets.value = result
-  //   currentRound.value = 3
-  // } catch (error: any) {
-  //   console.error('Failed to generate bullets:', error)
-  //   // TODO: Show error toast
-  // }
-
-  // Temporary: Dummy data for UI development
-  isGeneratingBullets.value = true
-  await new Promise(resolve => setTimeout(resolve, 1200)) // Simulate API delay
-  
-  bullets.value = [
-    {
-      primary: 'Optimized main e-commerce dashboard for 50,000+ monthly active users, achieving a 1.5s reduction in page load times',
-      secondary: 'Improved dashboard performance by implementing Redis caching and optimizing database queries, resulting in 40% faster load times'
-    },
-    {
-      primary: 'Led team of 5 engineers to deliver $2M customer portal, reducing support tickets by 40%',
-      secondary: 'Managed cross-functional team using Agile methodologies to build customer self-service portal, improving customer satisfaction scores'
-    },
-    {
-      primary: 'Implemented new caching system reducing API response time by ~20% (approx 200ms) using Redis and Node.js',
-      secondary: 'Designed and deployed distributed caching layer using AWS ElastiCache, improving overall system performance and scalability'
-    },
-    {
-      primary: 'Collaborated with product and design teams to launch mobile app feature used by 10,000+ users in first month',
-      secondary: 'Worked closely with stakeholders to define requirements and deliver mobile feature on schedule, exceeding user adoption targets'
+  try {
+    isGeneratingQuestions.value = true
+    // Build final context from Round 1 + Round 2 answers
+    const context: ContextObject = {
+      notes: storyNotes.value,
+      answeredQuestions: answeredQuestions.value
     }
-  ]
-  
-  currentRound.value = 3
-  isGeneratingBullets.value = false
+    
+    // Make final API call to generate story notes from accumulated context
+    const result = await careerIDStore.generateFollowUpQuestions(props.experience, context)
+    
+    // Update story notes with final context
+    storyNotes.value = result.notes
+    currentRound.value = 3
+  } catch (error: any) {
+    console.error('Failed to generate final context:', error)
+    // TODO: Show error toast
+  } finally {
+    isGeneratingQuestions.value = false
+  }
+}
+
+async function proceedToRound4() {
+  try {
+    isGeneratingBullets.value = true
+    const result = await careerIDStore.generateFinalBullets(props.experience, storyNotes.value)
+    bullets.value = result
+    currentRound.value = 4
+  } catch (error: any) {
+    console.error('Failed to generate bullets:', error)
+    // TODO: Show error toast
+  } finally {
+    isGeneratingBullets.value = false
+  }
 }
 
 // Handle back button click
 function handleBack() {
   if (currentRound.value > 1) {
-    currentRound.value = (currentRound.value - 1) as 1 | 2 | 3
+    currentRound.value = (currentRound.value - 1) as 1 | 2 | 3 | 4
   }
 }
 
@@ -234,41 +163,44 @@ function handleCancel() {
   emit('close')
 }
 
-// Handle save button click (for Round 3)
+// Handle Step 3 save event (receives context notes from component)
+async function handleStep3Save(event: { contextNotes: string }) {
+  contextNotes.value = event.contextNotes
+  // Move to Round 4 to generate and select bullets
+  await proceedToRound4()
+}
+
+// Handle Step 4 save event (receives selected bullets from component)
+async function handleStep4Save(event: { selectedBullets: string[] }) {
+  await performSave(event.selectedBullets)
+}
+
+// Handle save button click (for Round 4)
 async function handleSave() {
-  if (!bullets.value || bullets.value.length === 0) return
+  await performSave()
+}
 
-  // TODO: Uncomment when ready to use real API
-  // try {
-  //   // Extract primary bullets for saving
-  //   const highlights = bullets.value.map(bullet => bullet.primary)
-  // 
-  //   await careerIDStore.updateExperience(props.experience.id, {
-  //     highlights,
-  //     contextNotes: contextNotes.value,
-  //     lastEnhancedAt: new Date().toISOString()
-  //   })
-  // 
-  //   // Close pane after successful save
-  //   emit('close')
-  // } catch (error: any) {
-  //   console.error('Failed to save enhancement:', error)
-  //   // TODO: Show error toast
-  // }
+// Perform the actual save operation
+async function performSave(selectedBullets?: string[]) {
+  const bulletsToSave = selectedBullets || bullets.value.map(b => b.primary)
+  if (!bulletsToSave || bulletsToSave.length === 0) return
 
-  // Temporary: Dummy save for UI development
-  console.log('Saving enhancement with:', {
-    experienceId: props.experience.id,
-    highlights: bullets.value.map(bullet => bullet.primary),
-    contextNotes: contextNotes.value,
-    lastEnhancedAt: new Date().toISOString()
-  })
-  
-  // Simulate save delay
-  await new Promise(resolve => setTimeout(resolve, 500))
-  
-  // Close pane after "successful" save
-  emit('close')
+  try {
+    isGeneratingBullets.value = true
+    await careerIDStore.updateExperience(props.experience.id, {
+      highlights: bulletsToSave,
+      contextNotes: contextNotes.value,
+      lastEnhancedAt: new Date().toISOString()
+    })
+    
+    // Close pane after successful save
+    emit('close')
+  } catch (error: any) {
+    console.error('Failed to save enhancement:', error)
+    // TODO: Show error toast
+  } finally {
+    isGeneratingBullets.value = false
+  }
 }
 </script>
 
@@ -281,7 +213,7 @@ async function handleSave() {
         <p class="text-sm text-muted mb-1">{{ stepText }}</p>
         <UProgress
           :model-value="currentRound"
-          :max="3"
+          :max="4"
           class="w-full"
         />
       </div>
@@ -300,6 +232,7 @@ async function handleSave() {
       <!-- Round 1 or 2: Question Round -->
       <div v-if="currentRound === 1 || currentRound === 2" class="space-y-4">
         <ProfileEnhancementQuestionRound
+          ref="questionRoundRef"
           :round="currentRound"
           :question-groups="questionGroups"
           :story-notes="storyNotes"
@@ -310,28 +243,32 @@ async function handleSave() {
         />
       </div>
 
-      <!-- Round 3: Context Review & Save (placeholder until FE-007) -->
+      <!-- Round 3: Context Review -->
       <div v-else-if="currentRound === 3" class="space-y-4">
-        <div v-if="isLoading" class="flex items-center justify-center py-12">
-          <div class="text-center">
-            <UIcon name="i-lucide-loader-2" class="w-8 h-8 animate-spin text-primary mx-auto mb-2" />
-            <p class="text-sm text-muted">Generating bullets...</p>
-          </div>
-        </div>
-        <div v-else>
-          <p class="text-muted mb-4">EnhancementStep3 component will go here</p>
-          <p v-if="storyNotes.length > 0" class="text-xs text-muted">
-            {{ storyNotes.length }} story notes available
-          </p>
-          <p v-if="bullets.length > 0" class="text-xs text-muted mt-2">
-            {{ bullets.length }} bullets generated
-          </p>
-        </div>
+        <ProfileEnhancementContextReview
+          :story-notes="storyNotes"
+          :is-loading="isLoading"
+          @back="handleBack"
+          @save="handleStep3Save"
+          @cancel="handleCancel"
+        />
+      </div>
+
+      <!-- Round 4: Bullet Selection -->
+      <div v-else-if="currentRound === 4" class="space-y-4">
+        <ProfileEnhancementBulletReview
+          :story-notes="storyNotes"
+          :bullet-pairs="bullets"
+          :is-loading="isLoading"
+          @back="handleBack"
+          @save="handleStep4Save"
+          @cancel="handleCancel"
+        />
       </div>
     </div>
 
     <!-- Footer: Back/Next/Save Draft Buttons -->
-    <div class="flex items-center justify-between gap-3 pt-4">
+    <div v-if="!isLoading" class="flex items-center justify-between gap-3 pt-4">
       <UButton
         v-if="currentRound > 1"
         label="Back"
@@ -346,8 +283,14 @@ async function handleSave() {
 
       <div class="flex gap-2">
         <UButton
-          v-if="currentRound < 3"
-          :label="currentRound === 1 ? 'Next: Details & Specifics' : 'Next: Review Draft'"
+          v-if="currentRound < 4"
+          :label="
+            currentRound === 1
+              ? 'Next: Details & Specifics'
+              : currentRound === 2
+                ? 'Next: Review Context'
+                : 'Next: Select Bullets'
+          "
           icon="i-lucide-arrow-right"
           icon-position="leading"
           color="primary"
@@ -358,7 +301,7 @@ async function handleSave() {
         />
         <UButton
           v-else
-          label="Save Draft"
+          label="Save Bullets"
           icon="i-lucide-check"
           color="primary"
           class="cursor-pointer"

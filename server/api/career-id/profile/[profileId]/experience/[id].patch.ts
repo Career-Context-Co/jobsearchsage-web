@@ -72,6 +72,8 @@ export default eventHandler(async (event) => {
   if (body.summary !== undefined) updateData.summary = body.summary
   if (body.highlights !== undefined) updateData.highlights = body.highlights
   if (body.displayOrder !== undefined) updateData.display_order = body.displayOrder
+  if (body.lastEnhancedAt !== undefined) updateData.last_enhanced_at = body.lastEnhancedAt
+  if (body.contextNotes !== undefined) updateData.context_notes = body.contextNotes
   
   // Update experience entry
   const { data, error } = await supabase
