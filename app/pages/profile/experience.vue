@@ -5,6 +5,8 @@ import { validateRequired, validateUrl, validateMonthYear, validateDateRange } f
 
 const careerIDStore = useCareerIDStore()
 const toast = useToast()
+const route = useRoute()
+const router = useRouter()
 
 /**
  * Convert date from YYYY-MM-DD to MM/YYYY format for UI display
@@ -80,6 +82,39 @@ const formData = ref<Partial<ExperienceFormData>>({
   highlights: ['']
 })
 const formErrors = ref<Record<string, string>>({})
+
+// Enhancement pane query parameter handling
+const enhancingExperienceId = computed(() => {
+  const enhanceParam = route.query.enhance
+  if (!enhanceParam) return null
+  const id = Number(enhanceParam)
+  return isNaN(id) ? null : id
+})
+
+const isEnhancementPaneOpen = computed(() => enhancingExperienceId.value !== null)
+
+function openEnhancementPane(experienceId: number) {
+  router.push({
+    query: { ...route.query, enhance: experienceId }
+  })
+}
+
+function closeEnhancementPane() {
+  const query = { ...route.query }
+  delete query.enhance
+  router.push({ query })
+}
+
+// Get the experience being enhanced
+const enhancingExperience = computed(() => {
+  if (!enhancingExperienceId.value) return null
+  return experiences.value.find(exp => exp.id === enhancingExperienceId.value) || null
+})
+
+// Handle enhancement pane close
+function handleEnhancementClose() {
+  closeEnhancementPane()
+}
 
 // Employment type options
 const employmentTypes = [
@@ -615,7 +650,10 @@ onMounted(async () => {
       <div
         v-for="experience in experiences"
         :key="experience.id"
-        class="border border-default rounded-lg"
+        :class="[
+          'border rounded-lg transition-colors',
+          enhancingExperienceId === experience.id ? 'border-teal-500 ring-2 ring-teal-500' : 'border-default'
+        ]"
       >
         <!-- View Mode -->
         <UPageCard v-if="editingExperienceId !== experience.id" variant="subtle">
@@ -631,8 +669,30 @@ onMounted(async () => {
                     <span>• {{ locationTypes.find(t => t.value === experience.locationType)?.label }}</span>
                     <span>• {{ employmentTypes.find(t => t.value === experience.employmentType)?.label }}</span>
                   </div>
+
+                  <!-- Enhancement Status Badge -->
+                  <div class="flex items-center gap-2 mt-3">
+                    <UBadge
+                      v-if="experience.lastEnhancedAt"
+                      color="success"
+                      variant="soft"
+                      size="sm"
+                    >
+                      <UIcon name="i-lucide-sparkles" class="w-3 h-3 mr-1" />
+                      Enhanced on {{ formatDate(experience.lastEnhancedAt) }}
+                    </UBadge>
+                    <span v-else class="text-xs text-muted italic">Not enhanced yet</span>
+                  </div>
                 </div>
                 <div class="flex gap-2">
+                  <UButton
+                    icon="i-lucide-sparkles"
+                    color="primary"
+                    variant="ghost"
+                    size="sm"
+                    class="cursor-pointer"
+                    @click="openEnhancementPane(experience.id)"
+                  />
                   <UButton
                     icon="i-lucide-pencil"
                     color="neutral"
@@ -675,7 +735,19 @@ onMounted(async () => {
         <!-- Edit Mode -->
         <UPageCard v-else variant="subtle">
           <div class="space-y-4">
-            <h3 class="text-lg font-semibold">Edit Work Experience</h3>
+            <div class="flex items-center justify-between gap-4">
+              <h3 class="text-lg font-semibold">Edit Work Experience</h3>
+              <!-- Enhancement Status Badge in Edit Mode -->
+              <UBadge
+                v-if="experience.lastEnhancedAt"
+                color="success"
+                variant="soft"
+                size="sm"
+              >
+                <UIcon name="i-lucide-sparkles" class="w-3 h-3 mr-1" />
+                Enhanced
+              </UBadge>
+            </div>
             
             <!-- Employment Type and Company -->
             <div class="flex gap-4 max-sm:flex-col">
@@ -841,6 +913,14 @@ onMounted(async () => {
                 :disabled="isSaving"
               />
               <UButton
+                label="Enhance"
+                color="primary"
+                variant="outline"
+                icon="i-lucide-sparkles"
+                class="cursor-pointer"
+                @click="openEnhancementPane(editingExperienceId!)"
+              />
+              <UButton
                 label="Save Changes"
                 color="primary"
                 icon="i-lucide-check"
@@ -870,4 +950,29 @@ onMounted(async () => {
       </div>
     </UPageCard>
   </div>
+
+  <!-- Enhancement Drawer -->
+  <UDrawer
+    v-model:open="isEnhancementPaneOpen"
+    direction="right"
+    inset
+    :handle="false"
+    :modal="false"
+    :dismissible="false"
+    @update:open="(open) => { if (!open) closeEnhancementPane() }"
+  >
+    <!-- Hidden trigger (drawer controlled via query param) -->
+    <div class="hidden" />
+
+    <!-- Drawer Content -->
+    <template #body>
+      <div class="w-xl">
+        <ProfileEnhancementPane
+        :experience="enhancingExperience"
+        @close="handleEnhancementClose"
+      />
+      </div>
+    </template>
+
+  </UDrawer>
 </template>

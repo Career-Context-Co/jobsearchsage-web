@@ -9,11 +9,19 @@ import type {
   ContactInfo,
   ProfileResponse
 } from '../../shared/types/careerId'
+import type {
+  QuestionGroup,
+  ContextStory,
+  ContextObject,
+  ResumeBullet,
+  GatherContextResponse,
+  EnhanceAchievementsResponse
+} from '../../shared/types/enhancement'
 
 export const useCareerIDStore = defineStore('careerID', {
   state: () => ({
-    profileId: '',
-    userId: 'test123456',
+    profileId: 'prof_myf2i85se9xri4e4wgsxxim7',
+    userId: 'nswk',
     // Core profile data (flat structure for ease of use)
     profile: null as Profile | null,
     experience: [] as Experience[],
@@ -43,7 +51,11 @@ export const useCareerIDStore = defineStore('careerID', {
     } | null,
 
     // Achievement enhancement state
-    isEnhancingExperience: false
+    isEnhancingExperience: false,
+
+    // Context enhancement API state (component manages flow state)
+    isGeneratingQuestions: false,
+    isGeneratingBullets: false
   }),
 
   getters: {
@@ -1224,9 +1236,149 @@ export const useCareerIDStore = defineStore('careerID', {
     },
 
     /**
+     * Generate initial questions for context gathering (Round 1)
+     *
+     * Calls the /gather-context endpoint with experience data to generate
+     * initial questions for the enhancement flow.
+     *
+     * @param experience - Full experience object from store
+     * @returns Promise resolving to question groups and initial story notes
+     * @throws Error with user-friendly message on generation failure
+     */
+    async generateInitialQuestions(experience: Experience): Promise<{
+      questionGroups: QuestionGroup[]
+      notes: ContextStory[]
+    }> {
+      this.isGeneratingQuestions = true
+
+      try {
+        const response = await $fetch<GatherContextResponse>(
+          `/api/career-id/profile/${experience.profileId}/experience/${experience.id}/gather-context`,
+          {
+            method: 'POST',
+            body: { experience }
+          }
+        )
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to generate questions: Invalid response format')
+        }
+
+        return response.data
+      } catch (error: any) {
+        let errorMessage = 'Failed to generate questions'
+
+        if (error?.data?.error?.code === 'TIMEOUT') {
+          errorMessage = 'Question generation timed out. Please try again.'
+        } else if (error?.data?.error?.message) {
+          errorMessage = error.data.error.message
+        } else if (error?.message) {
+          errorMessage = error.message
+        }
+
+        throw new Error(errorMessage)
+      } finally {
+        this.isGeneratingQuestions = false
+      }
+    },
+
+    /**
+     * Generate follow-up questions based on previous answers (Round 2+)
+     *
+     * Calls the /gather-context endpoint with accumulated context from previous rounds
+     * to generate targeted follow-up questions.
+     *
+     * @param experience - Full experience object from store
+     * @param context - Accumulated context from previous rounds
+     * @returns Promise resolving to follow-up question groups and updated story notes
+     * @throws Error with user-friendly message on generation failure
+     */
+    async generateFollowUpQuestions(experience: Experience, context: ContextObject): Promise<{
+      questionGroups: QuestionGroup[]
+      notes: ContextStory[]
+    }> {
+      this.isGeneratingQuestions = true
+
+      try {
+        const response = await $fetch<GatherContextResponse>(
+          `/api/career-id/profile/${experience.profileId}/experience/${experience.id}/gather-context`,
+          {
+            method: 'POST',
+            body: { experience, context }
+          }
+        )
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to generate follow-up questions: Invalid response format')
+        }
+
+        return response.data
+      } catch (error: any) {
+        let errorMessage = 'Failed to generate follow-up questions'
+
+        if (error?.data?.error?.code === 'TIMEOUT') {
+          errorMessage = 'Follow-up question generation timed out. Please try again.'
+        } else if (error?.data?.error?.message) {
+          errorMessage = error.data.error.message
+        } else if (error?.message) {
+          errorMessage = error.message
+        }
+
+        throw new Error(errorMessage)
+      } finally {
+        this.isGeneratingQuestions = false
+      }
+    },
+
+    /**
+     * Generate final resume bullets from context notes (Round 3)
+     *
+     * Calls the /enhance-achievements endpoint with accumulated context notes
+     * to generate final XYZ-format resume bullets.
+     *
+     * @param experience - Full experience object from store
+     * @param notes - Accumulated story notes from context gathering rounds
+     * @returns Promise resolving to generated resume bullet pairs
+     * @throws Error with user-friendly message on generation failure
+     */
+    async generateFinalBullets(experience: Experience, notes: ContextStory[]): Promise<ResumeBullet[]> {
+      this.isGeneratingBullets = true
+
+      try {
+        const response = await $fetch<EnhanceAchievementsResponse>(
+          `/api/career-id/profile/${experience.profileId}/experience/${experience.id}/enhance-achievements`,
+          {
+            method: 'POST',
+            body: { experience, notes }
+          }
+        )
+
+        if (!response.success || !response.data?.bullets) {
+          throw new Error('Failed to generate bullets: Invalid response format')
+        }
+
+        return response.data.bullets
+      } catch (error: any) {
+        let errorMessage = 'Failed to generate resume bullets'
+
+        if (error?.data?.error?.code === 'TIMEOUT') {
+          errorMessage = 'Bullet generation timed out. Please try again.'
+        } else if (error?.data?.error?.message) {
+          errorMessage = error.data.error.message
+        } else if (error?.message) {
+          errorMessage = error.message
+        }
+
+        throw new Error(errorMessage)
+      } finally {
+        this.isGeneratingBullets = false
+      }
+    },
+
+    /**
      * Enhance achievement descriptions using AI-powered light polish
-     * 
-     * This action sends an experience slice (job context + achievements) to the 
+     *
+     * This action sends an experience slice (job context + achievements) to the
      * AI enhancement endpoint and returns polished achievement descriptions.
      * Components track enhancement state locally (similar to isExtracted pattern).
      *
