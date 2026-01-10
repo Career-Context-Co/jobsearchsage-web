@@ -2,7 +2,7 @@
 
 ## Overview
 
-Tasks are grouped by **phase** (Database → Backend → Frontend), then by **logical testable unit**, with unique IDs for easy reference. Each task is independently completable and testable.
+Tasks are grouped by **parent Issue** (Database, Backend, or Frontend), then by **logical testable unit**, with unique IDs for easy reference. Each task is independently completable and testable.
 
 ---
 
@@ -20,7 +20,7 @@ Tasks are grouped by **phase** (Database → Backend → Frontend), then by **lo
 ## Before Starting
 
 **ALWAYS check for user stories first:**
-1. Look in `openspec/changes/[change-id]/context/` for user stories
+1. Look in `openspec/changes/[change-id]/context/` for user stories and issues
 2. If none exist, ask the user explicitly before proceeding
 3. Structure all tasks around the user stories
 
@@ -47,7 +47,6 @@ Each phase starts at 001. IDs are sequential and semantic (DB-001 is foundationa
 - [ ] [Specific deliverable 3]
 
 **Dependencies:** [What must be done first, or "None"]
-**Testable by:** [Database/Backend/Frontend team]
 **Success criteria:** [What "done" looks like]
 ```
 
