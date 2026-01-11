@@ -16,10 +16,10 @@
 ## PHASE 1: DATABASE
 
 ### DB-001: Hero Moments Table
-- [ ] Design `career_id.hero_moments` table (id, profile_id, title, raw_notes, source_experience_id, discovery_session_id, created_at, updated_at, deleted_at, converted_at, converted_story_id, display_order)
-- [ ] Create migration: `deliverables/migrations/020_create_hero_moments.sql`
-- [ ] Add indexes on profile_id, discovery_session_id, converted_story_id
-- [ ] Document schema in `deliverables/schemas/hero-moments-schema.md`
+- [x] Design `career_id.hero_moments` table (id, profile_id, title, raw_notes, source_experience_id, discovery_session_id, created_at, updated_at, deleted_at, converted_at, converted_story_id)
+- [x] Create migration: `deliverables/migrations/020_create_hero_moments.sql`
+- [x] Add indexes on profile_id, discovery_session_id, converted_story_id
+- [x] Document schema in `deliverables/schemas/hero-moments-schema.md`
 
 **Dependencies:** None (but assumes hero_stories table exists from 2026-01-10-add-hero-stories)
 **Success criteria:** Table created with all columns, indexes, and foreign keys; migration is idempotent
@@ -28,27 +28,13 @@
 ---
 
 ### DB-002: Discovery Sessions Table
-- [ ] Design `career_id.discovery_sessions` table (id, profile_id, session_status, started_at, ended_at, moment_count, created_at, updated_at)
-- [ ] Create migration: `deliverables/migrations/021_create_discovery_sessions.sql`
-- [ ] Add indexes on profile_id, session_status
-- [ ] Document schema in `deliverables/schemas/hero-moments-schema.md`
+- [x] Alter existing `public.hero_discovery_sessions` table to add missing columns (session_status, moment_count)
+- [x] Create migration: `deliverables/migrations/021_alter_discovery_sessions.sql` to add columns and indexes
+- [x] Add indexes on profile_id, session_status
 
 **Dependencies:** DB-001
-**Success criteria:** Table created with all columns and indexes; tracks session lifecycle
+**Success criteria:** Table has all required columns and indexes; tracks session lifecycle; foreign key constraint added
 **Testable by:** Database team
-
----
-
-### DB-003: Database Functions for Moments
-- [ ] Create `career_id.get_unconverted_moments(p_profile_id TEXT)` function - returns all moments not yet converted to stories
-- [ ] Create `career_id.mark_moment_converted(p_moment_id TEXT, p_story_id TEXT)` function - sets converted_at and converted_story_id
-- [ ] Create `career_id.get_discovery_session_moments(p_session_id TEXT)` function - returns all moments in a session
-- [ ] Create migration: `deliverables/migrations/022_create_hero_moments_functions.sql`
-- [ ] Document functions in `deliverables/schemas/hero-moments-schema.md`
-
-**Dependencies:** DB-001, DB-002
-**Success criteria:** Functions work correctly with sample queries; handle edge cases (null values, missing records)
-**Testable by:** Database team (test functions with sample data)
 
 ---
 
