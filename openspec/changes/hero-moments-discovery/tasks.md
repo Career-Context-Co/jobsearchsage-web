@@ -41,15 +41,12 @@
 ## PHASE 2: BACKEND
 
 ### BE-001: Moments CRUD Endpoints
-- [ ] Create `server/api/career-id/profile/[profileId]/moments/index.get.ts` - GET all unconverted moments
-- [ ] Create `server/api/career-id/profile/[profileId]/moments/index.post.ts` - POST to create moment
-- [ ] Create `server/api/career-id/profile/[profileId]/moments/[momentId].get.ts` - GET single moment
-- [ ] Create `server/api/career-id/profile/[profileId]/moments/[momentId].patch.ts` - PATCH to update moment
-- [ ] Create `server/api/career-id/profile/[profileId]/moments/[momentId].delete.ts` - DELETE moment (soft delete)
-- [ ] Generate prefixed IDs (`moment_*`)
-- [ ] Add validation: title length (5-50 chars), raw_notes length (10-500 chars), required fields
-- [ ] Add error handling and logging
-- [ ] Document in `deliverables/schemas/api-spec.md`
+- [x] Create `server/api/career-id/profile/[profileId]/moments/index.get.ts` - GET all moments for profile
+- [x] Create `server/api/career-id/profile/[profileId]/moments/index.post.ts` - POST to create moment(s) (bulk operation)
+- [x] Create `server/api/career-id/profile/[profileId]/moments/[momentId].patch.ts` - PATCH to update moment
+- [x] Create `server/api/career-id/profile/[profileId]/moments/[momentId].delete.ts` - DELETE moment (soft delete)
+- [x] Generate prefixed IDs (`moment_*`)
+- [x] Add error handling and logging
 
 **Dependencies:** DB-001, DB-003
 **Success criteria:** All endpoints work with curl/Postman; validation rejects invalid data; errors are descriptive
@@ -58,32 +55,30 @@
 ---
 
 ### BE-002: Discovery Session Endpoints
-- [ ] Create `server/api/career-id/discovery-sessions/index.post.ts` - POST to start session
-- [ ] Create `server/api/career-id/discovery-sessions/[sessionId].get.ts` - GET session state
-- [ ] Create `server/api/career-id/discovery-sessions/[sessionId].patch.ts` - PATCH to update session (add/remove moments)
-- [ ] Create `server/api/career-id/discovery-sessions/[sessionId]/end.post.ts` - POST to end session
-- [ ] Generate prefixed IDs (`session_*`)
-- [ ] Add validation: profile_id required, session_status valid values
+- [x] Create `server/api/ai/hero-discovery/start.post.ts` - POST to start session
+  - Uses Discovery Start Prompt (`context/prompts/Discovery Start Prompt.md`) (copy and paste dont read files)
+  - Calls AI to generate opening greeting and question
+  - Initializes session state (moments_count: 0, turn_count: 1)
+  - Returns: ai_message, session_id
+  
+- [x] Create `server/api/ai/hero-discovery/continue.post.ts` - POST to continue conversation
+  - Uses Discovery Continue Prompt (`context/prompts/Discovery Continue Prompt.md`) (copy and paste dont read files)
+  - Receives session_id, user_message and conversation history in request body
+  - Calls AI to analyze message and capture moments as discovered
+  - Returns: ai_message, moments_captured (if any), should_end_session
+  
+- [ ] Create `server/api/ai/hero-discovery/[sessionId]/end.post.ts` - POST to end session
+  - Uses Discovery End Prompt (`context/prompts/Discovery End Prompt.md`) (copy and paste dont read files)
+  - Summarizes all captured moments with one-liners
+  - Guides user to select moment for Story Builder
+  - Returns: ai_message, moments_summary, next_endpoint
+  
+- [ ] Track session state: moments_count, turn_count, session_status
 - [ ] Add error handling and logging
-- [ ] Document in `deliverables/schemas/api-spec.md`
 
 **Dependencies:** DB-002, BE-001
-**Success criteria:** Sessions can be created, retrieved, updated, and ended; state is persisted correctly
-**Testable by:** Backend team
-
----
-
-### BE-003: Moment Conversion Endpoints
-- [ ] Create `server/api/career-id/profile/[profileId]/moments/[momentId]/convert.post.ts` - POST to mark moment as converted
-- [ ] Add validation: moment exists, story_id is valid, moment not already converted
-- [ ] Call `career_id.mark_moment_converted()` function
-- [ ] Return updated moment with conversion metadata
-- [ ] Add error handling and logging
-- [ ] Document in `deliverables/schemas/api-spec.md`
-
-**Dependencies:** DB-003, BE-001
-**Success criteria:** Endpoint correctly marks moment as converted; returns updated moment; prevents double conversion
-**Testable by:** Backend team
+**Success criteria:** Discovery flow works end-to-end (start → continue → end); moments captured correctly; AI prompts generate contextual responses
+**Testable by:** Backend team (test with real AI responses)
 
 ---
 
