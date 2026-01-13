@@ -131,20 +131,37 @@
 
 ---
 
-### FE-002: Moment Capture Form Component
-- [ ] Create `app/components/profile/MomentCaptureForm.vue`
-- [ ] Display confirmation form with:
-  - Title input (editable, max 50 chars)
-  - Raw notes textarea (editable, max 500 chars)
-  - Approve, Edit, Reject buttons
-- [ ] Show character counts for title and notes
-- [ ] Implement form validation (required fields, length limits)
-- [ ] Emit events: `@approve`, `@reject`, `@edit`
-- [ ] Use mock data for testing
+### FE-002: Discovery Session Chat Component
+- [x] Create `app/components/profile/HeroDiscoverySessionChat.vue`
+- [x] Vertical layout with three sections:
+  1. **Top - Info Banner**: Explanation of discovery session and what's happening
+  2. **Middle - Captured Moments**: Running list of moments captured so far
+     - Display with icons and count badge
+     - Show title and raw notes for each moment
+     - Empty state if no moments yet
+  3. **Bottom - Chat Interface**: Conversation area
+     - Display AI messages
+     - User input textarea
+     - Send button
+     - Loading state while waiting for AI response
+- [x] Integration with API endpoints:
+  - `POST /api/ai/hero-discovery/start` - Initialize session
+  - `POST /api/ai/hero-discovery/continue` - Send message and get response
+  - `POST /api/ai/hero-discovery/end` - End discovery session
+- [x] Accept props: sessionId, profileId
+- [x] Emit events: `@close`, `@moment-captured`, `@session-ended`
+- [x] Handle session state (active/ended)
+- [x] Use mock data for initial testing
+- [x] Match styling from EnhancementBulletReview.vue pattern
+
+**API References:**
+- Request: `{ session_id, user_message, captured_moments: [] }`
+- Response: `{ ai_message, moment_captured?: { title, rawNotes }, should_end_session }`
 
 **Dependencies:** None
-**Success criteria:** Form displays correctly; validation works; events emit properly
+**Success criteria:** Three-section layout displays correctly; moments list updates on capture; chat works; API integration functional; responsive layout
 **Testable by:** Frontend team
+**COMPLETED** ✅
 
 ---
 

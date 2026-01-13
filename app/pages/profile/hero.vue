@@ -20,6 +20,10 @@ const heroMoments = ref([
   }
 ])
 
+// Discovery session state
+const currentSessionId = ref('session_123')
+const currentProfileId = ref('profile_456')
+
 // Discovery session drawer handling
 const isDiscoveryDrawerOpen = computed(() => route.query.discoverySession === 'true')
 
@@ -36,6 +40,21 @@ function closeDiscoverySession() {
 }
 
 function handleDiscoveryClose() {
+  closeDiscoverySession()
+}
+
+function handleDiscoveryMomentCaptured(moment: any) {
+  // Add newly captured moment to list
+  heroMoments.value.unshift({
+    id: Date.now(),
+    title: moment.title,
+    raw_notes: moment.rawNotes,
+    created_at: new Date().toISOString().split('T')[0],
+    status: 'discovered'
+  })
+}
+
+function handleDiscoverySessionEnded() {
   closeDiscoverySession()
 }
 </script>
@@ -128,18 +147,14 @@ function handleDiscoveryClose() {
 
     <!-- Drawer Content -->
     <template #body>
-      <div class="w-xl p-6">
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="text-xl font-semibold">Discovery Session</h2>
-          <UButton
-            icon="i-lucide-x"
-            color="neutral"
-            variant="ghost"
-            @click="handleDiscoveryClose"
-          />
-        </div>
-        
-        <p>AI discovery session content here</p>
+      <div class="w-xl h-full flex flex-col">
+        <ProfileHeroDiscoverySessionChat
+          :session-id="currentSessionId"
+          :profile-id="currentProfileId"
+          @close="handleDiscoveryClose"
+          @moment-captured="handleDiscoveryMomentCaptured"
+          @session-ended="handleDiscoverySessionEnded"
+        />
       </div>
     </template>
   </UDrawer>
