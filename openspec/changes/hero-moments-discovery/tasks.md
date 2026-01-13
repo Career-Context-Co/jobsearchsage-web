@@ -67,14 +67,19 @@
   - Calls AI to analyze message and capture moments as discovered
   - Returns: ai_message, moments_captured (if any), should_end_session
   
-- [ ] Create `server/api/ai/hero-discovery/[sessionId]/end.post.ts` - POST to end session
-  - Uses Discovery End Prompt (`context/prompts/Discovery End Prompt.md`) (copy and paste dont read files)
+- [x] Create `server/api/ai/hero-discovery/end.post.ts` - POST to end session
+  - Uses Discovery End Prompt (copy and paste dont read files)
   - Summarizes all captured moments with one-liners
   - Guides user to select moment for Story Builder
   - Returns: ai_message, moments_summary, next_endpoint
   
-- [ ] Track session state: moments_count, turn_count, session_status
-- [ ] Add error handling and logging
+- [x] Track session state: moments_count, turn_count, session_status
+  - `session_status` tracked in all endpoints (active → completed)
+  - `moment_count` tracked across start/continue/end
+- [x] Add error handling and logging
+  - All endpoints have comprehensive error handling with DiscoveryError, database errors, API errors
+  - Structured logging with logRequest/logError/logSuccess throughout
+  - Detailed context logged for debugging (session_id, moments_count, durations, codes)
 
 **Dependencies:** DB-002, BE-001
 **Success criteria:** Discovery flow works end-to-end (start → continue → end); moments captured correctly; AI prompts generate contextual responses

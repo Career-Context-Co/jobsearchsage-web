@@ -316,32 +316,37 @@ RESPONSE RULES:
 /**
  * Generate end session summary and guidance
  */
-export async function generateDiscoveryEnd(moments: Array<{ title: string; rawNotes: string }>): Promise<{ aiMessage: string; nextEndpoint: string }> {
+export async function generateDiscoveryEnd(
+  capturedMoments: Array<{ title: string; rawNotes: string }>,
+  userContext?: { name?: string; current_role?: string }
+): Promise<{
+  aiMessage: string
+}> {
   try {
-    const momentsList = moments
-      .map(
-        (m, i) =>
-          `${i + 1}. **${m.title}** - ${m.rawNotes.split('.')[0] || m.rawNotes.substring(0, 50)}`
-      )
+    const userName = userContext?.name || 'there'
+
+    // Format captured moments as a bulleted list for context
+    const momentsList = capturedMoments
+      .map((m) => `- ${m.title}`)
       .join('\n')
 
-    const userPrompt = `Session context:
-- Total moments discovered: ${moments.length}
+    const userPrompt = `You're concluding a career discovery session with ${userName}.
 
-Captured moments:
+Moments they identified:
 ${momentsList}
 
-Tasks:
-1. Celebrate the user's achievement in identifying these moments
-2. Present the moments in a scannable format (title + one sentence)
-3. Ask which moment they'd like to develop into a full HERO story
-4. Briefly explain what the Story Builder session involves (10-15 minutes)
-5. Make it easy for them to choose and proceed
+Create a brief, conversational summary that:
+1. Celebrates their achievements (don't just list them)
+2. References the specific moments they shared (weave them into the conversation naturally)
+3. Asks which moment they'd like to develop into a full story
+4. Briefly mention what comes next (Story Session, 10-15 minutes)
 
-Keep response to 6-8 sentences maximum. Be clear and action-oriented.`
+Keep it to 4-5 sentences. Be warm and encouraging, not robotic.
+
+Just respond with the message directly, no JSON.`
 
     const result = await generateText({
-      model: gateway('google/gemini-2.5-flash-lite'),
+      model: gateway('openai/gpt-4.1-mini'),
       system: DISCOVERY_END_SYSTEM_PROMPT,
       prompt: userPrompt,
       temperature: 0.5,
@@ -349,9 +354,11 @@ Keep response to 6-8 sentences maximum. Be clear and action-oriented.`
 
     return {
       aiMessage: result.text,
-      nextEndpoint: '/api/ai/hero/story-builder/start',
     }
   } catch (error: any) {
+    if (error instanceof DiscoveryError) {
+      throw error
+    }
     if (error.code === 'ERR_TIMEOUT') {
       throw new DiscoveryError('AI request timed out', 'TIMEOUT', error)
     }
