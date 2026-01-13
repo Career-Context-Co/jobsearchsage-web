@@ -52,6 +52,12 @@ const links = [[
     onSelect: () => {
       open.value = false
     }
+  }, {
+    label: 'HERO',
+    to: '/profile/hero',
+    onSelect: () => {
+      open.value = false
+    }
   }]
 }],
 [{

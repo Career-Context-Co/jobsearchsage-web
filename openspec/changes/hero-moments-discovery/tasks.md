@@ -105,21 +105,29 @@
 
 ## PHASE 3A: FRONTEND - MOCK UI
 
-### FE-001: Discovery Session Page
-- [ ] Create `app/pages/profile/discovery.vue`
-- [ ] Layout with:
-  - Question prompt area (static placeholder for AI coach)
-  - User input textarea for achievement narrative
-  - Running list of captured moments (newest first)
-  - Session controls (Continue, Edit, Remove, End Session buttons)
-- [ ] Use mock data for moments
-- [ ] Implement moment card display (title, first 1-2 sentences, timestamp)
-- [ ] Implement empty state ("No moments captured yet")
-- [ ] Add visual styling to distinguish from other pages
+### FE-001: Hero Discovery Page with Drawer
+- [x] Create `app/pages/profile/hero.vue`
+- [x] Display list of discovered hero moments (title, notes, date, status)
+- [x] Add "Start Discovery Session" button to open drawer
+- [x] Implement UDrawer component for discovery session:
+  - Controlled via query parameter (`?discover=true`)
+  - Opens from right side, inset mode
+  - Contains discovery session interface
+  - Close button to dismiss drawer
+- [x] Mock data for hero moments list (2 sample moments)
+- [x] Empty state when no moments exist
+- [x] Action buttons on each moment (Develop Story, Delete)
+- [x] Implement responsive layout matching other profile pages
+- [x] Follow conventions from experience.vue page
+
+**Reference:**
+- Pattern follows `app/pages/profile/experience.vue` with EnhancementPane drawer
+- Uses query param routing for drawer state management
 
 **Dependencies:** None
-**Success criteria:** Page renders with mock data; all UI elements visible; responsive layout
+**Success criteria:** Hero page displays moments list; drawer opens/closes correctly via query param; mock data displays; responsive layout works; follows profile page conventions
 **Testable by:** Frontend team (visual testing)
+**COMPLETED** ✅
 
 ---
 
