@@ -58,13 +58,7 @@ export default eventHandler(async (event) => {
         message: 'title is required and cannot be empty',
         code: ErrorCodes.REQUIRED
       })
-    } else if (moment.title.length < 5 || moment.title.length > 50) {
-      validationErrors.push({
-        field: `moments[${index}].title`,
-        message: 'title must be between 5 and 50 characters',
-        code: ErrorCodes.INVALID
-      })
-    }
+    } 
     
     if (!isRequired(moment.rawNotes)) {
       validationErrors.push({

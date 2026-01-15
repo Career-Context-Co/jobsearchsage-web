@@ -8,7 +8,6 @@
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { ErrorCodes } from '@@/server/utils/error-handler'
 import { generateDiscoveryStart, DiscoveryError } from '@@/server/utils/hero-discovery-service'
-import { generatePrefixedId } from '@@/server/utils/id-generator'
 import { serverSupabaseClient } from '#supabase/server'
 
 const ROUTE_PATH = '/api/ai/hero-discovery/start'
@@ -60,7 +59,6 @@ export default eventHandler(async (event) => {
     )
 
     // Create session record in database
-    const sessionId = generatePrefixedId('session')
     const { data: sessionData, error: dbError } = await supabase
       .from('hero_discovery_sessions')
       .insert({
@@ -115,6 +113,21 @@ export default eventHandler(async (event) => {
 
     setResponseStatus(event, 201)
     const duration = getElapsed()
+
+    const sessionId = sessionData?.[0]?.id
+    if (!sessionId) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Internal Server Error',
+        data: {
+          success: false,
+          error: {
+            code: 'DATABASE_ERROR',
+            message: 'Failed to create discovery session',
+          },
+        },
+      })
+    }
 
     logSuccess('POST', ROUTE_PATH, duration, {
       profile_id,

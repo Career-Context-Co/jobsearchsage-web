@@ -1,131 +1,122 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 
-interface Props {
-  sessionId?: string
-  profileId?: string
-}
-
-interface CapturedMoment {
-  id: string
-  title: string
-  rawNotes: string
-}
-
 interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
 }
 
+interface CapturedMoment {
+  id?: string | number
+  title: string
+  rawNotes: string
+}
+
 interface UIMessage {
   id: string
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'system'
   parts: Array<{ type: 'text'; text: string }>
 }
 
-withDefaults(defineProps<Props>(), {
+interface Props {
+  sessionId?: string | number
+  profileId?: string
+  messages?: ChatMessage[]
+  capturedMoments?: CapturedMoment[]
+  isLoading?: boolean
+  error?: string | null
+  sessionStatus?: 'active' | 'paused' | 'completed' | 'abandoned'
+}
+
+const props = withDefaults(defineProps<Props>(), {
   sessionId: '',
-  profileId: ''
+  profileId: '',
+  messages: () => [],
+  capturedMoments: () => [],
+  isLoading: false,
+  error: null,
+  sessionStatus: 'active'
 })
 
 const emit = defineEmits<{
   close: []
-  momentCaptured: [moment: CapturedMoment]
-  sessionEnded: []
+  sendMessage: [payload: { userMessage: string; capturedMoments: CapturedMoment[] }]
+  endSession: []
+  developStory: []
+  saveMoments: [payload: { capturedMoments: CapturedMoment[] }]
+  updateMoment: [payload: { index: number; moment: CapturedMoment }]
 }>()
 
-// Mock chat state
 const userMessage = ref('')
-const isLoading = ref(false)
 
-// Mock captured moments (dummy data)
-const capturedMoments = ref<CapturedMoment[]>([
-  {
-    id: '1',
-    title: 'Led successful product launch',
-    rawNotes: 'Coordinated cross-functional team to deliver new feature ahead of schedule.'
-  },
-  {
-    id: '2',
-    title: 'Mentored junior developer',
-    rawNotes: 'Provided guidance and code reviews for new team member.'
-  }
-])
-
-// Mock conversation history (dummy data)
-const conversationHistory = ref<ChatMessage[]>([
-  {
-    role: 'assistant',
-    content: 'Hi there! I\'m here to help you discover and capture your achievement moments. Let\'s start by talking about a time when you successfully led a project or initiative. What was the challenge and how did you overcome it?'
-  },
-  {
-    role: 'user',
-    content: 'Well, I led a product launch last year. We had a tight deadline and a small team. I coordinated everyone\'s efforts and we shipped on time.'
-  },
-  {
-    role: 'assistant',
-    content: 'That sounds great! Tell me more about the impact. What was the result of shipping on time? Did it have any business or user impact?'
-  }
-])
-
-// Convert messages to UI format for Nuxt UI chat components
-const messages = computed<UIMessage[]>(() =>
-  conversationHistory.value.map((msg, index) => ({
+const uiMessages = computed<UIMessage[]>(() =>
+  props.messages.map((msg, index) => ({
     id: `msg-${index}`,
     role: msg.role,
     parts: [{ type: 'text', text: msg.content }]
   }))
 )
 
-// Chat status for Nuxt UI components
+const getMessageText = (message: { parts?: Array<{ type?: string; text?: string }> }) => {
+  const textPart = message.parts?.find(part => part.type === 'text')
+  return textPart?.text ?? ''
+}
+
 const chatStatus = computed<'ready' | 'submitted' | 'streaming' | 'error'>(() => {
-  if (isLoading.value) return 'streaming'
+  if (props.error) return 'error'
+  if (props.isLoading) return 'streaming'
   return 'ready'
 })
+
+const isSessionComplete = computed(() => props.sessionStatus === 'completed')
+
+const sessionMoments = computed(() =>
+  props.capturedMoments.map((moment, index) => ({
+    id: moment.id ?? index,
+    title: moment.title,
+    raw_notes: moment.rawNotes,
+    created_at: ''
+  }))
+)
 
 function handleSendMessage(event?: Event) {
   if (event) {
     event.preventDefault()
   }
-  
-  if (!userMessage.value.trim()) return
 
-  // Add user message
-  conversationHistory.value.push({
-    role: 'user',
-    content: userMessage.value
+  const trimmed = userMessage.value.trim()
+  if (!trimmed || props.isLoading || isSessionComplete.value) return
+
+  emit('sendMessage', {
+    userMessage: trimmed,
+    capturedMoments: props.capturedMoments
   })
 
-  const tempMessage = userMessage.value
   userMessage.value = ''
-  isLoading.value = true
-
-  // Simulate API delay
-  setTimeout(() => {
-    // Add AI response (mock)
-    conversationHistory.value.push({
-      role: 'assistant',
-      content: 'That\'s excellent! I can see how that demonstrates strong leadership. Based on what you\'ve shared, I\'ve captured this achievement. Would you like to tell me about another achievement?'
-    })
-
-    // Simulate moment capture
-    if (tempMessage.includes('led') || tempMessage.includes('team')) {
-      const newMoment: CapturedMoment = {
-        id: Date.now().toString(),
-        title: 'Achievement from conversation',
-        rawNotes: tempMessage
-      }
-      capturedMoments.value.push(newMoment)
-      emit('momentCaptured', newMoment)
-    }
-
-    isLoading.value = false
-  }, 800)
 }
 
 function handleEndSession() {
-  emit('sessionEnded')
-  emit('close')
+  if (props.capturedMoments.length > 0) {
+    emit('saveMoments', { capturedMoments: props.capturedMoments })
+  }
+  emit('endSession')
+}
+
+function handleDevelopStory() {
+  emit('developStory')
+}
+
+function handleUpdateMoment(index: number, payload: { title: string; raw_notes: string }) {
+  const current = props.capturedMoments[index]
+  if (!current) return
+  emit('updateMoment', {
+    index,
+    moment: {
+      ...current,
+      title: payload.title,
+      rawNotes: payload.raw_notes
+    }
+  })
 }
 </script>
 
@@ -137,14 +128,25 @@ function handleEndSession() {
         <h2 class="text-lg font-semibold mb-2">Discovery Session</h2>
         <p class="text-sm text-muted">Share your achievement stories and capture key moments</p>
       </div>
-      <UButton
-        icon="i-lucide-x"
-        color="neutral"
-        variant="ghost"
-        size="sm"
-        class="cursor-pointer shrink-0 ml-4"
-        @click="emit('close')"
-      />
+      <div class="flex items-center gap-2">
+        <UButton
+          label="End Session"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          class="cursor-pointer"
+          :disabled="isLoading || isSessionComplete"
+          @click="handleEndSession"
+        />
+        <UButton
+          icon="i-lucide-x"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          class="cursor-pointer shrink-0"
+          @click="emit('close')"
+        />
+      </div>
     </div>
 
     <!-- Body: Scrollable Content -->
@@ -160,6 +162,10 @@ function handleEndSession() {
         </div>
       </div>
 
+      <div v-if="error" class="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">
+        {{ error }}
+      </div>
+
       <!-- Captured Moments Section -->
       <div class="space-y-3">
         <!-- Moments Header -->
@@ -173,19 +179,15 @@ function handleEndSession() {
 
         <!-- Moments Display -->
         <div v-if="capturedMoments.length > 0" class="border-2 border-teal-500 bg-teal-500/10 p-4 rounded-lg">
-          <ul class="space-y-2">
-            <li
-              v-for="(moment, index) in capturedMoments"
+          <div class="space-y-2">
+            <ProfileHeroMomentCard
+              v-for="(moment, index) in sessionMoments"
               :key="moment.id"
-              class="flex gap-2 text-sm text-foreground items-start"
-            >
-              <span class="text-teal-500 text-2xl">•</span>
-              <div>  
-                <p class="font-medium">{{ moment.title }}</p>
-                <p class="text-xs text-muted mt-1">{{ moment.rawNotes }}</p>
-              </div>
-            </li>
-          </ul>
+              :moment="moment"
+              context="session"
+              @save="(payload) => handleUpdateMoment(index, payload)"
+            />
+          </div>
         </div>
         <div v-else class="flex items-start gap-3 border-2 border-teal-500 bg-teal-500/10 p-4 rounded-lg">
           <UIcon name="i-lucide-lightbulb" class="w-4 h-4 text-muted shrink-0 mt-0.5" />
@@ -199,7 +201,7 @@ function handleEndSession() {
       <!-- Chat Section -->
       <div class="flex-1 flex flex-col min-h-[400px]">
         <UChatMessages
-          :messages="messages"
+          :messages="uiMessages"
           :status="chatStatus"
           :should-auto-scroll="true"
           :assistant="{
@@ -214,9 +216,26 @@ function handleEndSession() {
           class="flex-1 min-h-0"
         >
           <template #content="{ message }">
-            <p class="text-sm whitespace-pre-wrap">{{ message.parts[0]?.text }}</p>
+            <p class="text-sm whitespace-pre-wrap">{{ getMessageText(message) }}</p>
           </template>
         </UChatMessages>
+      </div>
+    </div>
+
+    <div v-if="isSessionComplete" class="border border-emerald-500/40 bg-emerald-500/10 rounded-lg p-4">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="text-sm font-medium text-foreground">Ready to turn this into a HERO story?</p>
+          <p class="text-xs text-muted">Start the story builder with your captured moment.</p>
+        </div>
+        <UButton
+          label="Develop Story"
+          icon="i-lucide-sparkles"
+          color="primary"
+          size="sm"
+          class="cursor-pointer shrink-0"
+          @click="handleDevelopStory"
+        />
       </div>
     </div>
 
@@ -226,7 +245,7 @@ function handleEndSession() {
         v-model="userMessage"
         placeholder="Share more about your achievement here..."
         variant="subtle"
-        :disabled="isLoading"
+        :disabled="isLoading || isSessionComplete"
         @submit="handleSendMessage"
       >
         <UChatPromptSubmit 

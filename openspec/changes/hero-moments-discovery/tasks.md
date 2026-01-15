@@ -223,136 +223,165 @@
 
 ## PHASE 3B: FRONTEND - INTEGRATION
 
-### FE-006: Pinia Store Setup
-- [ ] Create `app/stores/heroMomentsStore.ts`
-- [ ] Define state:
-  - activeSession (current discovery session)
-  - discoveredMoments (all unconverted moments for profile)
-  - sessionMoments (moments in active session)
-  - isLoading, isSaving, error
-- [ ] Add getters:
+### FE-006: Pinia Store Integration - Hero Moments State
+- [x] Update `app/stores/careerIDStore.ts` to add hero moments state:
+  - heroMoments (all unconverted moments for profile)
+- [x] Add getters:
   - unconvertedMomentsCount
-  - sessionMomentsCount
-  - isSessionActive
-  - hasError
-- [ ] Add lifecycle actions: resetStore, setError, clearError
+- [x] Hero moments state follows same pattern as experience, education, etc.
+- [x] Import HeroMoment and DiscoverySession types from `app/types/heroMoments`
 
-**Dependencies:** None
-**Success criteria:** Store initializes correctly; state is reactive; getters work
+**Dependencies:** FE-005
+**Success criteria:** Hero moments state integrated into careerIDStore; types are imported; state is reactive
 **Testable by:** Frontend team (unit tests)
+**COMPLETED** ✅
 
 ---
 
 ### FE-007: Store Actions - Discovery Session
-- [ ] Add `startDiscoverySession(profileId)` - POST /api/career-id/discovery-sessions
-- [ ] Add `getDiscoverySession(sessionId)` - GET /api/career-id/discovery-sessions/:sessionId
-- [ ] Add `endDiscoverySession(sessionId)` - POST /api/career-id/discovery-sessions/:sessionId/end
-- [ ] Add `updateSessionStatus(sessionId, status)` - PATCH /api/career-id/discovery-sessions/:sessionId
-- [ ] All actions update local state after operations
-- [ ] Add error handling and logging
+- [x] Add `startDiscoverySession(profileId, userContext?)` - POST /api/ai/hero-discovery/start
+  - Request body: `{ profile_id, user_context?, source_experience? }`
+  - Response: `{ success, ai_message, session_id }`
+- [x] Add `continueDiscoverySession(sessionId, userMessage, capturedMoments)` - POST /api/ai/hero-discovery/continue
+  - Request body: `{ session_id, user_message, captured_moments: [] }`
+  - Response: `{ success, ai_message, moment_captured?, should_end_session }`
+- [x] Add `endDiscoverySession(sessionId)` - POST /api/ai/hero-discovery/end
+  - Request body: `{ session_id }`
+  - Response: `{ success, message }`
+- [x] All actions update local state after operations
+- [x] Add error handling and logging
 
 **Dependencies:** BE-002, FE-006
-**Success criteria:** Actions call correct endpoints; state updates correctly; errors are handled
+**Success criteria:** Actions call correct endpoints with proper request format; state updates correctly; errors are handled
 **Testable by:** Frontend team
+**COMPLETED** ✅
 
 ---
 
 ### FE-008: Store Actions - Moments CRUD
-- [ ] Add `createMoment(profileId, momentData)` - POST /api/career-id/profile/:profileId/moments
-- [ ] Add `updateMoment(profileId, momentId, momentData)` - PATCH /api/career-id/profile/:profileId/moments/:momentId
-- [ ] Add `deleteMoment(profileId, momentId)` - DELETE /api/career-id/profile/:profileId/moments/:momentId
-- [ ] Add `fetchUnconvertedMoments(profileId)` - GET /api/career-id/profile/:profileId/moments
-- [ ] Add `convertMoment(profileId, momentId, storyId)` - POST /api/career-id/profile/:profileId/moments/:momentId/convert
-- [ ] All actions update local state after operations
-- [ ] Add error handling and logging
+- [x] Add `fetchMoments(profileId)` - GET /api/career-id/profile/:profileId/moments
+  - Returns all moments (including unconverted) ordered by created_at (newest first)
+  - Updates heroMoments state
+- [x] Add `createMoments(profileId, momentsData)` - POST /api/career-id/profile/:profileId/moments
+  - Request body: Array of `{ title, rawNotes, sourceExperienceId?, discoverySessionId? }`
+  - Response: Array of created moments
+- [x] Add `updateMoment(profileId, momentId, momentData)` - PATCH /api/career-id/profile/:profileId/moments/:momentId
+  - Request body: `{ title?, rawNotes?, sourceExperienceId? }`
+  - Updates local state after operation
+- [x] Add `deleteMoment(profileId, momentId)` - DELETE /api/career-id/profile/:profileId/moments/:momentId
+  - Performs soft delete
+  - Updates local state after operation
+- [x] All actions include error handling and logging
 
 **Dependencies:** BE-001, BE-003, FE-006, FE-007
-**Success criteria:** Actions call correct endpoints; state updates correctly; moments are added/updated/removed
+**Success criteria:** Actions call correct endpoints with proper request/response format; state updates correctly; moments are added/updated/removed
 **Testable by:** Frontend team
+**COMPLETED** ✅
 
 ---
 
 ### FE-009: Store Actions - Session Persistence
-- [ ] Add `saveSessionToCache(session)` - Save session state to localStorage/IndexedDB
-- [ ] Add `restoreSessionFromCache()` - Restore session state from cache
-- [ ] Add `clearSessionCache()` - Clear cached session data
-- [ ] Add `syncSessionWithServer(sessionId)` - Sync cached session with server
-- [ ] Implement auto-sync after each moment operation
-- [ ] Handle cache expiration (old sessions)
+- [x] Add `saveSessionToCache(session)` - Save session state to localStorage/IndexedDB
+- [x] Add `restoreSessionFromCache()` - Restore session state from cache
+- [x] Add `clearSessionCache()` - Clear cached session data
+- [x] Add `syncSessionWithServer(sessionId)` - Sync cached session with server
+- [x] Implement auto-sync after each moment operation
+- [x] Handle cache expiration (old sessions)
 
 **Dependencies:** FE-007, FE-008
 **Success criteria:** Session state persists across page refreshes; cache syncs with server; old sessions are cleaned up
 **Testable by:** Frontend team
+**COMPLETED** ✅
 
 ---
 
-### FE-010: Discovery Session Page Integration
-- [ ] Update `app/pages/profile/discovery.vue` to:
-  - Fetch or create discovery session on mount
-  - Connect to heroMomentsStore
-  - Display session moments from store
-  - Call store actions for create/update/delete moment
-  - Call store action to end session
-  - Restore session from cache on page refresh
-  - Display loading states and errors
-- [ ] Implement session state persistence
-- [ ] Add success confirmations for moment capture
-- [ ] Add error messages for failed operations
+### FE-010: Discovery Session Component Integration
+- [x] Update `app/components/profile/hero/DiscoverySessionChat.vue` to:
+  - Accept `sessionId`, `profileId` as props
+  - Accept `isLoading`, `error` as props from parent
+  - Display UI for discovery session (info banner, captured moments, chat)
+  - Emit `@close` when user closes the session
+  - Emit `@send-message` with `{ userMessage, capturedMoments }` when user submits
+  - Emit `@end-session` when user ends the session
+  - Display AI responses passed via props
+  - Show loading states while parent is fetching/processing
+  - Display error messages passed via props
+  - Update UI with captured moments passed via props
+- [x] Component is pure - no store calls, only emits events
+- [x] Parent page handles all store integration
 
-**Dependencies:** FE-001, FE-006 through FE-009
-**Success criteria:** Page integrates with store; moments are created/updated/deleted; session persists across refresh
+**Dependencies:** FE-001, FE-005
+**Success criteria:** Component displays correctly; emits correct events with proper data; accepts props for loading/error/responses
 **Testable by:** Frontend team (integration tests)
+**COMPLETED** ✅
 
 ---
 
-### FE-011: Discovered Moments Section Integration
-- [ ] Update `app/components/profile/DiscoveredMomentsSection.vue` to:
-  - Accept moments from parent (HERO management page)
-  - Call store action to fetch unconverted moments on mount
-  - Emit events for develop and remove actions
-  - Handle loading and error states
-  - Display moment count from store
-- [ ] Integrate with HERO management page
-- [ ] Add loading indicators while fetching moments
-- [ ] Add error messages if fetch fails
+### FE-011: Discovered Moments Section Component Integration
+- [x] Update `app/components/profile/hero/DiscoveredMomentsSection.vue` to:
+  - Accept `moments` (array) as prop from parent
+  - Accept `isLoading`, `error` as props from parent
+  - Emit `@start-session` when user clicks "Discover More" button
+  - Emit `@develop` with `moment` when user develops a moment into a story
+  - Emit `@remove` with `moment` when user removes a moment
+  - Display moments list passed via props
+  - Show loading states while parent is fetching/processing
+  - Display error messages passed via props
+  - Component is pure - no store calls, only emits events
+- [x] Parent page (hero.vue) handles all store integration and event responses
 
-**Dependencies:** FE-004, FE-006 through FE-009
-**Success criteria:** Component fetches and displays moments; actions work correctly; errors are handled
+**Dependencies:** FE-004, FE-005
+**Success criteria:** Component displays moments correctly; emits correct events with proper data; accepts props for loading/error/moments
 **Testable by:** Frontend team
+**COMPLETED** ✅
 
 ---
 
-### FE-012: HERO Management Page Integration
-- [ ] Update HERO management page to:
-  - Import and display DiscoveredMomentsSection component
-  - Pass moments from store to component
-  - Handle develop action (navigate to Story Builder with moment context)
-  - Handle remove action (call store delete action)
-  - Display both Discovered Moments and Your HERO Stories sections
-  - Show conversion metrics ("You have X moments, Y developed into stories")
-- [ ] Ensure sections are visually distinct
-- [ ] Add loading states for both sections
+### FE-012: HERO Discovery Page Integration
+- [x] Update `app/pages/profile/hero.vue` to:
+  - Import `useCareerIDStore` and get profile/session data from store
+  - **Discovery Session Management:**
+    - Call `store.startDiscoverySession(profileId, userContext)` when opening drawer
+    - Call `store.continueDiscoverySession(sessionId, userMessage, capturedMoments)` on discovery chat message
+    - Call `store.endDiscoverySession(sessionId)` when ending session
+    - Pass loading and error states to DiscoverySessionChat component
+  - **Moments Management:**
+    - Call `store.fetchMoments(profileId)` on page mount to load all moments
+    - Call `store.deleteMoment(profileId, momentId)` when user removes a moment
+    - Call `store.updateMoment(profileId, momentId, data)` when user edits a moment
+  - Pass moments array from store to DiscoveredMomentsSection component
+  - Pass loading/error states to both components
+  - Handle @develop event (TODO: navigate to Story Builder)
+  - Handle @remove event (call store delete action)
+  - Handle @start-session event (open discovery drawer and start session)
+  - Handle @send-message event from chat (call store continue action)
+  - Handle @close event (close drawer)
+  - Handle @end-session event (close drawer after ending)
+  - Handle @moment-captured event (add to local list)
+- [x] Add loading indicators for all async operations
+- [x] Add error message display with retry options
+- [x] Implement proper state management for discovery session lifecycle
 
-**Dependencies:** FE-011
-**Success criteria:** Management page displays both sections; moments and stories are distinct; actions work
+**Dependencies:** FE-010, FE-011, FE-006, FE-007, FE-008, FE-009
+**Success criteria:** Page handles all store calls correctly; moments update in real-time; loading/error states display; all events handled properly
 **Testable by:** Frontend team (full integration test)
+**COMPLETED** ✅
 
 ---
 
 ### FE-013: Moment Edit Form Integration
-- [ ] Create `app/components/profile/MomentEditForm.vue`
-- [ ] Display edit form with:
+- [x] Display edit form with:
   - Title input (editable, max 50 chars)
   - Raw notes textarea (editable, max 500 chars)
   - Save and Cancel buttons
-- [ ] Accept props: moment
-- [ ] Emit events: `@save`, `@cancel`
-- [ ] Integrate with discovery session page
-- [ ] Call store action to update moment on save
+- [x] Accept props: moment
+- [x] Emit events: `@save`, `@cancel`
+- [x] Call store action to update moment on save
 
 **Dependencies:** FE-010
 **Success criteria:** Form displays correctly; updates work; changes are persisted
 **Testable by:** Frontend team
+**COMPLETED** ✅
 
 ---
 

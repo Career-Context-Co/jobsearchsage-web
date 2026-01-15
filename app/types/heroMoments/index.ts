@@ -28,7 +28,7 @@ export interface HeroMoment {
   source_experience_id?: string | number | null
   
   /** FK to the discovery session during which this moment was captured */
-  discovery_session_id: string
+  discovery_session_id: number | null
   
   /** Timestamp when the moment was created */
   created_at: string
@@ -53,8 +53,8 @@ export interface HeroMoment {
  * talks to the AI coach about their achievements and captures moments.
  */
 export interface DiscoverySession {
-  /** Unique identifier (prefixed with 'session_') */
-  id: string
+  /** Unique identifier */
+  id: number
   
   /** Foreign key to the profile this session belongs to */
   profile_id: string
