@@ -711,13 +711,13 @@ onMounted(async () => {
             class="mb-6"
           />
 
-          <ProfileResumeUploadSection 
+          <ProfileOnboardingResumeUploadSection 
             ref="uploadSection"
             v-show="activeStep === 'upload'"
             @upload-complete="handleUploadComplete"
           />
           
-          <ProfileContactSectionNew 
+          <ProfileOnboardingContactSection
             ref="contactSection"
             v-show="activeStep === 'contact'"
             :contact-info="careerIDStore.contactInfo"
@@ -725,26 +725,26 @@ onMounted(async () => {
             @save="handleSaveContact"
           />
           
-          <ProfileExperienceSectionNew 
+          <ProfileOnboardingExperienceSection 
             ref="experienceSection"
             v-show="activeStep === 'experience'"
             :experience="careerIDStore.experience"
           />
           
         
-          <ProfileEducationSectionNew 
+          <ProfileOnboardingEducationSection 
             ref="educationSection"
             v-show="activeStep === 'education'"
             :education="careerIDStore.education"
           />     
           
-          <ProfileSkillsSection 
+          <ProfileOnboardingSkillsSection 
             ref="skillsSection"
             v-show="activeStep === 'skills'"
             :skill-groups="careerIDStore.profileSkills"
           />
           
-          <ProfileCertificationsSection 
+          <ProfileOnboardingCertificationsSection 
             ref="certificationsSection"
             v-show="activeStep === 'certifications'"
             :certifications="careerIDStore.certifications"

@@ -1204,7 +1204,7 @@ onMounted(async () => {
           It looks like you haven't created your profile yet. Complete onboarding to get started.
         </p>
         
-        <ProfileContinueOnboardingModal />
+        <ProfileOnboardingContinueOnboardingModal />
       </div>
     </UPageCard>
   </div>
