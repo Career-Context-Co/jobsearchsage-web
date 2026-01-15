@@ -87,21 +87,6 @@
 
 ---
 
-### BE-004: Error Handling & API Documentation
-- [ ] Create `deliverables/schemas/api-spec.md` with all moments and discovery session endpoints
-- [ ] Create `deliverables/schemas/hero-moments-types.ts` with TypeScript DTOs:
-  - HeroMoment (id, profile_id, title, raw_notes, source_experience_id, discovery_session_id, created_at, updated_at, converted_at, converted_story_id)
-  - DiscoverySession (id, profile_id, session_status, started_at, ended_at, moment_count)
-  - MomentFormData (title, raw_notes, source_experience_id)
-- [ ] Create `deliverables/schemas/mocks/moments-requests.json` with sample API requests
-- [ ] Create `deliverables/schemas/mocks/moments-responses.json` with sample API responses
-- [ ] Document error codes and validation rules
-
-**Dependencies:** BE-001, BE-002, BE-003
-**Success criteria:** All endpoints documented with request/response examples; DTOs are complete and type-safe
-**Testable by:** Backend team (documentation review)
-
----
 
 ## PHASE 3A: FRONTEND - MOCK UI
 
@@ -382,21 +367,6 @@
 **Success criteria:** Form displays correctly; updates work; changes are persisted
 **Testable by:** Frontend team
 **COMPLETED** ✅
-
----
-
-### FE-014: Confirmation Dialogs & UX
-- [ ] Add confirmation dialog for removing moments
-- [ ] Add confirmation dialog for ending session with no moments
-- [ ] Add success toast for moment capture
-- [ ] Add success toast for moment removal
-- [ ] Add error toast for failed operations
-- [ ] Add loading indicators for all async operations
-- [ ] Display "Saved" indicator after successful operations
-
-**Dependencies:** FE-010 through FE-013
-**Success criteria:** All dialogs and toasts display correctly; UX is smooth and responsive
-**Testable by:** Frontend team (manual testing)
 
 ---
 

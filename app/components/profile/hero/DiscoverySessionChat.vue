@@ -44,7 +44,6 @@ const emit = defineEmits<{
   endSession: []
   developStory: []
   saveMoments: [payload: { capturedMoments: CapturedMoment[] }]
-  updateMoment: [payload: { index: number; moment: CapturedMoment }]
 }>()
 
 const userMessage = ref('')
@@ -69,15 +68,6 @@ const chatStatus = computed<'ready' | 'submitted' | 'streaming' | 'error'>(() =>
 })
 
 const isSessionComplete = computed(() => props.sessionStatus === 'completed')
-
-const sessionMoments = computed(() =>
-  props.capturedMoments.map((moment, index) => ({
-    id: moment.id ?? index,
-    title: moment.title,
-    raw_notes: moment.rawNotes,
-    created_at: ''
-  }))
-)
 
 function handleSendMessage(event?: Event) {
   if (event) {
@@ -106,18 +96,6 @@ function handleDevelopStory() {
   emit('developStory')
 }
 
-function handleUpdateMoment(index: number, payload: { title: string; raw_notes: string }) {
-  const current = props.capturedMoments[index]
-  if (!current) return
-  emit('updateMoment', {
-    index,
-    moment: {
-      ...current,
-      title: payload.title,
-      rawNotes: payload.raw_notes
-    }
-  })
-}
 </script>
 
 <template>
@@ -179,15 +157,19 @@ function handleUpdateMoment(index: number, payload: { title: string; raw_notes: 
 
         <!-- Moments Display -->
         <div v-if="capturedMoments.length > 0" class="border-2 border-teal-500 bg-teal-500/10 p-4 rounded-lg">
-          <div class="space-y-2">
-            <ProfileHeroMomentCard
-              v-for="(moment, index) in sessionMoments"
-              :key="moment.id"
-              :moment="moment"
-              context="session"
-              @save="(payload) => handleUpdateMoment(index, payload)"
-            />
-          </div>
+          <ul class="space-y-2">
+            <li
+              v-for="(moment, index) in capturedMoments"
+              :key="moment.id ?? `captured-${index}`"
+              class="flex gap-2 text-sm text-foreground items-start"
+            >
+              <span class="text-teal-500 text-2xl">•</span>
+              <div>  
+                <p class="font-medium">{{ moment.title }}</p>
+                <p class="text-xs text-muted mt-1">{{ moment.rawNotes }}</p>
+              </div>
+            </li>
+          </ul>
         </div>
         <div v-else class="flex items-start gap-3 border-2 border-teal-500 bg-teal-500/10 p-4 rounded-lg">
           <UIcon name="i-lucide-lightbulb" class="w-4 h-4 text-muted shrink-0 mt-0.5" />
