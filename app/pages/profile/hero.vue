@@ -57,6 +57,20 @@ function handleDiscoveryMomentCaptured(moment: any) {
 function handleDiscoverySessionEnded() {
   closeDiscoverySession()
 }
+
+function handleMomentDevelop(moment: any) {
+  // TODO: Navigate to story development
+  console.log('Develop moment:', moment)
+}
+
+function handleMomentRemove(moment: any) {
+  // Remove moment from list
+  heroMoments.value = heroMoments.value.filter(m => m.id !== moment.id)
+}
+
+// Collapsible moments section
+const isMomentsExpanded = ref(true)
+
 </script>
 
 <template>
@@ -69,67 +83,13 @@ function handleDiscoverySessionEnded() {
       </p>
     </div>
 
-    <!-- Start Discovery Button -->
-    <div class="mb-4">
-      <UButton
-        label="Start Discovery Session"
-        icon="i-lucide-sparkles"
-        color="primary"
-        @click="openDiscoverySession"
-      />
-    </div>
-
     <!-- Hero Moments List -->
-    <div class="space-y-4">
-      <h2 class="text-lg font-semibold">Discovered Moments</h2>
-      
-      <!-- Empty State -->
-      <UPageCard v-if="heroMoments.length === 0" variant="subtle">
-        <div class="text-center py-12">
-          <UIcon name="i-lucide-zap" class="w-16 h-16 text-muted mx-auto mb-4" />
-          <h3 class="text-lg font-semibold mb-2">No Moments Yet</h3>
-          <p class="text-muted mb-6">Start a discovery session to capture your achievement moments.</p>
-          <UButton
-            label="Start Discovery"
-            color="primary"
-            icon="i-lucide-play"
-            @click="openDiscoverySession"
-          />
-        </div>
-      </UPageCard>
-
-      <!-- Moments List -->
-      <div v-else class="flex flex-col gap-4">
-        <div
-          v-for="moment in heroMoments"
-          :key="moment.id"
-          class="border border-default rounded-lg p-4 hover:bg-muted/5 transition-colors"
-        >
-          <div class="flex items-start justify-between gap-4">
-            <div class="flex-1">
-              <h3 class="font-semibold mb-1">{{ moment.title }}</h3>
-              <p class="text-sm text-muted mb-2">{{ moment.raw_notes }}</p>
-              <p class="text-xs text-muted">Discovered on {{ new Date(moment.created_at).toLocaleDateString() }}</p>
-            </div>
-            <div class="flex gap-2">
-              <UButton
-                label="Develop Story"
-                icon="i-lucide-edit"
-                color="primary"
-                variant="outline"
-                size="sm"
-              />
-              <UButton
-                icon="i-lucide-trash-2"
-                color="error"
-                variant="ghost"
-                size="sm"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <ProfileHeroDiscoveredMomentsSection
+      :moments="heroMoments"
+      @develop="handleMomentDevelop"
+      @remove="handleMomentRemove"
+      @start-session="openDiscoverySession"
+    />
   </div>
 
   <!-- Discovery Session Drawer -->

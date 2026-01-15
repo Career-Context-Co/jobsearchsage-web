@@ -166,54 +166,58 @@
 ---
 
 ### FE-003: Moment Card Component
-- [ ] Create `app/components/profile/MomentCard.vue`
-- [ ] Display:
+- [x] Create `app/components/profile/hero/MomentCard.vue`
+- [x] Display:
   - Moment title (5-10 words)
   - First 2 sentences of raw notes (truncated with ellipsis)
   - Discovery timestamp ("Discovered on [date]")
   - Status badge ("Discovered - Not Yet Developed")
   - Edit and Remove buttons (for discovery session)
   - Develop into Story and Remove buttons (for management page)
-- [ ] Accept props: moment, context (session or management)
-- [ ] Emit events: `@edit`, `@remove`, `@develop`
-- [ ] Use mock data for testing
+- [x] Accept props: moment, context (session or management)
+- [x] Emit events: `@edit`, `@remove`, `@develop`
+- [x] Use mock data for testing
 
 **Dependencies:** None
 **Success criteria:** Card displays all information correctly; buttons are visible and clickable
 **Testable by:** Frontend team
+**COMPLETED** ✅
 
 ---
 
 ### FE-004: Discovered Moments Section Component
-- [ ] Create `app/components/profile/DiscoveredMomentsSection.vue`
-- [ ] Display:
+- [x] Create `app/components/profile/hero/DiscoveredMomentsSection.vue`
+- [x] Display:
   - Section title: "Discovered Moments"
   - Count badge: "You have [X] discovered moments"
   - Subtitle: "You can develop these into full HERO stories"
   - List of moment cards (newest first)
   - Empty state if no moments
-- [ ] Accept props: moments (array)
-- [ ] Emit events: `@develop`, `@remove`
-- [ ] Use mock data for testing
-- [ ] Add visual styling to distinguish from HERO stories section
+  - collapsable
+- [x] Accept props: moments (array)
+- [x] Emit events: `@develop`, `@remove`
+- [x] Use mock data for testing
+- [x] Add visual styling to distinguish from HERO stories section
 
 **Dependencies:** FE-003
 **Success criteria:** Section displays correctly with mock data; empty state works; styling is distinct
 **Testable by:** Frontend team
+**COMPLETED** ✅
 
 ---
 
 ### FE-005: Type Definitions
-- [ ] Create `app/types/heroMoments/index.ts`
-- [ ] Define types:
+- [x] Create `app/types/heroMoments/index.ts`
+- [x] Define types:
   - HeroMoment (id, profile_id, title, raw_notes, source_experience_id, discovery_session_id, created_at, updated_at, converted_at, converted_story_id)
   - DiscoverySession (id, profile_id, session_status, started_at, ended_at, moment_count)
   - MomentFormData (title, raw_notes, source_experience_id)
-- [ ] Export all types for use in components and store
+- [x] Export all types for use in components and store
 
 **Dependencies:** None
 **Success criteria:** Types are complete and match backend DTOs; no TypeScript errors
 **Testable by:** Frontend team (type checking)
+**COMPLETED** ✅
 
 ---
 
