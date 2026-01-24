@@ -1,0 +1,18 @@
+{
+  "endpoint": "POST /api/ai/hero-discovery/start",
+  "description": "Start a new hero discovery session with AI-generated opening",
+  "request": {
+    "profile_id": "prof_xK9j2mP4nQ8rL5tY7vW3zB1c",
+    "user_context": {
+      "name": "Sarah",
+      "current_role": "Senior Software Engineer",
+      "years_experience": 8
+    }
+  },
+  "expected_response": {
+    "success": true,
+    "ai_message": "Hi Sarah! I'm going to help you identify 3-5 career achievements that we can develop into compelling HERO stories. These will be great for your resume, LinkedIn, and interview prep.\n\nLet's start broad: what projects or accomplishments from your career as a Senior Software Engineer are you most proud of?",
+    "session_id": "session_clx2k9j3m0000qzrmn1b2c3d4"
+  },
+  "notes": "Returns 201 Created. session_id can be used for continue and end endpoints."
+}

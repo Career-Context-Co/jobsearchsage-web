@@ -34,7 +34,12 @@ const links = computed(() => [[{
   label: 'Skills',
   icon: 'i-lucide-wrench',
   to: '/profile/skills'
-}], ...(showContinueOnboarding.value ? [[{
+}, {
+  label: 'HERO',
+  icon: 'i-lucide-zap',
+  to: '/profile/hero'
+}],
+ ...(showContinueOnboarding.value ? [[{
   label: 'Continue Onboarding',
   icon: 'i-lucide-arrow-right',
   color: 'primary',

@@ -8,7 +8,7 @@ import type {
   ProfileSocialLink,
   ContactInfo,
   ProfileResponse
-} from '../../shared/types/careerId'
+} from '#shared/types/careerId'
 import type {
   QuestionGroup,
   ContextStory,
@@ -16,7 +16,43 @@ import type {
   ResumeBullet,
   GatherContextResponse,
   EnhanceAchievementsResponse
-} from '../../shared/types/enhancement'
+} from '#shared/types/enhancement'
+import type { HeroMoment } from '@/types/heroMoments'
+
+type HeroMomentApiResponse = {
+  id: string | number
+  profileId: string
+  title: string
+  rawNotes: string
+  sourceExperienceId?: string | number | null
+  discoverySessionId?: number | null
+  createdAt: string
+  updatedAt: string
+  deletedAt?: string | null
+  convertedAt?: string | null
+  convertedStoryId?: string | number | null
+}
+
+
+const mapHeroMoment = (moment: HeroMomentApiResponse): HeroMoment => ({
+  id: moment.id,
+  profile_id: moment.profileId,
+  title: moment.title,
+  raw_notes: moment.rawNotes,
+  source_experience_id: moment.sourceExperienceId ?? null,
+  discovery_session_id: moment.discoverySessionId ?? null,
+  created_at: moment.createdAt,
+  updated_at: moment.updatedAt,
+  deleted_at: moment.deletedAt ?? null,
+  converted_at: moment.convertedAt ?? null,
+  converted_story_id: moment.convertedStoryId ?? null
+})
+
+const sortMomentsByDateDesc = (moments: HeroMoment[]) => {
+  return [...moments].sort((a, b) => {
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+}
 
 export const useCareerIDStore = defineStore('careerID', {
   state: () => ({
@@ -30,6 +66,7 @@ export const useCareerIDStore = defineStore('careerID', {
     profileSkills: [] as ProfileSkill[],
     profileSocialLinks: [] as ProfileSocialLink[],
     contactInfo: null as ContactInfo | null,
+    heroMoments: [] as HeroMoment[],
 
     // UI state
     isLoading: false,
@@ -73,6 +110,8 @@ export const useCareerIDStore = defineStore('careerID', {
       skills: state.profileSkills.length,
       socialLinks: state.profileSocialLinks.length
     }),
+
+    unconvertedMomentsCount: state => state.heroMoments.length,
 
     // Skills grouped by proficiency level
     skillsByProficiency: (state) => {
@@ -126,6 +165,7 @@ export const useCareerIDStore = defineStore('careerID', {
       this.profileSkills = []
       this.profileSocialLinks = []
       this.contactInfo = null
+      this.heroMoments = []
       this.isLoading = false
       this.isSaving = false
       this.error = null
@@ -890,6 +930,163 @@ export const useCareerIDStore = defineStore('careerID', {
         const errorMessage = error?.data?.message || error?.message || 'Failed to fetch social platforms'
         this.error = errorMessage
         throw error
+      }
+    },
+
+    // Hero moments CRUD actions
+    async fetchMoments(profileId: string) {
+      if (this.heroMoments.length > 0) {
+        return this.heroMoments
+      }
+
+      this.isLoading = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          data: HeroMomentApiResponse[]
+        }>(`/api/career-id/profile/${profileId}/hero-moments`)
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to fetch moments')
+        }
+
+        const mappedMoments = response.data.map(mapHeroMoment)
+        this.heroMoments = sortMomentsByDateDesc(
+          mappedMoments.filter(moment => !moment.converted_at && !moment.deleted_at)
+        )
+
+        return this.heroMoments
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to fetch moments'
+        this.error = errorMessage
+        console.error('fetchMoments failed', error)
+        throw error
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async createMoments(
+      profileId: string,
+      momentsData: Array<{
+        title: string
+        rawNotes: string
+        sourceExperienceId?: string | number | null
+        discoverySessionId?: number | null
+      }>
+    ) {
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: HeroMomentApiResponse[]
+        }>(`/api/career-id/profile/${profileId}/hero-moments`, {
+          method: 'POST',
+          body: momentsData
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to create moments')
+        }
+
+        const createdMoments = response.data.map(mapHeroMoment)
+        const unconverted = createdMoments.filter(moment => !moment.converted_at && !moment.deleted_at)
+        this.heroMoments = sortMomentsByDateDesc([...unconverted, ...this.heroMoments])
+        this.lastSaved = new Date().toISOString()
+
+        return createdMoments
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to create moments'
+        this.error = errorMessage
+        console.error('createMoments failed', error)
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    async updateMoment(
+      profileId: string,
+      momentId: string | number,
+      momentData: {
+        title?: string
+        rawNotes?: string
+        sourceExperienceId?: string | number | null
+      }
+    ) {
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: HeroMomentApiResponse
+        }>(`/api/career-id/profile/${profileId}/hero-moments/${momentId}`, {
+          method: 'PATCH',
+          body: momentData
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to update moment')
+        }
+
+        const updatedMoment = mapHeroMoment(response.data)
+        const index = this.heroMoments.findIndex(moment => moment.id === updatedMoment.id)
+
+        if (updatedMoment.converted_at || updatedMoment.deleted_at) {
+          this.heroMoments = this.heroMoments.filter(moment => moment.id !== updatedMoment.id)
+        } else if (index !== -1) {
+          this.heroMoments[index] = updatedMoment
+        } else {
+          this.heroMoments = sortMomentsByDateDesc([updatedMoment, ...this.heroMoments])
+        }
+
+        this.lastSaved = new Date().toISOString()
+
+        return updatedMoment
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to update moment'
+        this.error = errorMessage
+        console.error('updateMoment failed', error)
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    async deleteMoment(profileId: string, momentId: string | number) {
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+        }>(`/api/career-id/profile/${profileId}/hero-moments/${momentId}`, {
+          method: 'DELETE'
+        })
+        
+        if (!response.success) {
+          throw new Error('Failed to delete moment')
+        }
+
+        this.heroMoments = this.heroMoments.filter(moment => moment.id !== momentId)
+        this.lastSaved = new Date().toISOString()
+
+        return response
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to delete moment'
+        this.error = errorMessage
+        console.error('deleteMoment failed', error)
+        throw error
+      } finally {
+        this.isSaving = false
       }
     },
 

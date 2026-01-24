@@ -1,0 +1,180 @@
+{
+  "task": "BE-001: Moments CRUD Endpoints",
+  "description": "Test requests for hero moments creation, retrieval, update, and deletion",
+  "base_url": "http://localhost:3000/api/career-id/profile",
+  "profile_id": "prof_xK9j2mP4nQ8rL5tY7vW3zB1c",
+  "endpoints": [
+    {
+      "name": "GET all moments for profile",
+      "method": "GET",
+      "endpoint": "/api/career-id/profile/{profileId}/moments",
+      "description": "Retrieve all non-deleted moments for a profile",
+      "request": null,
+      "expected_response": {
+        "success": true,
+        "data": [
+          {
+            "id": 1,
+            "profileId": "prof_xK9j2mP4nQ8rL5tY7vW3zB1c",
+            "title": "Customer Portal Rebuild",
+            "rawNotes": "Led engineering team to rebuild 10-year-old portal that was slow and generating 200 support tickets per week. Had full technical decision authority. Used React and AWS. Result was tickets reduced to 110/week.",
+            "sourceExperienceId": null,
+            "discoverySessionId": 1,
+            "createdAt": "2026-01-10T10:30:00Z",
+            "updatedAt": "2026-01-10T10:30:00Z",
+            "deletedAt": null,
+            "convertedAt": null,
+            "convertedStoryId": null
+          },
+          {
+            "id": 2,
+            "profileId": "prof_xK9j2mP4nQ8rL5tY7vW3zB1c",
+            "title": "Database Migration to Cloud",
+            "rawNotes": "Architected and led migration of on-premise database to AWS RDS with zero downtime requirement. Coordinated across 3 teams. Reduced infrastructure costs by 40% and improved query performance by 60%.",
+            "sourceExperienceId": null,
+            "discoverySessionId": 1,
+            "createdAt": "2026-01-10T10:35:00Z",
+            "updatedAt": "2026-01-10T10:35:00Z",
+            "deletedAt": null,
+            "convertedAt": null,
+            "convertedStoryId": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "POST create moments (bulk)",
+      "method": "POST",
+      "endpoint": "/api/career-id/profile/{profileId}/moments",
+      "description": "Create one or more moments in bulk",
+      "request": [
+        {
+          "title": "Customer Portal Rebuild",
+          "rawNotes": "Led engineering team to rebuild 10-year-old portal that was slow and generating 200 support tickets per week. Had full technical decision authority. Used React and AWS. Result was tickets reduced to 110/week.",
+          "sourceExperienceId": null,
+          "discoverySessionId": 1
+        },
+        {
+          "title": "Database Migration to Cloud",
+          "rawNotes": "Architected and led migration of on-premise database to AWS RDS with zero downtime requirement. Coordinated across 3 teams. Reduced infrastructure costs by 40% and improved query performance by 60%.",
+          "sourceExperienceId": null,
+          "discoverySessionId": 1
+        }
+      ],
+      "expected_response": {
+        "success": true,
+        "message": "2 moment(s) created successfully",
+        "data": [
+          {
+            "id": 1,
+            "profileId": "prof_xK9j2mP4nQ8rL5tY7vW3zB1c",
+            "title": "Customer Portal Rebuild",
+            "rawNotes": "Led engineering team to rebuild 10-year-old portal that was slow and generating 200 support tickets per week. Had full technical decision authority. Used React and AWS. Result was tickets reduced to 110/week.",
+            "sourceExperienceId": null,
+            "discoverySessionId": 1,
+            "createdAt": "2026-01-10T10:30:00Z",
+            "updatedAt": "2026-01-10T10:30:00Z",
+            "deletedAt": null,
+            "convertedAt": null,
+            "convertedStoryId": null
+          },
+          {
+            "id": 2,
+            "profileId": "prof_xK9j2mP4nQ8rL5tY7vW3zB1c",
+            "title": "Database Migration to Cloud",
+            "rawNotes": "Architected and led migration of on-premise database to AWS RDS with zero downtime requirement. Coordinated across 3 teams. Reduced infrastructure costs by 40% and improved query performance by 60%.",
+            "sourceExperienceId": null,
+            "discoverySessionId": 1,
+            "createdAt": "2026-01-10T10:35:00Z",
+            "updatedAt": "2026-01-10T10:35:00Z",
+            "deletedAt": null,
+            "convertedAt": null,
+            "convertedStoryId": null
+          }
+        ]
+      },
+      "notes": "Returns 201 Created. Accepts array of moments or single moment object."
+    },
+    {
+      "name": "PATCH update moment",
+      "method": "PATCH",
+      "endpoint": "/api/career-id/profile/{profileId}/moments/{momentId}",
+      "description": "Update a specific moment",
+      "request": {
+        "title": "Customer Portal Rebuild (Updated)",
+        "rawNotes": "Led engineering team to rebuild 10-year-old portal that was slow and generating 200 support tickets per week. Had full technical decision authority. Used React and AWS. Result was tickets reduced to 110/week and improved performance significantly."
+      },
+      "expected_response": {
+        "success": true,
+        "message": "Moment updated successfully",
+        "data": {
+          "id": 1,
+          "profileId": "prof_xK9j2mP4nQ8rL5tY7vW3zB1c",
+          "title": "Customer Portal Rebuild (Updated)",
+          "rawNotes": "Led engineering team to rebuild 10-year-old portal that was slow and generating 200 support tickets per week. Had full technical decision authority. Used React and AWS. Result was tickets reduced to 110/week and improved performance significantly.",
+          "sourceExperienceId": null,
+          "discoverySessionId": 1,
+          "createdAt": "2026-01-10T10:30:00Z",
+          "updatedAt": "2026-01-10T10:45:00Z",
+          "deletedAt": null,
+          "convertedAt": null,
+          "convertedStoryId": null
+        }
+      }
+    },
+    {
+      "name": "DELETE soft-delete moment",
+      "method": "DELETE",
+      "endpoint": "/api/career-id/profile/{profileId}/moments/{momentId}",
+      "description": "Soft-delete a moment (sets deleted_at timestamp)",
+      "request": null,
+      "expected_response": {
+        "success": true,
+        "message": "Moment deleted successfully"
+      },
+      "notes": "Soft delete preserves record for audit trail. deleted_at is set to current timestamp."
+    }
+  ],
+  "validation_errors": {
+    "missing_profile_id": {
+      "status": 400,
+      "response": {
+        "success": false,
+        "error": {
+          "code": "REQUIRED",
+          "message": "profileId is required"
+        }
+      }
+    },
+    "invalid_title_length": {
+      "status": 400,
+      "response": {
+        "success": false,
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "title must be between 5 and 50 characters"
+        }
+      }
+    },
+    "invalid_raw_notes_length": {
+      "status": 400,
+      "response": {
+        "success": false,
+        "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "rawNotes must be between 10 and 500 characters"
+        }
+      }
+    },
+    "moment_not_found": {
+      "status": 404,
+      "response": {
+        "success": false,
+        "error": {
+          "code": "NOT_FOUND",
+          "message": "Moment not found"
+        }
+      }
+    }
+  }
+}

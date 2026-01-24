@@ -1,0 +1,222 @@
+{
+  "task": "BE-002: Discovery Session Endpoints",
+  "description": "Test requests for AI-guided hero discovery conversation flow",
+  "base_url": "http://localhost:3000/api/ai/hero-discovery",
+  "endpoints": [
+    {
+      "name": "START - Initialize discovery session",
+      "method": "POST",
+      "endpoint": "/api/ai/hero-discovery/start",
+      "description": "Start a new discovery session with AI-generated opening greeting and question",
+      "request": {
+        "profile_id": "prof_xK9j2mP4nQ8rL5tY7vW3zB1c",
+        "user_context": {
+          "name": "Sarah",
+          "current_role": "Senior Software Engineer",
+          "years_experience": 8
+        },
+        "source_experience": {
+          "id": 42,
+          "employer": "TechCorp",
+          "title": "Senior Software Engineer",
+          "employmentType": "full_time",
+          "location": "San Francisco, CA",
+          "locationType": "hybrid",
+          "startDate": "2018-03-15",
+          "endDate": null,
+          "currentPosition": true,
+          "summary": "Led engineering team for customer-facing products and infrastructure",
+          "highlights": [
+            "Rebuilt legacy systems to modern stack",
+            "Led 5-person engineering team",
+            "Improved system performance by 60%"
+          ]
+        }
+      },
+      "expected_response": {
+        "success": true,
+        "ai_message": "Hi Sarah! I'm going to help you identify 3-5 career achievements from your role as a Senior Software Engineer at TechCorp. These will be great for your resume, LinkedIn, and interview prep.\n\nLooking at your background rebuilding legacy systems and leading the team—what specific achievement from that work are you most proud of?",
+        "session_id": "session_clx2k9j3m0000qzrmn1b2c3d4"
+      },
+      "notes": "Returns 201 Created. session_id is used in continue and end endpoints."
+    },
+    {
+      "name": "CONTINUE - Process user message and identify moments",
+      "method": "POST",
+      "endpoint": "/api/ai/hero-discovery/continue",
+      "description": "Continue conversation, identify moments, ask follow-ups. Pass user_message, session_id, and captured_moments array. Conversation history is automatically retrieved from database.",
+      "request": {
+        "session_id": "session_clx2k9j3m0000qzrmn1b2c3d4",
+        "user_message": "I rebuilt our customer portal. It was really old and slow, causing tons of support tickets.",
+        "captured_moments": []
+      },
+      "expected_response": {
+        "success": true,
+        "ai_message": "A portal rebuild sounds significant! What was challenging about that project?",
+        "should_end_session": false,
+        "session_state": {
+          "captured_moments": [],
+          "session_id": "session_clx2k9j3m0000qzrmn1b2c3d4"
+        }
+      }
+    },
+    {
+      "name": "CONTINUE - Capture moment when ready",
+      "method": "POST",
+      "endpoint": "/api/ai/hero-discovery/continue",
+      "description": "AI captures moment after getting enough detail (title + what they did + result), then pivots to new achievement",
+      "request": {
+        "session_id": "session_clx2k9j3m0000qzrmn1b2c3d4",
+        "user_message": "The challenge was it was built 10 years ago and we were getting 200 support tickets a week. I was the lead engineer. I rebuilt it using React and AWS, and we got tickets down to 110 per week.",
+        "captured_moments": []
+      },
+      "expected_response": {
+        "success": true,
+        "ai_message": "Excellent work—cutting support tickets nearly in half is a meaningful impact! Let me capture this:\n\n**Customer Portal Rebuild**\nLed engineering team to rebuild 10-year-old portal that was slow and generating 200 support tickets per week. Used React and AWS with full technical authority. Reduced support tickets to 110/week.\n\nDoes that capture it? Do you have another achievement you'd like to share?",
+        "should_end_session": false,
+        "session_state": {
+          "captured_moments": [
+            {
+              "title": "Customer Portal Rebuild",
+              "rawNotes": "Led engineering team to rebuild 10-year-old customer portal that was slow and generating 200 support tickets per week. Had full technical decision authority. Used React and AWS. Result was tickets reduced to 110/week."
+            }
+          ],
+          "session_id": "session_clx2k9j3m0000qzrmn1b2c3d4"
+        }
+      }
+    },
+    {
+      "name": "CONTINUE - Guide to end when 3-5 moments captured",
+      "method": "POST",
+      "endpoint": "/api/ai/hero-discovery/continue",
+      "description": "When we have 3-5 moments, AI gently suggests ending to develop one into full story",
+      "request": {
+        "session_id": "session_clx2k9j3m0000qzrmn1b2c3d4",
+        "user_message": "I also improved our code review process.",
+        "captured_moments": [
+          {
+            "title": "Customer Portal Rebuild",
+            "rawNotes": "Led engineering team to rebuild 10-year-old customer portal that was slow and generating 200 support tickets per week. Had full technical decision authority. Used React and AWS. Result was tickets reduced to 110/week."
+          },
+          {
+            "title": "Database Migration to Cloud",
+            "rawNotes": "Architected and led migration of on-premise database to AWS RDS with zero downtime requirement. Coordinated across 3 teams. Reduced infrastructure costs by 40% and improved query performance by 60%."
+          },
+          {
+            "title": "Mentorship Program Launch",
+            "rawNotes": "Created junior engineer mentorship program after noticing new hires struggling to ramp up. Developed curriculum and matched mentors. 8 engineers participated, average ramp-up time reduced from 6 months to 4 months."
+          }
+        ]
+      },
+      "expected_response": {
+        "success": true,
+        "ai_message": "That sounds like another great achievement! We've identified 3 solid moments from your career so far:\n\n1. Customer Portal Rebuild\n2. Database Migration to Cloud\n3. Mentorship Program Launch\n\nWe could add this code review process improvement too, but I want to be mindful of your time. Would you like to capture one more moment, or shall we wrap up with these 3?",
+        "should_end_session": false,
+        "session_state": {
+          "captured_moments": [
+            {
+              "title": "Customer Portal Rebuild",
+              "rawNotes": "Led engineering team to rebuild 10-year-old customer portal that was slow and generating 200 support tickets per week. Had full technical decision authority. Used React and AWS. Result was tickets reduced to 110/week."
+            },
+            {
+              "title": "Database Migration to Cloud",
+              "rawNotes": "Architected and led migration of on-premise database to AWS RDS with zero downtime requirement. Coordinated across 3 teams. Reduced infrastructure costs by 40% and improved query performance by 60%."
+            },
+            {
+              "title": "Mentorship Program Launch",
+              "rawNotes": "Created junior engineer mentorship program after noticing new hires struggling to ramp up. Developed curriculum and matched mentors. 8 engineers participated, average ramp-up time reduced from 6 months to 4 months."
+            }
+          ],
+          "session_id": "session_clx2k9j3m0000qzrmn1b2c3d4"
+        }
+      }
+    },
+    {
+      "name": "END - Wrap up and guide to Story Builder",
+      "method": "POST",
+      "endpoint": "/api/ai/hero-discovery/end",
+      "description": "Conclude discovery session with conversational summary and ask which moment to develop",
+      "request": {
+        "session_id": 7,
+        "captured_moments": [
+          {
+            "title": "Led rebuild of outdated customer portal",
+            "rawNotes": "Led the rebuild of a 10-year-old customer portal using React and AWS, which reduced support tickets from 200 to 110 per week."
+          },
+          {
+            "title": "Onboarded junior engineers to accelerate their contribution",
+            "rawNotes": "Helped junior engineers who lacked proper onboarding due to their manager's unavailability, enabling them to ramp up and contribute to codebases faster."
+          },
+          {
+            "title": "Led Terraform initiative to speed resource provisioning",
+            "rawNotes": "As lead engineer and Terraform champion, designed a repo and trained infrastructure engineers to replace PowerShell scripts. This reduced resource provisioning wait times from 1-2 weeks to 1-3 days, enabling dev teams to complete stories faster."
+          }
+        ],
+        "user_context": {
+          "name": "Sarah",
+          "current_role": "Senior Software Engineer"
+        }
+      },
+      "expected_response": {
+        "success": true,
+        "ai_message": "Excellent work, Sarah! You've identified some really strong achievements—from modernizing that outdated portal and cutting support tickets nearly in half, to empowering your junior engineers and streamlining your entire provisioning pipeline. These are the kinds of meaningful stories that really resonate in interviews. Which of these would you like to develop into a complete HERO story? I'll ask you some targeted questions to build it out—usually takes about 10-15 minutes.",
+        "captured_moments": [
+          {
+            "title": "Led rebuild of outdated customer portal",
+            "rawNotes": "Led the rebuild of a 10-year-old customer portal using React and AWS, which reduced support tickets from 200 to 110 per week."
+          },
+          {
+            "title": "Onboarded junior engineers to accelerate their contribution",
+            "rawNotes": "Helped junior engineers who lacked proper onboarding due to their manager's unavailability, enabling them to ramp up and contribute to codebases faster."
+          },
+          {
+            "title": "Led Terraform initiative to speed resource provisioning",
+            "rawNotes": "As lead engineer and Terraform champion, designed a repo and trained infrastructure engineers to replace PowerShell scripts. This reduced resource provisioning wait times from 1-2 weeks to 1-3 days, enabling dev teams to complete stories faster."
+          }
+        ],
+        "session_complete": true,
+        "next_endpoint": "/api/ai/hero/story-builder/start"
+      }
+    }
+  ],
+  "validation_errors": {
+    "missing_profile_id_start": {
+      "endpoint": "/api/ai/hero-discovery/start",
+      "status": 400,
+      "response": {
+        "success": false,
+        "error": {
+          "code": "REQUIRED",
+          "message": "profile_id is required"
+        }
+      }
+    },
+    "api_timeout": {
+      "status": 503,
+      "response": {
+        "success": false,
+        "error": {
+          "code": "TIMEOUT",
+          "message": "AI request timed out"
+        }
+      }
+    },
+    "api_key_missing": {
+      "status": 503,
+      "response": {
+        "success": false,
+        "error": {
+          "code": "API_KEY_MISSING",
+          "message": "AI Gateway API key is missing or invalid"
+        }
+      }
+    }
+  },
+  "flow_notes": {
+    "conversation_flow": "START → CONTINUE (repeat) → END → Story Builder",
+    "moments_target": "3-5 moments per session",
+    "session_persistence": "Conversation history is stored in database and retrieved for each continuation",
+    "moment_capture": "Moments are captured by AI when sufficient detail is gathered",
+    "auto_end_trigger": "should_end_session flag guides when to call END endpoint"
+  }
+}
