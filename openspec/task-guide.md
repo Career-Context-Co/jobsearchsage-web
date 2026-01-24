@@ -20,7 +20,7 @@ Tasks are grouped by **parent Issue** (Database, Backend, or Frontend), then by 
 ## Before Starting
 
 **ALWAYS check for user stories first:**
-1. Look in `openspec/changes/[change-id]/context/` for user stories and issues
+1. Look in `openspec/changes/[change-id]/context/` for user stories and issues (stories.md or issues.md)
 2. If none exist, ask the user explicitly before proceeding
 3. Structure all tasks around the user stories
 
@@ -82,6 +82,15 @@ One task per **logical endpoint group**. Group related CRUD operations together.
 - BE-003: Education CRUD Endpoints
 - BE-004: Skills Endpoints (bulk operations + search)
 
+**Backend Testing Best Practice:**
+After completing all backend endpoint tasks in a phase, create a **Postman Collection** for integration testing:
+- Group all endpoints from the phase into one collection
+- Include test assertions for each endpoint (status codes, response structure)
+- Add error scenario tests (validation, not found, forbidden, etc.)
+- Pre-configure variables and auto-capture response IDs for dependent requests
+- Store in `openspec/changes/[change-id]/deliverables/` with complete setup documentation
+- This enables QA/frontend teams to test against real APIs without starting the full frontend integration
+
 ### Phase 3A: Frontend Mock UI
 One task per **component type**. Built with placeholder data, no API calls.
 
@@ -102,7 +111,78 @@ One task per **major integration point**. Connect to store and real APIs.
 
 ---
 
-## Grouping Rules
+## Backend Testing Best Practices
+
+### Creating Postman Collections for Backend Endpoints
+
+After completing all backend endpoint tasks for a phase, **always create a Postman Collection** for testing:
+
+**Why:**
+- Validates all endpoints work before frontend integration begins
+- Enables QA/frontend teams to test APIs independently
+- Provides executable documentation for the API contract
+- Captures test assumptions and error scenarios
+
+**What to Include:**
+
+**Happy Path:** One test per endpoint
+- POST endpoint: Perfect request creating valid resource (should return 201 Created)
+- GET endpoint: Perfect request fetching existing resource (should return 200 OK)
+- PATCH endpoint: Perfect request updating valid resource (should return 200 OK)
+- DELETE endpoint: Perfect request deleting resource (should return 200 OK)
+
+**Error Tests:** One test per error scenario
+- `404 Not Found`: Resource doesn't exist (non-existent ID)
+- `400 Bad Request`: Validation errors (missing required field, invalid type)
+- `409 Conflict`: Business logic violation (if applicable - duplicate, constraint violation)
+- Ownership check failures (if applicable - user trying to access another user's resource)
+
+**Auto-capture:** Use Postman tests to extract IDs from POST response for use in GET/PATCH/DELETE requests
+
+**Structure:**
+```
+deliverables/
+├── [COLLECTION_NAME].postman_collection.json  (main file)
+```
+
+**Collection Format:**
+```json
+{
+  "info": {
+    "name": "[Feature Name] CRUD - Phase [N] Backend",
+    "description": "Complete test collection with happy path + error scenarios"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "profileId", "value": "prof_xxx" }
+  ],
+  "item": [
+    {
+      "name": "1. POST - Create [Resource]",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () { ... });",
+              "pm.collectionVariables.set('resourceId', pm.response.json().data.id);"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Setup Documentation Should Include:**
+- 3-step import process
+- Variable configuration table
+- Test execution order
+- Troubleshooting guide
+- Success criteria checklist
+
+---
 
 ### ✅ DO
 - One table = one DB task
@@ -213,6 +293,7 @@ Before submitting a task list:
 - [ ] Dependencies listed for every task
 - [ ] Completed tasks show actual deliverables (not descriptions)
 - [ ] No task too broad (must be completable in one focused effort)
+- [ ] **Backend Phase:** All endpoint tasks completed? Plan Postman Collection (happy path + error tests)
 
 ---
 

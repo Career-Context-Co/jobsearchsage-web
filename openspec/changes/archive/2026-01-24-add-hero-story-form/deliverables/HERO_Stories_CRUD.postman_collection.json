@@ -1,0 +1,613 @@
+{
+  "info": {
+    "_postman_id": "hero-stories-crud",
+    "name": "HERO Stories CRUD - Phase 2 Backend",
+    "description": "Complete test collection for HERO Story Form API endpoints\n\nEndpoints:\n- POST /api/career-id/profile/:profileId/hero-stories (create)\n- GET /api/career-id/profile/:profileId/hero-stories (list)\n- GET /api/career-id/profile/:profileId/hero-stories/:storyId (fetch)\n- PATCH /api/career-id/profile/:profileId/hero-stories/:storyId (update)\n- DELETE /api/career-id/profile/:profileId/hero-stories/:storyId (delete)\n\nSetup:\n1. Set collection variables: {{profileId}} and {{baseUrl}}\n2. Run requests in order\n3. Use storyId from POST response for subsequent requests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "heroStoriesCrud"
+  },
+  "item": [
+    {
+      "name": "1. POST - Create New Story (Full)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Response has success=true', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "});",
+              "",
+              "pm.test('Response contains story ID', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property('id');",
+              "    pm.expect(jsonData.data.id).to.include('story_');",
+              "});",
+              "",
+              "// Save storyId for subsequent requests",
+              "pm.collectionVariables.set('storyId', pm.response.json().data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Led complete redesign of customer portal to reduce support tickets\",\n  \"hurdleProblem\": \"Our 10-year-old customer portal was outdated and slow, generating 200 support tickets per week due to poor UX\",\n  \"hurdleScope\": \"Affected 50,000+ enterprise customers across 3 regions\",\n  \"hurdleStakes\": \"Customer churn was at 5% annually; losing market share to competitors with modern portals\",\n  \"expectationRole\": \"Technical Lead and Product Owner\",\n  \"expectationGoals\": \"Reduce support tickets by 50%, improve portal performance by 10x, modernize tech stack\",\n  \"expectationConstraints\": \"6-month timeline, $500k budget, must maintain backward compatibility\",\n  \"responseActions\": \"Architected new React-based portal with AWS Lambda backend; led cross-functional team of 8 engineers; implemented phased rollout\",\n  \"responseTools\": \"React, TypeScript, AWS Lambda, PostgreSQL, Redis, Terraform, GitHub Actions\",\n  \"responseChallenges\": \"Coordinated data migration from legacy system; maintained uptime during rollout; trained customer success team on new features\",\n  \"outcomeDeliverable\": \"Production-ready portal deployed to 100% of customer base with zero downtime migration\",\n  \"outcomeMetrics\": \"Support tickets reduced from 200/week to 85/week (57% reduction); portal load time decreased from 8s to 0.8s; customer satisfaction increased from 6.2 to 8.1/10\",\n  \"outcomeImpact\": \"Recognized as key initiative in annual review; awarded 'Technical Excellence' prize; industry recognition in customer conference keynote\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories"]
+        }
+      },
+      "response": [
+        {
+          "name": "201 Created",
+          "originalRequest": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories"]
+            }
+          },
+          "status": "Created",
+          "code": 201,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Hero story created successfully\",\n  \"data\": {\n    \"id\": \"story_clx2k9j3m0000glg\",\n    \"internalId\": 1,\n    \"profileId\": \"prof_xK9j2mP4nQ8rL5tY7vW3zB1c\",\n    \"title\": \"Led complete redesign of customer portal to reduce support tickets\",\n    \"hurdleProblem\": \"Our 10-year-old customer portal was outdated and slow, generating 200 support tickets per week due to poor UX\",\n    \"hurdleScope\": \"Affected 50,000+ enterprise customers across 3 regions\",\n    \"hurdleStakes\": \"Customer churn was at 5% annually; losing market share to competitors with modern portals\",\n    \"expectationRole\": \"Technical Lead and Product Owner\",\n    \"expectationGoals\": \"Reduce support tickets by 50%, improve portal performance by 10x, modernize tech stack\",\n    \"expectationConstraints\": \"6-month timeline, $500k budget, must maintain backward compatibility\",\n    \"responseActions\": \"Architected new React-based portal with AWS Lambda backend; led cross-functional team of 8 engineers; implemented phased rollout\",\n    \"responseTools\": \"React, TypeScript, AWS Lambda, PostgreSQL, Redis, Terraform, GitHub Actions\",\n    \"responseChallenges\": \"Coordinated data migration from legacy system; maintained uptime during rollout; trained customer success team on new features\",\n    \"outcomeDeliverable\": \"Production-ready portal deployed to 100% of customer base with zero downtime migration\",\n    \"outcomeMetrics\": \"Support tickets reduced from 200/week to 85/week (57% reduction); portal load time decreased from 8s to 0.8s; customer satisfaction increased from 6.2 to 8.1/10\",\n    \"outcomeImpact\": \"Recognized as key initiative in annual review; awarded 'Technical Excellence' prize; industry recognition in customer conference keynote\",\n    \"sourceExperienceId\": 1,\n    \"displayOrder\": 0,\n    \"deletedAt\": null,\n    \"isDeleted\": false,\n    \"createdAt\": \"2026-01-24T15:30:00.000Z\",\n    \"updatedAt\": \"2026-01-24T15:30:00.000Z\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "2. POST - Create Minimal Story (Title Only)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Migrated database to cloud infrastructure\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories"]
+        }
+      },
+      "response": [
+        {
+          "name": "201 Created",
+          "originalRequest": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories"]
+            }
+          },
+          "status": "Created",
+          "code": 201,
+          "header": [],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Hero story created successfully\",\n  \"data\": {\n    \"id\": \"story_clx2k9j3m0001glg\",\n    \"internalId\": 2,\n    \"profileId\": \"prof_xK9j2mP4nQ8rL5tY7vW3zB1c\",\n    \"title\": \"Migrated database to cloud infrastructure\",\n    \"hurdleProblem\": null,\n    \"hurdleScope\": null,\n    \"hurdleStakes\": null,\n    \"expectationRole\": null,\n    \"expectationGoals\": null,\n    \"expectationConstraints\": null,\n    \"responseActions\": null,\n    \"responseTools\": null,\n    \"responseChallenges\": null,\n    \"outcomeDeliverable\": null,\n    \"outcomeMetrics\": null,\n    \"outcomeImpact\": null,\n    \"sourceExperienceId\": null,\n    \"displayOrder\": 0,\n    \"deletedAt\": null,\n    \"isDeleted\": false,\n    \"createdAt\": \"2026-01-24T15:32:00.000Z\",\n    \"updatedAt\": \"2026-01-24T15:32:00.000Z\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "3. GET - List All Stories",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response has success=true', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "});",
+              "",
+              "pm.test('Response data is array', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories"]
+        }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [],
+          "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"story_clx2k9j3m0000glg\",\n      \"internalId\": 1,\n      \"profileId\": \"prof_xK9j2mP4nQ8rL5tY7vW3zB1c\",\n      \"title\": \"Led complete redesign of customer portal to reduce support tickets\",\n      \"hurdleProblem\": \"Our 10-year-old customer portal was outdated and slow, generating 200 support tickets per week due to poor UX\",\n      \"hurdleScope\": \"Affected 50,000+ enterprise customers across 3 regions\",\n      \"hurdleStakes\": \"Customer churn was at 5% annually; losing market share to competitors with modern portals\",\n      \"expectationRole\": \"Technical Lead and Product Owner\",\n      \"expectationGoals\": \"Reduce support tickets by 50%, improve portal performance by 10x, modernize tech stack\",\n      \"expectationConstraints\": \"6-month timeline, $500k budget, must maintain backward compatibility\",\n      \"responseActions\": \"Architected new React-based portal with AWS Lambda backend; led cross-functional team of 8 engineers; implemented phased rollout\",\n      \"responseTools\": \"React, TypeScript, AWS Lambda, PostgreSQL, Redis, Terraform, GitHub Actions\",\n      \"responseChallenges\": \"Coordinated data migration from legacy system; maintained uptime during rollout; trained customer success team on new features\",\n      \"outcomeDeliverable\": \"Production-ready portal deployed to 100% of customer base with zero downtime migration\",\n      \"outcomeMetrics\": \"Support tickets reduced from 200/week to 85/week (57% reduction); portal load time decreased from 8s to 0.8s; customer satisfaction increased from 6.2 to 8.1/10\",\n      \"outcomeImpact\": \"Recognized as key initiative in annual review; awarded 'Technical Excellence' prize; industry recognition in customer conference keynote\",\n      \"sourceExperienceId\": 1,\n      \"displayOrder\": 0,\n      \"deletedAt\": null,\n      \"isDeleted\": false,\n      \"createdAt\": \"2026-01-24T15:30:00.000Z\",\n      \"updatedAt\": \"2026-01-24T15:30:00.000Z\"\n    },\n    {\n      \"id\": \"story_clx2k9j3m0001glg\",\n      \"internalId\": 2,\n      \"profileId\": \"prof_xK9j2mP4nQ8rL5tY7vW3zB1c\",\n      \"title\": \"Migrated database to cloud infrastructure\",\n      \"hurdleProblem\": null,\n      \"hurdleScope\": null,\n      \"hurdleStakes\": null,\n      \"expectationRole\": null,\n      \"expectationGoals\": null,\n      \"expectationConstraints\": null,\n      \"responseActions\": null,\n      \"responseTools\": null,\n      \"responseChallenges\": null,\n      \"outcomeDeliverable\": null,\n      \"outcomeMetrics\": null,\n      \"outcomeImpact\": null,\n      \"sourceExperienceId\": null,\n      \"displayOrder\": 0,\n      \"deletedAt\": null,\n      \"isDeleted\": false,\n      \"createdAt\": \"2026-01-24T15:32:00.000Z\",\n      \"updatedAt\": \"2026-01-24T15:32:00.000Z\"\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "4. GET - Fetch Single Story",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response has success=true', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "});",
+              "",
+              "pm.test('Response contains single story object', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.be.an('object');",
+              "    pm.expect(jsonData.data).to.have.property('id');",
+              "    pm.expect(jsonData.data).to.have.property('title');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories/{{storyId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories", "{{storyId}}"]
+        }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories/{{storyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories", "{{storyId}}"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [],
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"story_clx2k9j3m0000glg\",\n    \"internalId\": 1,\n    \"profileId\": \"prof_xK9j2mP4nQ8rL5tY7vW3zB1c\",\n    \"title\": \"Led complete redesign of customer portal to reduce support tickets\",\n    \"hurdleProblem\": \"Our 10-year-old customer portal was outdated and slow, generating 200 support tickets per week due to poor UX\",\n    \"hurdleScope\": \"Affected 50,000+ enterprise customers across 3 regions\",\n    \"hurdleStakes\": \"Customer churn was at 5% annually; losing market share to competitors with modern portals\",\n    \"expectationRole\": \"Technical Lead and Product Owner\",\n    \"expectationGoals\": \"Reduce support tickets by 50%, improve portal performance by 10x, modernize tech stack\",\n    \"expectationConstraints\": \"6-month timeline, $500k budget, must maintain backward compatibility\",\n    \"responseActions\": \"Architected new React-based portal with AWS Lambda backend; led cross-functional team of 8 engineers; implemented phased rollout\",\n    \"responseTools\": \"React, TypeScript, AWS Lambda, PostgreSQL, Redis, Terraform, GitHub Actions\",\n    \"responseChallenges\": \"Coordinated data migration from legacy system; maintained uptime during rollout; trained customer success team on new features\",\n    \"outcomeDeliverable\": \"Production-ready portal deployed to 100% of customer base with zero downtime migration\",\n    \"outcomeMetrics\": \"Support tickets reduced from 200/week to 85/week (57% reduction); portal load time decreased from 8s to 0.8s; customer satisfaction increased from 6.2 to 8.1/10\",\n    \"outcomeImpact\": \"Recognized as key initiative in annual review; awarded 'Technical Excellence' prize; industry recognition in customer conference keynote\",\n    \"sourceExperienceId\": 1,\n    \"displayOrder\": 0,\n    \"deletedAt\": null,\n    \"isDeleted\": false,\n    \"createdAt\": \"2026-01-24T15:30:00.000Z\",\n    \"updatedAt\": \"2026-01-24T15:30:00.000Z\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "5. PATCH - Update Story (Partial)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response has success=true', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "});",
+              "",
+              "pm.test('Story was updated', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data.hurdleProblem).to.include('200+');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"hurdleProblem\": \"Our 10-year-old customer portal was outdated and slow, generating 200+ support tickets per week due to poor UX and performance issues\",\n  \"responseActions\": \"Architected new React-based portal with AWS Lambda backend; led cross-functional team of 8 engineers; implemented phased rollout with feature flags\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories/{{storyId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories", "{{storyId}}"]
+        }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories/{{storyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories", "{{storyId}}"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Hero story updated successfully\",\n  \"data\": {\n    \"id\": \"story_clx2k9j3m0000glg\",\n    \"internalId\": 1,\n    \"profileId\": \"prof_xK9j2mP4nQ8rL5tY7vW3zB1c\",\n    \"title\": \"Led complete redesign of customer portal to reduce support tickets\",\n    \"hurdleProblem\": \"Our 10-year-old customer portal was outdated and slow, generating 200+ support tickets per week due to poor UX and performance issues\",\n    \"hurdleScope\": \"Affected 50,000+ enterprise customers across 3 regions\",\n    \"hurdleStakes\": \"Customer churn was at 5% annually; losing market share to competitors with modern portals\",\n    \"expectationRole\": \"Technical Lead and Product Owner\",\n    \"expectationGoals\": \"Reduce support tickets by 50%, improve portal performance by 10x, modernize tech stack\",\n    \"expectationConstraints\": \"6-month timeline, $500k budget, must maintain backward compatibility\",\n    \"responseActions\": \"Architected new React-based portal with AWS Lambda backend; led cross-functional team of 8 engineers; implemented phased rollout with feature flags\",\n    \"responseTools\": \"React, TypeScript, AWS Lambda, PostgreSQL, Redis, Terraform, GitHub Actions\",\n    \"responseChallenges\": \"Coordinated data migration from legacy system; maintained uptime during rollout; trained customer success team on new features\",\n    \"outcomeDeliverable\": \"Production-ready portal deployed to 100% of customer base with zero downtime migration\",\n    \"outcomeMetrics\": \"Support tickets reduced from 200/week to 85/week (57% reduction); portal load time decreased from 8s to 0.8s; customer satisfaction increased from 6.2 to 8.1/10\",\n    \"outcomeImpact\": \"Recognized as key initiative in annual review; awarded 'Technical Excellence' prize; industry recognition in customer conference keynote\",\n    \"sourceExperienceId\": 1,\n    \"displayOrder\": 0,\n    \"deletedAt\": null,\n    \"isDeleted\": false,\n    \"createdAt\": \"2026-01-24T15:30:00.000Z\",\n    \"updatedAt\": \"2026-01-24T15:35:00.000Z\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "6. PATCH - Update Title Only",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Complete redesign of enterprise customer portal - 57% reduction in support tickets\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories/{{storyId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories", "{{storyId}}"]
+        }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories/{{storyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories", "{{storyId}}"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Hero story updated successfully\",\n  \"data\": {\n    \"id\": \"story_clx2k9j3m0000glg\",\n    \"internalId\": 1,\n    \"profileId\": \"prof_xK9j2mP4nQ8rL5tY7vW3zB1c\",\n    \"title\": \"Complete redesign of enterprise customer portal - 57% reduction in support tickets\",\n    \"hurdleProblem\": \"Our 10-year-old customer portal was outdated and slow, generating 200+ support tickets per week due to poor UX and performance issues\",\n    \"hurdleScope\": \"Affected 50,000+ enterprise customers across 3 regions\",\n    \"hurdleStakes\": \"Customer churn was at 5% annually; losing market share to competitors with modern portals\",\n    \"expectationRole\": \"Technical Lead and Product Owner\",\n    \"expectationGoals\": \"Reduce support tickets by 50%, improve portal performance by 10x, modernize tech stack\",\n    \"expectationConstraints\": \"6-month timeline, $500k budget, must maintain backward compatibility\",\n    \"responseActions\": \"Architected new React-based portal with AWS Lambda backend; led cross-functional team of 8 engineers; implemented phased rollout with feature flags\",\n    \"responseTools\": \"React, TypeScript, AWS Lambda, PostgreSQL, Redis, Terraform, GitHub Actions\",\n    \"responseChallenges\": \"Coordinated data migration from legacy system; maintained uptime during rollout; trained customer success team on new features\",\n    \"outcomeDeliverable\": \"Production-ready portal deployed to 100% of customer base with zero downtime migration\",\n    \"outcomeMetrics\": \"Support tickets reduced from 200/week to 85/week (57% reduction); portal load time decreased from 8s to 0.8s; customer satisfaction increased from 6.2 to 8.1/10\",\n    \"outcomeImpact\": \"Recognized as key initiative in annual review; awarded 'Technical Excellence' prize; industry recognition in customer conference keynote\",\n    \"sourceExperienceId\": 1,\n    \"displayOrder\": 0,\n    \"deletedAt\": null,\n    \"isDeleted\": false,\n    \"createdAt\": \"2026-01-24T15:30:00.000Z\",\n    \"updatedAt\": \"2026-01-24T15:36:00.000Z\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "7. PATCH - Clear Optional Fields",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"hurdleProblem\": null,\n  \"hurdleScope\": null,\n  \"hurdleStakes\": null\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories/{{storyId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories", "{{storyId}}"]
+        }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories/{{storyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories", "{{storyId}}"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Hero story updated successfully\",\n  \"data\": {\n    \"id\": \"story_clx2k9j3m0000glg\",\n    \"internalId\": 1,\n    \"profileId\": \"prof_xK9j2mP4nQ8rL5tY7vW3zB1c\",\n    \"title\": \"Complete redesign of enterprise customer portal - 57% reduction in support tickets\",\n    \"hurdleProblem\": null,\n    \"hurdleScope\": null,\n    \"hurdleStakes\": null,\n    \"expectationRole\": \"Technical Lead and Product Owner\",\n    \"expectationGoals\": \"Reduce support tickets by 50%, improve portal performance by 10x, modernize tech stack\",\n    \"expectationConstraints\": \"6-month timeline, $500k budget, must maintain backward compatibility\",\n    \"responseActions\": \"Architected new React-based portal with AWS Lambda backend; led cross-functional team of 8 engineers; implemented phased rollout with feature flags\",\n    \"responseTools\": \"React, TypeScript, AWS Lambda, PostgreSQL, Redis, Terraform, GitHub Actions\",\n    \"responseChallenges\": \"Coordinated data migration from legacy system; maintained uptime during rollout; trained customer success team on new features\",\n    \"outcomeDeliverable\": \"Production-ready portal deployed to 100% of customer base with zero downtime migration\",\n    \"outcomeMetrics\": \"Support tickets reduced from 200/week to 85/week (57% reduction); portal load time decreased from 8s to 0.8s; customer satisfaction increased from 6.2 to 8.1/10\",\n    \"outcomeImpact\": \"Recognized as key initiative in annual review; awarded 'Technical Excellence' prize; industry recognition in customer conference keynote\",\n    \"sourceExperienceId\": 1,\n    \"displayOrder\": 0,\n    \"deletedAt\": null,\n    \"isDeleted\": false,\n    \"createdAt\": \"2026-01-24T15:30:00.000Z\",\n    \"updatedAt\": \"2026-01-24T15:37:00.000Z\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "8. DELETE - Soft Delete Story",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response has success=true', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories/{{storyId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories", "{{storyId}}"]
+        }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories/{{storyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories", "{{storyId}}"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [],
+          "body": "{\n  \"success\": true,\n  \"message\": \"Hero story deleted successfully\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Error Tests",
+      "item": [
+        {
+          "name": "ERROR: Missing Title",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hurdleProblem\": \"Some problem\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories"]
+            }
+          },
+          "response": [
+            {
+              "name": "400 Bad Request",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": ""
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories"]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"REQUIRED\",\n    \"message\": \"title is required and cannot be empty\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "ERROR: Invalid sourceExperienceId",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Some story\",\n  \"sourceExperienceId\": \"not-a-number\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories"]
+            }
+          },
+          "response": [
+            {
+              "name": "400 Bad Request",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": ""
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories"]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INVALID\",\n    \"message\": \"sourceExperienceId must be an integer\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "ERROR: No Update Fields (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories/{{storyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories", "{{storyId}}"]
+            }
+          },
+          "response": [
+            {
+              "name": "400 Bad Request",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": ""
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories/{{storyId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories", "{{storyId}}"]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"REQUIRED\",\n    \"message\": \"At least one field to update is required\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "ERROR: Story Not Found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories/story_invalid",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories", "story_invalid"]
+            }
+          },
+          "response": [
+            {
+              "name": "404 Not Found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/career-id/profile/{{profileId}}/hero-stories/story_invalid",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "career-id", "profile", "{{profileId}}", "hero-stories", "story_invalid"]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"Hero story not found\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "profileId",
+      "value": "prof_xK9j2mP4nQ8rL5tY7vW3zB1c",
+      "type": "string"
+    },
+    {
+      "key": "storyId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

@@ -7,6 +7,7 @@ interface Moment {
   raw_notes: string
   created_at: string
   status?: string
+  source_experience_id?: string | number | null
 }
 
 interface Props {
