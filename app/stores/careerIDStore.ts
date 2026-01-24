@@ -7,7 +7,8 @@ import type {
   ProfileSkill,
   ProfileSocialLink,
   ContactInfo,
-  ProfileResponse
+  ProfileResponse,
+  HeroStory
 } from '#shared/types/careerId'
 import type {
   QuestionGroup,
@@ -33,6 +34,10 @@ type HeroMomentApiResponse = {
   convertedStoryId?: string | number | null
 }
 
+type HeroStoryApiResponse = HeroStory & {
+  internalId?: number | null
+}
+
 
 const mapHeroMoment = (moment: HeroMomentApiResponse): HeroMoment => ({
   id: moment.id,
@@ -54,6 +59,15 @@ const sortMomentsByDateDesc = (moments: HeroMoment[]) => {
   })
 }
 
+const sortStories = (stories: HeroStory[]) => {
+  return [...stories].sort((a, b) => {
+    if (a.displayOrder !== b.displayOrder) {
+      return a.displayOrder - b.displayOrder
+    }
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  })
+}
+
 export const useCareerIDStore = defineStore('careerID', {
   state: () => ({
     profileId: 'prof_myf2i85se9xri4e4wgsxxim7',
@@ -67,6 +81,7 @@ export const useCareerIDStore = defineStore('careerID', {
     profileSocialLinks: [] as ProfileSocialLink[],
     contactInfo: null as ContactInfo | null,
     heroMoments: [] as HeroMoment[],
+    heroStories: [] as HeroStory[],
 
     // UI state
     isLoading: false,
@@ -166,6 +181,7 @@ export const useCareerIDStore = defineStore('careerID', {
       this.profileSocialLinks = []
       this.contactInfo = null
       this.heroMoments = []
+      this.heroStories = []
       this.isLoading = false
       this.isSaving = false
       this.error = null
@@ -930,6 +946,185 @@ export const useCareerIDStore = defineStore('careerID', {
         const errorMessage = error?.data?.message || error?.message || 'Failed to fetch social platforms'
         this.error = errorMessage
         throw error
+      }
+    },
+
+    // Hero stories CRUD actions
+    async fetchStories(profileId: string) {
+      if (this.heroStories.length > 0) {
+        return this.heroStories
+      }
+
+      this.isLoading = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          data: HeroStoryApiResponse[]
+        }>(`/api/career-id/profile/${profileId}/hero-stories`)
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to fetch stories')
+        }
+
+        const activeStories = response.data.filter(story => !story.isDeleted && !story.deletedAt)
+        this.heroStories = sortStories(activeStories)
+
+        return this.heroStories
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to fetch stories'
+        this.error = errorMessage
+        console.error('fetchStories failed', error)
+        throw error
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async createStory(
+      profileId: string,
+      payload: {
+        title: string
+        hurdleProblem?: string | null
+        hurdleScope?: string | null
+        hurdleStakes?: string | null
+        expectationRole?: string | null
+        expectationGoals?: string | null
+        expectationConstraints?: string | null
+        responseActions?: string | null
+        responseTools?: string | null
+        responseChallenges?: string | null
+        outcomeDeliverable?: string | null
+        outcomeMetrics?: string | null
+        outcomeImpact?: string | null
+        sourceExperienceId?: number | null
+        displayOrder?: number
+      }
+    ) {
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: HeroStoryApiResponse
+        }>(`/api/career-id/profile/${profileId}/hero-stories`, {
+          method: 'POST',
+          body: payload
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to create story')
+        }
+
+        const createdStory = response.data
+        this.heroStories = sortStories([createdStory, ...this.heroStories.filter(story => story.id !== createdStory.id)])
+        this.lastSaved = new Date().toISOString()
+
+        return createdStory
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to create story'
+        this.error = errorMessage
+        console.error('createStory failed', error)
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    async updateStory(
+      profileId: string,
+      storyId: string,
+      payload: Partial<{
+        title: string
+        hurdleProblem?: string | null
+        hurdleScope?: string | null
+        hurdleStakes?: string | null
+        expectationRole?: string | null
+        expectationGoals?: string | null
+        expectationConstraints?: string | null
+        responseActions?: string | null
+        responseTools?: string | null
+        responseChallenges?: string | null
+        outcomeDeliverable?: string | null
+        outcomeMetrics?: string | null
+        outcomeImpact?: string | null
+        sourceExperienceId?: number | null
+        displayOrder?: number
+      }>
+    ) {
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+          data: HeroStoryApiResponse
+        }>(`/api/career-id/profile/${profileId}/hero-stories/${storyId}`, {
+          method: 'PATCH',
+          body: payload
+        })
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to update story')
+        }
+
+        const updatedStory = response.data
+        if (updatedStory.isDeleted || updatedStory.deletedAt) {
+          this.heroStories = this.heroStories.filter(story => story.id !== updatedStory.id)
+        } else {
+          const index = this.heroStories.findIndex(story => story.id === updatedStory.id)
+          if (index !== -1) {
+            this.heroStories[index] = updatedStory
+          } else {
+            this.heroStories = [updatedStory, ...this.heroStories]
+          }
+          this.heroStories = sortStories(this.heroStories)
+        }
+
+        this.lastSaved = new Date().toISOString()
+
+        return updatedStory
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to update story'
+        this.error = errorMessage
+        console.error('updateStory failed', error)
+        throw error
+      } finally {
+        this.isSaving = false
+      }
+    },
+
+    async deleteStory(profileId: string, storyId: string) {
+      this.isSaving = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          message: string
+        }>(`/api/career-id/profile/${profileId}/hero-stories/${storyId}`, {
+          method: 'DELETE'
+        })
+
+        if (!response.success) {
+          throw new Error('Failed to delete story')
+        }
+
+        this.heroStories = this.heroStories.filter(story => story.id !== storyId)
+        this.lastSaved = new Date().toISOString()
+
+        return response
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to delete story'
+        this.error = errorMessage
+        console.error('deleteStory failed', error)
+        throw error
+      } finally {
+        this.isSaving = false
       }
     },
 

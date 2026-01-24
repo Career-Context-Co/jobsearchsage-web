@@ -8,7 +8,13 @@ const toast = useToast()
 const careerIDStore = useCareerIDStore()
 const sageAIStore = useSageAIStore()
 
-const { heroMoments, isLoading: isMomentsLoading, error: momentsError } = storeToRefs(careerIDStore)
+const {
+  heroMoments,
+  heroStories,
+  isLoading,
+  isSaving,
+  error
+} = storeToRefs(careerIDStore)
 const { discoverySession, isLoading: isDiscoveryLoading, error: discoveryError } = storeToRefs(sageAIStore)
 
 const profileId = computed(() => careerIDStore.profile?.id || careerIDStore.profileId)
@@ -31,7 +37,8 @@ const formDataForCreate = ref({
   responseChallenges: '',
   outcomeDeliverable: '',
   outcomeMetrics: '',
-  outcomeImpact: ''
+  outcomeImpact: '',
+  sourceExperienceId: null as number | null
 })
 
 const formErrors = ref<Record<string, string>>({})
@@ -50,13 +57,20 @@ function resetCreateForm() {
     responseChallenges: '',
     outcomeDeliverable: '',
     outcomeMetrics: '',
-    outcomeImpact: ''
+    outcomeImpact: '',
+    sourceExperienceId: null
   }
   formErrors.value = {}
 }
 
-function startAddingStory() {
+function startAddingStory(prefill?: { title?: string; sourceExperienceId?: number | null }) {
   resetCreateForm()
+  if (prefill?.title) {
+    formDataForCreate.value.title = prefill.title
+  }
+  if (prefill?.sourceExperienceId !== undefined) {
+    formDataForCreate.value.sourceExperienceId = prefill.sourceExperienceId
+  }
   isShowingCreateForm.value = true
 }
 
@@ -65,7 +79,7 @@ function cancelAddingStory() {
   resetCreateForm()
 }
 
-function handleSaveNewStory() {
+async function handleSaveNewStory() {
   const errors: Record<string, string> = {}
   
   if (!formDataForCreate.value.title.trim()) {
@@ -76,14 +90,11 @@ function handleSaveNewStory() {
   if (Object.keys(errors).length > 0) return
 
   try {
-    // Create new story
-    const newStory: HeroStory = {
-      id: `story_${Math.random().toString(36).substr(2, 9)}`,
-      profileId: profileId.value || 'profile_123',
-      displayOrder: heroStories.value.length + 1,
-      isDeleted: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+    if (!profileId.value) {
+      throw new Error('Profile is required to create a story')
+    }
+
+    const created = await careerIDStore.createStory(profileId.value, {
       title: formDataForCreate.value.title.trim(),
       hurdleProblem: formDataForCreate.value.hurdleProblem.trim() || null,
       hurdleScope: formDataForCreate.value.hurdleScope.trim() || null,
@@ -96,12 +107,13 @@ function handleSaveNewStory() {
       responseChallenges: formDataForCreate.value.responseChallenges.trim() || null,
       outcomeDeliverable: formDataForCreate.value.outcomeDeliverable.trim() || null,
       outcomeMetrics: formDataForCreate.value.outcomeMetrics.trim() || null,
-      outcomeImpact: formDataForCreate.value.outcomeImpact.trim() || null
-    }
-    heroStories.value.unshift(newStory)
+      outcomeImpact: formDataForCreate.value.outcomeImpact.trim() || null,
+      sourceExperienceId: formDataForCreate.value.sourceExperienceId ?? undefined,
+      displayOrder: heroStories.value.length + 1
+    })
     toast.add({
       title: 'Success',
-      description: `Your HERO story "${formDataForCreate.value.title}" has been created.`,
+      description: `Your HERO story "${created.title}" has been created.`,
       icon: 'i-lucide-check',
       color: 'success'
     })
@@ -117,32 +129,6 @@ function handleSaveNewStory() {
   }
 }
 
-// Mock hero stories for Phase 3A (will be replaced with real data in Phase 3B)
-const heroStories = ref<HeroStory[]>([
-  {
-    id: 'story_001',
-    profileId: 'profile_123',
-    title: 'Led Platform Migration that Reduced Infrastructure Costs',
-    hurdleProblem: 'The existing monolithic platform was difficult to maintain and scaled poorly during peak traffic.',
-    hurdleScope: 'Affected 5 internal teams and impacted performance for 100k+ users during peak usage.',
-    hurdleStakes: 'Technical debt was limiting our ability to add features quickly and increasing operational costs.',
-    expectationRole: 'As the lead architect, I was responsible for designing and executing the migration.',
-    expectationGoals: 'Reduce infrastructure costs by 30-40% while maintaining 99.9% uptime.',
-    expectationConstraints: 'Limited to 3 months timeline and could not disrupt existing services.',
-    responseActions: 'Designed a phased migration approach with comprehensive test coverage.',
-    responseTools: 'Kubernetes, Docker, Terraform, PostgreSQL, Redis.',
-    responseChallenges: 'Initial data consistency issues during cutover required a custom sync service.',
-    outcomeDeliverable: 'Successfully migrated 50+ microservices to new Kubernetes-based infrastructure.',
-    outcomeMetrics: '40% cost reduction, 60% faster API response, 99.95% uptime.',
-    outcomeImpact: 'Enabled 3 new features generating $2M in revenue. Recognized as Q2 MVP.',
-    sourceExperienceId: null,
-    displayOrder: 1,
-    isDeleted: false,
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-  }
-])
-
 const isDiscoveryDrawerOpen = computed(() => route.query.discoverySession === 'true')
 
 const chatMessages = computed(() => discoverySession.value?.session_data?.conversation_history ?? [])
@@ -154,41 +140,50 @@ const capturedMoments = computed(() =>
   }))
 )
 
-function handleSaveStory(payload: any) {
-  // When save is triggered from HeroStoryCard (inline edit)
-  // Payload is the updated fields from the card
+async function handleSaveStory(payload: { story?: HeroStory; updates?: Partial<HeroStory> }) {
   const storyId = payload.story?.id
-  if (!storyId) return
+  if (!storyId || !profileId.value || !payload.updates) return
 
-  const index = heroStories.value.findIndex(s => s.id === storyId)
-  if (index !== -1) {
-    heroStories.value[index] = {
-      ...heroStories.value[index],
-      ...payload.updates,
-      updatedAt: new Date().toISOString()
-    }
+  try {
+    await careerIDStore.updateStory(profileId.value, storyId, payload.updates)
+    toast.add({
+      title: 'Success',
+      description: 'Your HERO story has been updated.',
+      icon: 'i-lucide-check',
+      color: 'success'
+    })
+  } catch (err: any) {
+    toast.add({
+      title: 'Error',
+      description: err?.message || 'Failed to update HERO story',
+      icon: 'i-lucide-alert-circle',
+      color: 'error'
+    })
   }
-  toast.add({
-    title: 'Success',
-    description: `Your HERO story has been updated.`,
-    icon: 'i-lucide-check',
-    color: 'success'
-  })
 }
 
-function handleDeleteStory(story: HeroStory) {
+async function handleDeleteStory(story: HeroStory) {
   if (!confirm('Are you sure you want to delete this HERO story?')) {
     return
   }
   
-  const index = heroStories.value.findIndex(s => s.id === story.id)
-  if (index !== -1) {
-    heroStories.value.splice(index, 1)
+  try {
+    if (!profileId.value) {
+      throw new Error('Profile is required to delete a story')
+    }
+    await careerIDStore.deleteStory(profileId.value, story.id)
     toast.add({
       title: 'Success',
       description: 'HERO story deleted successfully.',
       icon: 'i-lucide-check',
       color: 'success'
+    })
+  } catch (err: any) {
+    toast.add({
+      title: 'Error',
+      description: err?.message || 'Failed to delete HERO story',
+      icon: 'i-lucide-alert-circle',
+      color: 'error'
     })
   }
 }
@@ -298,10 +293,21 @@ async function handleSaveMoments(payload: { capturedMoments: Array<{ title: stri
   savedDiscoverySessions.add(sessionId)
 }
 
-function handleMomentDevelop() {
-  // Start a new story
-  // In Phase 3B, we'll prefill data from the selected moment
-  startAddingStory()
+function normalizeSourceExperienceId(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value)) return value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    if (Number.isInteger(parsed)) return parsed
+  }
+  return null
+}
+
+function handleMomentDevelop(moment?: { title?: string; source_experience_id?: string | number | null }) {
+  const sourceExperienceId = normalizeSourceExperienceId(moment?.source_experience_id)
+  startAddingStory({
+    title: moment?.title?.trim() || undefined,
+    sourceExperienceId
+  })
 }
 
 async function handleMomentSave(payload: { moment: { id: string | number }; updates: { title: string; rawNotes: string } }) {
@@ -319,7 +325,10 @@ async function handleMomentRemove(moment: any) {
 
 onMounted(async () => {
   if (profileId.value) {
-    await careerIDStore.fetchMoments(profileId.value)
+    await Promise.allSettled([
+      careerIDStore.fetchMoments(profileId.value),
+      careerIDStore.fetchStories(profileId.value)
+    ])
   }
 })
 </script>
@@ -521,7 +530,8 @@ onMounted(async () => {
               size="sm"
               icon="i-lucide-check"
               @click="handleSaveNewStory"
-              :disabled="!formDataForCreate.title.trim()"
+              :loading="isSaving"
+              :disabled="!formDataForCreate.title.trim() || isSaving"
             />
           </div>
         </div>
@@ -532,6 +542,8 @@ onMounted(async () => {
     <div v-if="!isShowingCreateForm" class="mb-6">
       <ProfileHeroStoriesSection
         :stories="heroStories"
+        :is-loading="isLoading"
+        :error="error"
         @create="startAddingStory"
         @delete="handleDeleteStory"
         @save="handleSaveStory"
@@ -542,8 +554,8 @@ onMounted(async () => {
     <div v-if="!isShowingCreateForm" class="mt-8">
       <ProfileHeroDiscoveredMomentsSection
         :moments="heroMoments"
-        :is-loading="isMomentsLoading"
-        :error="momentsError"
+        :is-loading="isLoading"
+        :error="error"
         @develop="handleMomentDevelop"
         @remove="handleMomentRemove"
         @save="handleMomentSave"

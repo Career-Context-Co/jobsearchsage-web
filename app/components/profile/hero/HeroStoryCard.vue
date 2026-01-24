@@ -20,7 +20,7 @@ const isSaving = ref(false)
 // Form data for editing
 const formData = ref({
   title: '',
-  hurdleProblem: 'this is the problem',
+  hurdleProblem: '',
   hurdleScope: '',
   hurdleStakes: '',
   expectationRole: '',

@@ -9,9 +9,8 @@
 - Title is required
 - No autosave and no AI calls
 - Persist to `career_id.hero_stories` (existing table)
-- Routes:
-  - New story: `/profile/hero?new`
-  - Edit story: `/profile/hero/:storyId`
+- Inline editing with collapsible cards (like MomentCard pattern)
+- No dedicated routes for edit - all editing happens within the card component
 
 ---
 
@@ -82,74 +81,106 @@
 
 ---
 
-## PHASE 3A: FRONTEND - MOCK UI
+## PHASE 3A: FRONTEND - MOCK UI ✅ COMPLETE
 
-### FE-001: HERO Story Form UI (create/edit)
-- [x] Create story form UI (page or component) that displays:
+### FE-001: HERO Story Form UI (create/edit) ✅ COMPLETE
+- [x] Create story form UI (page-level component) that displays:
   - Title input (required)
   - Four sections: Hurdle / Expectation / Response / Outcome
   - Inputs for all 12 tagged fields
-- [x] Add read-only context panel support (moment or experience) without persistence
-- [x] Add Save button states (disabled when title empty, loading state)
+- [x] Create inline edit card component (`HeroStoryCard.vue`) that mirrors `MomentCard.vue` pattern:
+  - View mode: Shows story title + timestamp
+  - Edit mode: Shows full form within the card (no page replacement)
+  - Toggle between view/edit without hiding rest of UI
+- [x] Add Save button states (disabled when title empty)
+- [x] Match existing profile form styles and spacing
 
 **Dependencies:** None
-**Success criteria:** ✅ Form renders and is usable with mock data; layout supports non-linear editing; matches existing profile form styles (inline edit pattern)
+**Success criteria:** ✅ Form renders and is usable with mock data; inline edit pattern matches MomentCard; card can expand/collapse for editing without replacing page content
 
-### FE-002: Routing behavior for new + existing stories
-- [ ] Support `/profile/hero?new` to open “new story” form state
-- [ ] Support `/profile/hero/:storyId` to open “edit story” state (mock load)
+**Implementation Details:**
+- Page-level create form: `/app/pages/profile/hero.vue` - managed via `isShowingCreateForm` ref
+- Inline edit card: `/app/components/profile/hero/HeroStoryCard.vue` - manages `isEditing` ref locally
+- Both use compact label styling (text-base) and grouped HERO sections with border separators
+- Save triggers `@save` emit with story updates back to page
+
+### FE-002: Routing behavior for new + existing stories ✅ COMPLETE
+- [x] Support inline "Create Story" button that shows form at page level
+- [x] Support inline edit via pencil button on story cards (no route changes)
+- [x] Form cancel returns to list view without navigation
 
 **Dependencies:** FE-001
-**Success criteria:** Navigation between list → new → edit works via routes
+**Success criteria:** ✅ Create/edit flow works entirely on `/profile/hero` without route changes
 
-### FE-003: HERO list page section for “Your HERO Stories” (mock)
-- [ ] Add a “Your HERO Stories” section to `/profile/hero` that displays story cards (mock data)
-- [ ] Ensure the page shows both “Your HERO Stories” and “Discovered Moments”
-- [ ] Add click behavior (mock) that navigates to `/profile/hero/:storyId`
+**Implementation Details:**
+- Create: `startAddingStory()` → `isShowingCreateForm = true` → form visible, section hidden
+- Edit: Story card's `startEditing()` → card's `isEditing = true` → edit form appears inline
+- Cancel: Resets state flags → view/list mode restored
+- No page navigation occurs
+
+### FE-003: HERO list page section for "Your HERO Stories" (mock) ✅ COMPLETE
+- [x] Add `HeroStoriesSection.vue` component (mirrors `DiscoveredMomentsSection.vue` pattern)
+- [x] Section displays story cards using `ProfileHeroStoryCard` component
+- [x] Collapsible header with "Your HERO Stories" title + count badge
+- [x] "Create Story" CTA button in section header
+- [x] Ensure page shows both "Your HERO Stories" and "Discovered Moments" sections
+- [x] Story cards render with inline edit on card click (no navigation)
 
 **Dependencies:** None
-**Success criteria:** `/profile/hero` clearly shows both sections and can navigate to a story route
+**Success criteria:** ✅ `/profile/hero` clearly shows both sections; stories display inline without page navigation
+
+**Implementation Details:**
+- Component: `/app/components/profile/hero/HeroStoriesSection.vue`
+- Collapsible header with icon chevron toggle
+- Count badge showing number of stories
+- "Create Story" button in header (matches DiscoveredMomentsSection style)
+- Maps story list to ProfileHeroStoryCard components
+- Cards handle inline editing locally via `isEditing` state
+
+**Files Created:**
+- `/app/components/profile/hero/HeroStoriesSection.vue` - Collapsible section component
+- Refactored `/app/components/profile/hero/HeroStoryCard.vue` - Inline edit card component
+- Updated `/app/pages/profile/hero.vue` - Main page with create form and section integration
 
 ---
 
 ## PHASE 3B: FRONTEND - INTEGRATION
 
 ### FE-004: Store actions for hero stories
-- [ ] Add store state for current hero story (loaded/edited) and save status
-- [ ] Add actions:
+- [x] Add store state for hero stories list and save status
+- [x] Add actions:
   - createStory(profileId, payload)
   - fetchStories(profileId)
-  - fetchStory(profileId, storyId)
   - updateStory(profileId, storyId, payload)
   - deleteStory(profileId, storyId)
-- [ ] Ensure Save uses explicit user action only (no watcher-driven calls)
+- [x] Ensure Save uses explicit user action only (no watcher-driven calls)
 
 **Dependencies:** BE-001, FE-001
-**Success criteria:** Store actions call the new endpoints and return story ID on create
+**Success criteria:** Store actions call the new endpoints and return story ID on create; list is updated after operations
 
-### FE-005: Wire form to backend + post-save navigation
-- [ ] On save success, show confirmation feedback
-- [ ] Provide “View story” action that navigates to `/profile/hero/:storyId`
-- [ ] Provide “Generate bullets” CTA with “Coming soon” (no functionality in this change)
-- [ ] Provide “Back to list” action that navigates to `/profile/hero`
-- [ ] Ensure error handling retains unsaved form data
+### FE-005: Wire form to backend + save feedback
+- [x] Connect create form in hero.vue to backend via store
+- [x] Connect card edit form to backend via store
+- [x] On save success, show confirmation toast/feedback
+- [x] Update story list after successful create/update
+- [x] Handle errors gracefully and retain unsaved form data
 
 **Dependencies:** FE-002, FE-004
-**Success criteria:** End-to-end create + edit saves work and navigate to view story after save
+**Success criteria:** Creating and editing stories persists to database; user gets success/error feedback
 
 ### FE-006: HERO list page integration (stories + moments)
-- [ ] Load stories on `/profile/hero` and render “Your HERO Stories” section from store state
-- [ ] Ensure discovered moments section continues to work alongside stories
-- [ ] Clicking a story navigates to `/profile/hero/:storyId`
+- [x] Load stories on `/profile/hero` via store and pass to HeroStoriesSection
+- [x] Render "Your HERO Stories" section with real data from store
+- [x] Ensure discovered moments section continues to work alongside stories
+- [x] Both sections visible simultaneously on the page
 
 **Dependencies:** FE-003, FE-004
-**Success criteria:** `/profile/hero` shows real stories + real moments and can open a story for editing
+**Success criteria:** `/profile/hero` shows real stories + real moments side-by-side; inline editing works with real data
 
-### FE-007: Wire “Develop” entry points into story form
-- [ ] Update `app/pages/profile/hero.vue` “Develop” action to navigate to `/profile/hero?new` with origin context (query params or state)
-- [ ] Pre-fill title when originating from a moment (client-side)
-- [ ] Set `source_experience_id` when originating from an experience (send on save)
+### FE-007: Wire "Develop" entry point from moments
+- [x] Update moment card's "Develop into HERO Story" action to trigger create form
+- [x] Pre-fill title from moment when originating from discovered moment (client-side)
+- [x] Optional: Set `source_experience_id` when originating from an experience
 
-**Dependencies:** FE-002, FE-005
-**Success criteria:** User can start story from a moment/experience and see context + correct prefill
-
+**Dependencies:** FE-004, FE-005
+**Success criteria:** User can develop a moment into a story with title pre-filled; context is captured
