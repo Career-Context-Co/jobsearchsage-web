@@ -85,15 +85,15 @@
 ## PHASE 3A: FRONTEND - MOCK UI
 
 ### FE-001: HERO Story Form UI (create/edit)
-- [ ] Create story form UI (page or component) that displays:
+- [x] Create story form UI (page or component) that displays:
   - Title input (required)
   - Four sections: Hurdle / Expectation / Response / Outcome
   - Inputs for all 12 tagged fields
-- [ ] Add read-only context panel support (moment or experience) without persistence
-- [ ] Add Save button states (disabled when title empty, loading state)
+- [x] Add read-only context panel support (moment or experience) without persistence
+- [x] Add Save button states (disabled when title empty, loading state)
 
 **Dependencies:** None
-**Success criteria:** Form renders and is usable with mock data; layout supports non-linear editing
+**Success criteria:** ✅ Form renders and is usable with mock data; layout supports non-linear editing; matches existing profile form styles (inline edit pattern)
 
 ### FE-002: Routing behavior for new + existing stories
 - [ ] Support `/profile/hero?new` to open “new story” form state

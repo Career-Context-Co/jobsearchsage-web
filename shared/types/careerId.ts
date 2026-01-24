@@ -108,6 +108,31 @@ export interface ProfileSocialLink {
   updatedAt: string;
 }
 
+// HERO Story Interface
+export interface HeroStory {
+  id: string;
+  profileId: string;
+  title: string;
+  hurdleProblem?: string | null;
+  hurdleScope?: string | null;
+  hurdleStakes?: string | null;
+  expectationRole?: string | null;
+  expectationGoals?: string | null;
+  expectationConstraints?: string | null;
+  responseActions?: string | null;
+  responseTools?: string | null;
+  responseChallenges?: string | null;
+  outcomeDeliverable?: string | null;
+  outcomeMetrics?: string | null;
+  outcomeImpact?: string | null;
+  sourceExperienceId?: number | null;
+  displayOrder: number;
+  deletedAt?: string | null;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Contact Info Interface
 export interface ContactInfo {
   id: string;
