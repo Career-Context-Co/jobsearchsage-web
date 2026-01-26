@@ -3,13 +3,13 @@
 ## Phase 1: Database - Hero Story Sessions Table
 
 ### DB-001: Alter Hero Story Sessions Table
-- [ ] Create migration file `022_alter_hero_story_sessions.sql`
-- [ ] Add column: `section_type TEXT NOT NULL DEFAULT 'hurdle'`
-- [ ] Add column: `session_status TEXT NOT NULL DEFAULT 'active'`
-- [ ] Add column: `moment_id TEXT NULL`
-- [ ] Update table and column comments to reflect new purpose
-- [ ] Document session_data JSONB structure in `SESSION_DATA_STRUCTURE.md`
-- [ ] Test migration runs successfully on existing table
+- [x] Create migration file `022_alter_hero_story_sessions.sql`
+- [x] Add column: `section_type TEXT NOT NULL DEFAULT 'hurdle'`
+- [x] Add column: `session_status TEXT NOT NULL DEFAULT 'active'`
+- [x] Add column: `moment_id TEXT NULL`
+- [x] Update table and column comments to reflect new purpose
+- [x] Document session_data JSONB structure in `SESSION_DATA_STRUCTURE.md`
+- [x] Test migration runs successfully on existing table
 
 **Dependencies:** None (table already exists from prior migration)
 **Success criteria:** Three new columns added, migration is idempotent and safe
@@ -17,71 +17,71 @@
 ## Phase 2: Backend - AI Enhancement API
 
 ### BE-001: Section Enhancement Conversation API Endpoints
-- [ ] Create `server/api/ai/hero-story/enhance-section/start.post.ts`
-- [ ] Accept start request: `{ profile_id, story_id, section_type, moment_title, moment_description?, moment_id?, current_values: {field1, field2, field3}, source_experience? }`
-- [ ] Validate section_type is one of: hurdle, expectation, response, outcome
-- [ ] Create session record in hero_story_sessions table with status 'active'
-- [ ] Store session_id (from DB) for tracking
-- [ ] Call hero-story-enhancer utility with conversation start
-- [ ] Store first AI message in session_data.conversation_history
-- [ ] Return: `{ success: true, ai_message: string, session_id: number, is_complete: false }`
-- [ ] Create `server/api/ai/hero-story/enhance-section/continue.post.ts`
-- [ ] Accept continue request: `{ session_id, user_message }`
-- [ ] Retrieve conversation state from hero_story_sessions table
-- [ ] Append user message to session_data.conversation_history
-- [ ] Call hero-story-enhancer utility with conversation continue
-- [ ] Append AI response to session_data.conversation_history
-- [ ] If conversation complete, store final_output in session_data and set session_status = 'completed', ended_at = NOW()
-- [ ] Return: `{ success: true, ai_message: string, is_complete: boolean, final_output?: {field1, field2, field3} }`
-- [ ] Add error handling for timeout, API errors, invalid responses
-- [ ] Add request logging for debugging
+- [x] Create `server/api/ai/hero-session/start.post.ts`
+- [x] Accept start request: `{ profile_id, story_id, section_type, moment_title, moment_description?, moment_id?, current_values: {field1, field2, field3}, source_experience? }`
+- [x] Validate section_type is one of: hurdle, expectation, response, outcome
+- [x] Create session record in hero_story_sessions table with status 'active'
+- [x] Store session_id (from DB) for tracking
+- [x] Call hero-story-enhancer utility with conversation start
+- [x] Store first AI message in session_data.conversation_history
+- [x] Return: `{ success: true, ai_message: string, session_id: number, is_complete: false }`
+- [x] Create `server/api/ai/hero-session/continue.post.ts`
+- [x] Accept continue request: `{ session_id, user_message }`
+- [x] Retrieve conversation state from hero_story_sessions table
+- [x] Append user message to session_data.conversation_history
+- [x] Call hero-story-enhancer utility with conversation continue
+- [x] Append AI response to session_data.conversation_history
+- [x] If conversation complete, store final_output in session_data and set session_status = 'completed', ended_at = NOW()
+- [x] Return: `{ success: true, ai_message: string, is_complete: boolean, final_output?: {field1, field2, field3} }`
+- [x] Add error handling for timeout, API errors, invalid responses
+- [x] Add request logging for debugging
 
 **Dependencies:** DB-001 (table must exist)
 **Success criteria:** Endpoints support multi-turn conversations for all 4 section types and persist to database
 
 ### BE-002: AI Enhancement Conversation Utility
-- [ ] Create `server/utils/hero-story-enhancer.ts`
-- [ ] Implement `startEnhancementConversation(sectionType, momentContext, currentValues, experience?)` function
-- [ ] Implement `continueEnhancementConversation(conversationHistory, sectionType, userMessage)` function
-- [ ] Create section-specific interactive coaching prompts for all 4 sections:
+- [x] Create `server/utils/hero-story-enhancer.ts`
+- [x] Implement `startEnhancementConversation(sectionType, momentContext, currentValues, experience?)` function
+- [x] Implement `continueEnhancementConversation(conversationHistory, sectionType, userMessage)` function
+- [x] Create section-specific interactive coaching prompts for all 4 sections:
   - Hurdle prompt (asks targeted questions for PROBLEM, SCOPE, STAKES)
   - Expectation prompt (asks targeted questions for ROLE, GOALS, CONSTRAINTS)
   - Response prompt (asks targeted questions for ACTIONS, TOOLS, CHALLENGES)
   - Outcome prompt (asks targeted questions for DELIVERABLE, METRICS, IMPACT)
-- [ ] Use Vercel AI SDK with AI Gateway (following pattern from hero-discovery-service.ts)
-- [ ] Pass full conversation history to AI on each turn
-- [ ] Detect conversation completion (parse for JSON output with conversation_complete: true)
-- [ ] Extract final structured output when conversation completes
-- [ ] Add timeout handling (30s max per turn)
-- [ ] Export custom error class `HeroEnhancementError` with error codes
+- [x] Use Vercel AI SDK with AI Gateway (following pattern from hero-discovery-service.ts)
+- [x] Pass full conversation history to AI on each turn
+- [x] Detect conversation completion (parse for JSON output with conversation_complete: true)
+- [x] Extract final structured output when conversation completes
+- [x] Add timeout handling (30s max per turn)
+- [x] Export custom error class `HeroEnhancementError` with error codes
 
 **Dependencies:** None
 **Success criteria:** Utility conducts multi-turn conversations for any section type, state is managed in database by API layer
 
 ### BE-003: Postman Collection for API Testing
-- [ ] Create `openspec/changes/add-hero-ai-assist-panel/deliverables/HERO_Section_Enhancement.postman_collection.json`
-- [ ] Add happy path tests for all 4 section types:
+- [x] Create `openspec/changes/add-hero-ai-assist-panel/deliverables/HERO_Section_Enhancement.postman_collection.json`
+- [x] Add happy path tests for all 4 section types:
   - POST /start with valid context and current_values (returns session_id)
   - POST /continue with session_id and user message
   - Multiple continue rounds until is_complete: true
   - Verify final_output structure matches section type
   - Verify session record in database has status 'completed' and ended_at set
-- [ ] Add error tests:
+- [x] Add error tests:
   - Missing section_type on start
   - Invalid section_type on start
   - Invalid session_id on continue
   - Missing user_message on continue
-- [ ] Add conversation flow tests:
+- [x] Add conversation flow tests:
   - Start → Continue → Continue → Complete flow
   - Start multiple sections simultaneously (different session_ids)
   - Abandon session (start but never complete)
-- [ ] Add database verification tests:
+- [x] Add database verification tests:
   - Verify session created with correct section_type
   - Verify conversation_history updates after each continue
   - Verify final_output stored when complete
-- [ ] Add success assertions (200 status, response structure validation)
-- [ ] Use Postman variables to store session_id between requests
-- [ ] Document setup instructions in `deliverables/POSTMAN_SETUP.md`
+- [x] Add success assertions (200 status, response structure validation)
+- [x] Use Postman variables to store session_id between requests
+- [x] Document setup instructions in `deliverables/POSTMAN_SETUP.md`
 
 **Dependencies:** BE-001, BE-002, DB-001
 **Success criteria:** All Postman tests pass, collection validates full conversation flow and database persistence
