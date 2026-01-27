@@ -88,82 +88,193 @@
 
 ## Phase 3: Frontend - AI Assistance UI
 
-### FE-001: AI Conversation Panel Component
-- [ ] Create `app/components/profile/hero/AIConversationPanel.vue`
-- [ ] Implement slide-in side panel (right edge overlay)
-- [ ] Add props: `isOpen`, `sectionType`, `momentTitle`, `momentDescription`, `currentFieldValues`, `sourceExperience`
-- [ ] Display section title as panel header
-- [ ] Display conversation history (scrollable message thread)
-- [ ] Visually distinguish AI messages from user messages
-- [ ] Add text input field for user responses
-- [ ] Add "Send" button to submit user message
-- [ ] Add "Accept" button (disabled until conversation complete, emits accept event)
-- [ ] Add "Regenerate" button (emits regenerate event to start fresh)
-- [ ] Add "Dismiss/Close" button (emits close event)
-- [ ] Show loading state during AI processing (after send)
-- [ ] Auto-scroll to latest message
-- [ ] Display error messages with retry button
-- [ ] Style with Nuxt UI components (UCard, UButton, UInput, UScrollArea)
+### FE-001: Hero Story AI Container Panel
+- [x] Create `app/components/profile/hero/HeroStoryAIPanel.vue` (main container, like `@app/components/profile/EnhancementPane.vue`)
+- [x] Implement as a slide-in right-side panel using Nuxt UI Slideover (similar to `@app/pages/profile/experience.vue` enhancement drawer)
+- [x] Design structure matching `EnhancementPane.vue`:
+  - Header with section title, progress indicator (showing step 1-4), and close button (i-lucide-x)
+  - Main scrollable content area for rendering current step pane
+  - Footer with Back/Next/Accept/Dismiss buttons
+- [x] Add props: `isOpen`, `storyId`, `initialSectionType` (hurdle|expectation|response|outcome)
+- [x] Add state: `currentStep` ref (1-4, corresponding to Hurdle/Expectation/Response/Outcome)
+- [x] Add computed step labels: 
+  - Step 1: "Hurdle - The Challenge"
+  - Step 2: "Expectation - Your Role & Goals"
+  - Step 3: "Response - Your Actions"
+  - Step 4: "Outcome - The Results"
+- [x] Add progress bar showing current step out of 4 (like `EnhancementPane.vue` line 214-218)
+- [x] Conditionally render sub-pane components based on currentStep:
+  - Step 1: `HeroHurdleAIPane`
+  - Step 2: `HeroExpectationAIPane`
+  - Step 3: `HeroResponseAIPane`
+  - Step 4: `HeroOutcomeAIPane`
+- [x] Implement Next button: advance currentStep (generate AI suggestions at end of each step)
+- [x] Implement Back button: go back to previous step
+- [x] Implement Accept button (visible only on last step): emit accept event with all collected suggestions
+- [x] Implement Dismiss button: emit close event without accepting
+- [x] Manage overall state for all 4 steps' answers and suggestions
+- [x] Handle step transitions with loading state during AI suggestion generation
 
-**Dependencies:** None (can build with mock data)
-**Success criteria:** Panel displays conversation flow, all buttons emit correct events, UI supports chat-like interaction
+**Dependencies:** None
+**Success criteria:** Container manages 4-step flow with navigation, conditionally renders sub-panes, buttons work correctly
 
-### FE-002: Get AI Help Buttons in Form
-- [ ] Modify `app/components/profile/hero/HeroStoryCard.vue`
-- [ ] Add "Get AI Help" button to Hurdle section header
-- [ ] Add "Get AI Help" button to Expectation section header
-- [ ] Add "Get AI Help" button to Response section header
-- [ ] Add "Get AI Help" button to Outcome section header
-- [ ] Implement button disabled state (all 3 section fields empty)
-- [ ] Wire button click to open AI panel with section type and current values
-- [ ] Pass section-specific answers to panel (e.g., hurdleProblem, hurdleScope, hurdleStakes)
+### FE-002: Hurdle AI Pane (Step 1)
+- [x] Create `app/components/profile/hero/HeroHurdleAIPane.vue` (step 1 of 4)
+- [x] Display: "Hurdle - The Challenge" as section header
+- [x] Implement grouped question structure with 3 groups matching `@app/components/profile/EnhancementQuestionRound.vue`:
+  - **Group 1 - Problem**: Question "Tell us about the problem you faced"
+  - **Group 2 - Scope**: Question "Define the scope and size of the problem"
+  - **Group 3 - Stakes**: Question "What were the stakes? Why did it matter?"
+- [x] For each group:
+  - Show collapsible group header with group name and question count
+  - Display single question with textarea input (like EnhancementQuestionRound line 278-284)
+  - Show status badge: Answered/Skipped/Unanswered
+  - Add Skip button and Save button below textarea
+- [x] Store answers in real-time as user types
+- [x] Track skipped questions
+- [x] Validation: at least one question must be answered to proceed (handled by parent)
+- [x] On "Next" click in parent, generate AI suggestions for hurdle using all 3 answers via `POST /api/ai/hero-session/continue` (parent handles API)
+- [x] Display AI suggestions in read-only format after generation
+- [x] Show loading spinner during AI generation (line 145-150 pattern from EnhancementQuestionRound)
 
-**Dependencies:** None (buttons can be added before panel integration)
-**Success criteria:** Buttons appear in all 4 sections, disabled logic works correctly
+**Dependencies:** FE-001
+**Success criteria:** Step 1 displays Problem/Scope/Stakes groups with questions, collapsible groups, status badges, real-time answer storage
 
-### FE-003: Store Actions for AI Conversation
-- [ ] Modify `app/stores/careerIDStore.ts`
-- [ ] Add state: `aiConversation` with fields:
-  - `session_id: number | null`
-  - `section_type: string | null`
-  - `conversation_history: Array<{role: 'assistant' | 'user', content: string}>`
-  - `is_active: boolean`
-  - `is_complete: boolean`
-  - `final_output: Record<string, string> | null`
-- [ ] Add state: `isEnhancing: boolean`
-- [ ] Add state: `enhancementError: string | null`
-- [ ] Add action: `startEnhancement(profileId, storyId, sectionType, momentTitle, momentDescription, momentId, currentValues, sourceExperience?)`
-- [ ] Call `POST /api/ai/hero-story/enhance-section/start` and store session_id
-- [ ] Add action: `continueEnhancement(userMessage)`
-- [ ] Call `POST /api/ai/hero-story/enhance-section/continue` with session_id
-- [ ] Update conversation_history with each message
-- [ ] Set is_complete when API returns is_complete: true
-- [ ] Store final_output when conversation completes
-- [ ] Add action: `regenerateEnhancement()` to restart conversation (new session)
-- [ ] Add action: `dismissEnhancement()` to clear conversation state (marks session as 'abandoned' in DB)
-- [ ] Update state on errors with error message
+### FE-003: Expectation AI Pane (Step 2)
+- [ ] Create `app/components/profile/hero/HeroExpectationAIPane.vue` (step 2 of 4)
+- [ ] Display: "Expectation - Your Role & Goals" as section header
+- [ ] Implement grouped question structure with 3 groups:
+  - **Group 1 - Role**: Question "Describe your role and responsibilities"
+  - **Group 2 - Goals**: Question "What were your goals in this situation?"
+  - **Group 3 - Constraints**: Question "What constraints or limitations did you face?"
+- [ ] Match HeroHurdleAIPane structure: collapsible groups, textareas, status badges, skip/save buttons
+- [ ] Store answers in real-time
+- [ ] Track skipped questions
+- [ ] Validation: at least one question must be answered to proceed
+- [ ] On "Next" click in parent, generate AI suggestions using all 3 answers
+- [ ] Display AI suggestions in read-only format after generation
+- [ ] Show loading spinner during AI generation
+
+**Dependencies:** FE-001
+**Success criteria:** Step 2 displays Role/Goals/Constraints groups with questions, matches Step 1 UX pattern
+
+### FE-004: Response AI Pane (Step 3)
+- [ ] Create `app/components/profile/hero/HeroResponseAIPane.vue` (step 3 of 4)
+- [ ] Display: "Response - Your Actions" as section header
+- [ ] Implement grouped question structure with 3 groups:
+  - **Group 1 - Actions**: Question "What specific actions did you take?"
+  - **Group 2 - Tools**: Question "What tools, technologies, or resources did you use?"
+  - **Group 3 - Challenges**: Question "What challenges did you face while executing?"
+- [ ] Match HeroHurdleAIPane structure: collapsible groups, textareas, status badges, skip/save buttons
+- [ ] Store answers in real-time
+- [ ] Track skipped questions
+- [ ] Validation: at least one question must be answered to proceed
+- [ ] On "Next" click in parent, generate AI suggestions using all 3 answers
+- [ ] Display AI suggestions in read-only format after generation
+- [ ] Show loading spinner during AI generation
+
+**Dependencies:** FE-001
+**Success criteria:** Step 3 displays Actions/Tools/Challenges groups with questions, matches Step 1-2 UX pattern
+
+### FE-005: Outcome AI Pane (Step 4)
+- [ ] Create `app/components/profile/hero/HeroOutcomeAIPane.vue` (step 4 of 4)
+- [ ] Display: "Outcome - The Results" as section header
+- [ ] Implement grouped question structure with 3 groups:
+  - **Group 1 - Deliverable**: Question "What was the final deliverable or outcome?"
+  - **Group 2 - Metrics**: Question "How did you measure success? What were the metrics?"
+  - **Group 3 - Impact**: Question "What was the impact? How did this matter?"
+- [ ] Match HeroHurdleAIPane structure: collapsible groups, textareas, status badges, skip/save buttons
+- [ ] Store answers in real-time
+- [ ] Track skipped questions
+- [ ] Validation: at least one question must be answered to proceed
+- [ ] On "Accept" click in parent, generate final AI suggestions using all 3 answers
+- [ ] Display AI suggestions in read-only format after generation
+- [ ] Show loading spinner during AI generation
+- [ ] This is the final step before accepting suggestions
+
+**Dependencies:** FE-001
+**Success criteria:** Step 4 displays Deliverable/Metrics/Impact groups with questions, triggers final AI generation on accept
+
+### FE-006: Hero Moments AI Enhancement Button
+- [x] Modify hero story form component (e.g., `HeroStoryCard.vue` or hero form parent)
+- [x] Add "Get AI Help" button to form header or beginning of form
+- [x] Pattern: Similar to `@app/pages/profile/experience.vue` line 689-695 (sparkles icon button)
+- [x] Button label: "Get AI Help" or icon-only sparkles button
+- [x] Implement button disabled state: disable if form is empty (no section has any data) - enabled when editing existing stories
+- [x] Wire button click to open HeroStoryAIPanel with initialSectionType="hurdle" (always start with Step 1)
+- [x] Show sparkles icon with color="primary" variant="ghost" size="sm"
+- [x] Wire "Develop into HERO Story" button on MomentCard to open AI panel
+- [ ] Add visual indicator when enhancement has been applied (badge like in experience.vue line 676-683)
+
+**Dependencies:** FE-001 through FE-005
+**Success criteria:** Single "Get AI Help" button appears, proper disabled state, opens container panel at Step 1
+
+### FE-007: Store Actions for Hero Story AI Enhancement
+- [ ] Modify `app/stores/careerIDStore.ts` or create `app/stores/heroStoryAIStore.ts`
+- [ ] Add state: `heroAIPanel` with fields:
+  - `isOpen: boolean`
+  - `currentStoryId: number | null`
+  - `allStepAnswers: Record<string, Record<string, string>>` (stores answers for all 4 steps: { hurdle: {...}, expectation: {...}, response: {...}, outcome: {...} })
+  - `allStepSuggestions: Record<string, Record<string, string>> | null` (AI suggestions for all 4 steps)
+  - `currentSessionId: number | null`
+  - `isGeneratingSuggestions: boolean`
+  - `error: string | null`
+- [ ] Add action: `openHeroAIPanel(storyId: number)`
+  - Sets panel state to open
+  - Initializes currentStoryId
+  - Clears previous answers/suggestions
+- [ ] Add action: `startHeroAIEnhancement(storyId, stepAnswers)` (called at end of each step)
+  - Calls `POST /api/ai/hero-session/start` with section_type (hurdle/expectation/response/outcome) and current_values (answers for that step)
+  - Stores session_id
+  - Returns initial AI message/suggestions
+- [ ] Add action: `continueHeroAIEnhancement(stepType, userAnswers)` (called when moving to next step)
+  - Calls `POST /api/ai/hero-session/continue` with accumulated user answers
+  - Stores returned suggestions for that step
+  - Returns is_complete flag
+- [ ] Add action: `acceptHeroAISuggestions()`
+  - Returns all suggestions from allStepSuggestions
+  - Marks all sections as enhanced
+  - Closes panel
+- [ ] Add action: `dismissHeroAIPanel()`
+  - Marks session as abandoned if needed
+  - Clears panel state without affecting form
+  - Closes panel
 
 **Dependencies:** BE-001 (API must exist)
-**Success criteria:** Store manages full conversation lifecycle with proper state transitions and session tracking
+**Success criteria:** Store manages multi-step flow, tracks answers/suggestions for all 4 hero sections, handles session lifecycle
 
-### FE-004: Integrate Conversation Panel with Form
-- [ ] Wire "Get AI Help" button clicks to call `startEnhancement()` action
-- [ ] Pass moment title, description, current field values, and source experience to action
-- [ ] Show AIConversationPanel when `aiConversation.is_active` is true
-- [ ] Display conversation history from store in panel
-- [ ] Handle user message send: call `continueEnhancement(userMessage)` action
-- [ ] Handle "Accept" event: populate form fields with `final_output`, call `dismissEnhancement()`
-- [ ] Handle "Regenerate" event: call `regenerateEnhancement()` with updated field values
-- [ ] Handle "Dismiss" event: call `dismissEnhancement()` without changing form
-- [ ] Map section type to correct form fields for accept:
-  - hurdle → hurdleProblem, hurdleScope, hurdleStakes
-  - expectation → expectationRole, expectationGoals, expectationConstraints
-  - response → responseActions, responseTools, responseChallenges
-  - outcome → outcomeDeliverable, outcomeMetrics, outcomeImpact
-- [ ] Extract source experience from form state (if story has sourceExperienceId)
+### FE-008: Integrate Hero Story AI Panel with Form
+- [ ] Modify hero story form component to render HeroStoryAIPanel
+- [ ] Wire "Get AI Help" button to `openHeroAIPanel(storyId)` action
+- [ ] Render `HeroStoryAIPanel` component in template with:
+  - `:isOpen="heroAIPanel.isOpen"`
+  - `:storyId="currentStoryId"`
+  - `@accept="handleAcceptSuggestions"`
+  - `@close="dismissHeroAIPanel"`
+- [ ] Pass current form values to store when opening panel
+- [ ] Handle "Accept" event:
+  - Extract suggestions from `heroAIPanel.allStepSuggestions`
+  - Map suggestions to form fields:
+    - hurdle.suggestion1 → hurdleProblem
+    - hurdle.suggestion2 → hurdleScope
+    - hurdle.suggestion3 → hurdleStakes
+    - expectation.suggestion1 → expectationRole
+    - expectation.suggestion2 → expectationGoals
+    - expectation.suggestion3 → expectationConstraints
+    - response.suggestion1 → responseActions
+    - response.suggestion2 → responseTools
+    - response.suggestion3 → responseChallenges
+    - outcome.suggestion1 → outcomeDeliverable
+    - outcome.suggestion2 → outcomeMetrics
+    - outcome.suggestion3 → outcomeImpact
+  - Update form with AI suggestions
+  - Call `acceptHeroAISuggestions()` to close panel
+- [ ] Handle "Dismiss" event: call `dismissHeroAIPanel()` without modifying form
+- [ ] Display success toast when suggestions accepted
+- [ ] Show error toast if AI generation fails during any step
 
-**Dependencies:** FE-001, FE-002, FE-003
-**Success criteria:** Complete conversation flow works: click help → chat with AI → accept → form updates
+**Dependencies:** FE-001 through FE-007
+**Success criteria:** Complete 4-step flow works: click help → Step 1 (Hurdle) → Step 2 (Expectation) → Step 3 (Response) → Step 4 (Outcome) → accept → form updates with all suggestions
 
 ## Phase 4: Documentation & Deliverables
 

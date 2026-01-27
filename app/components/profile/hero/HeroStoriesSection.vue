@@ -18,6 +18,7 @@ const emit = defineEmits<{
   delete: [story: HeroStory]
   save: [payload: { story: HeroStory; updates: Partial<HeroStory> }]
   cancel: []
+  openAIHelp: [storyId: string]
 }>()
 
 // Collapsible state
@@ -47,6 +48,10 @@ function handleSave(story: HeroStory, updates: Partial<HeroStory>) {
     story,
     updates
   })
+}
+
+function handleOpenAIHelp(storyId: string) {
+  emit('openAIHelp', storyId)
 }
 </script>
 
@@ -129,6 +134,7 @@ function handleSave(story: HeroStory, updates: Partial<HeroStory>) {
           :story="story"
           @delete="handleDelete(story)"
           @save="(updates) => handleSave(story, updates)"
+          @open-a-i-help="handleOpenAIHelp"
         />
       </div>
     </template>

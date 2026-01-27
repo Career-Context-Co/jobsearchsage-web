@@ -23,6 +23,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   develop: [moment: Moment]
+  developWithAI: [moment: Moment]
   remove: [moment: Moment]
   save: [payload: { moment: Moment; updates: { title: string; rawNotes: string } }]
   cancel: [moment: Moment]
@@ -45,6 +46,10 @@ function toggleExpanded() {
 
 function handleDevelop(moment: Moment) {
   emit('develop', moment)
+}
+
+function handleDevelopWithAI(moment: Moment) {
+  emit('developWithAI', moment)
 }
 
 function handleRemove(moment: Moment) {
@@ -146,6 +151,7 @@ function handleStartSession() {
           :moment="moment"
           context="management"
           @develop="handleDevelop(moment)"
+          @develop-with-a-i="handleDevelopWithAI(moment)"
           @remove="handleRemove(moment)"
           @save="(updates) => handleSave(moment, updates)"
           @cancel="() => handleCancel(moment)"

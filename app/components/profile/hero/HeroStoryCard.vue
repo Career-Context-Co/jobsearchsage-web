@@ -12,6 +12,7 @@ const emit = defineEmits<{
   delete: [storyId: string]
   save: [payload: Partial<HeroStory>]
   cancel: []
+  openAIHelp: [storyId: string]
 }>()
 
 const isEditing = ref(false)
@@ -101,6 +102,10 @@ function handleDelete() {
   emit('delete', props.story.id)
 }
 
+function handleOpenAIHelp() {
+  emit('openAIHelp', props.story.id)
+}
+
 const isTitleEmpty = computed(() => !formData.value.title.trim())
 </script>
 
@@ -108,6 +113,20 @@ const isTitleEmpty = computed(() => !formData.value.title.trim())
   <UPageCard v-if="isEditing" variant="subtle">
     <!-- Edit Mode -->
     <div class="space-y-4">
+      <!-- Header with AI Help Button -->
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-lg font-semibold">Edit HERO Story</h3>
+        <UButton
+          label="Get AI Help"
+          icon="i-lucide-sparkles"
+          color="primary"
+          variant="ghost"
+          size="sm"
+          class="cursor-pointer"
+          @click="handleOpenAIHelp"
+        />
+      </div>
+      
       <!-- Title Section -->
       <div>
         <label class="block text-lg font-medium mb-1">Story Title <span class="text-error">*</span></label>

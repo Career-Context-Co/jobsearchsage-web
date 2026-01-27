@@ -108,15 +108,6 @@ function handleDevelopStory() {
       </div>
       <div class="flex items-center gap-2">
         <UButton
-          label="End Session"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          class="cursor-pointer"
-          :disabled="isLoading || isSessionComplete"
-          @click="handleEndSession"
-        />
-        <UButton
           icon="i-lucide-x"
           color="neutral"
           variant="ghost"

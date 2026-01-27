@@ -23,6 +23,21 @@ const savedDiscoverySessions = new Set<number>()
 // Show create form inline
 const isShowingCreateForm = ref(false)
 
+// AI Panel state
+const isAIPanelOpen = ref(false)
+const currentStoryIdForAI = ref<string | null>(null)
+const sessionPaneRef = ref<any>(null)
+const paneCanGoBack = computed(() => sessionPaneRef.value?.canGoBack?.value ?? false)
+const paneIsLastStep = computed(() => sessionPaneRef.value?.isLastStep?.value ?? false)
+const paneCurrentStep = computed(() => sessionPaneRef.value?.currentStep?.value ?? 1)
+const paneIsGenerating = computed(() => sessionPaneRef.value?.isGeneratingSuggestions?.value ?? false)
+const paneNextLabel = computed(() => {
+  if (paneIsLastStep.value) return 'Accept Suggestions'
+  if (paneCurrentStep.value === 1) return 'Next: Expectation'
+  if (paneCurrentStep.value === 2) return 'Next: Response'
+  return 'Next: Outcome'
+})
+
 // Inline form state for creating new story only
 const formDataForCreate = ref({
   title: '',
@@ -310,6 +325,101 @@ function handleMomentDevelop(moment?: { title?: string; source_experience_id?: s
   })
 }
 
+function handleMomentDevelopWithAI(moment?: { title?: string; source_experience_id?: string | number | null }) {
+  // Pre-fill create form with moment data
+  const sourceExperienceId = normalizeSourceExperienceId(moment?.source_experience_id)
+
+  if (moment?.title) {
+    formDataForCreate.value.title = moment.title.trim()
+  }
+  if (sourceExperienceId !== null) {
+    formDataForCreate.value.sourceExperienceId = sourceExperienceId
+  }
+  
+  currentStoryIdForAI.value = 'create'
+  isAIPanelOpen.value = true
+}
+
+// AI Panel functions
+function openAIPanel() {
+  // Use a temporary ID for create form
+  currentStoryIdForAI.value = 'create'
+  isAIPanelOpen.value = true
+}
+
+function openAIPanelForStory(storyId: string) {
+  currentStoryIdForAI.value = storyId
+  isAIPanelOpen.value = true
+}
+
+function closeAIPanel() {
+  isAIPanelOpen.value = false
+  currentStoryIdForAI.value = null
+}
+
+function handleAcceptAISuggestions(suggestions: Record<string, Record<string, string>>) {
+  // Apply suggestions to the create form
+  if (suggestions.hurdle) {
+    formDataForCreate.value.hurdleProblem = suggestions.hurdle.problem || formDataForCreate.value.hurdleProblem
+    formDataForCreate.value.hurdleScope = suggestions.hurdle.scope || formDataForCreate.value.hurdleScope
+    formDataForCreate.value.hurdleStakes = suggestions.hurdle.stakes || formDataForCreate.value.hurdleStakes
+  }
+  if (suggestions.expectation) {
+    formDataForCreate.value.expectationRole = suggestions.expectation.role || formDataForCreate.value.expectationRole
+    formDataForCreate.value.expectationGoals = suggestions.expectation.goals || formDataForCreate.value.expectationGoals
+    formDataForCreate.value.expectationConstraints = suggestions.expectation.constraints || formDataForCreate.value.expectationConstraints
+  }
+  if (suggestions.response) {
+    formDataForCreate.value.responseActions = suggestions.response.actions || formDataForCreate.value.responseActions
+    formDataForCreate.value.responseTools = suggestions.response.tools || formDataForCreate.value.responseTools
+    formDataForCreate.value.responseChallenges = suggestions.response.challenges || formDataForCreate.value.responseChallenges
+  }
+  if (suggestions.outcome) {
+    formDataForCreate.value.outcomeDeliverable = suggestions.outcome.deliverable || formDataForCreate.value.outcomeDeliverable
+    formDataForCreate.value.outcomeMetrics = suggestions.outcome.metrics || formDataForCreate.value.outcomeMetrics
+    formDataForCreate.value.outcomeImpact = suggestions.outcome.impact || formDataForCreate.value.outcomeImpact
+  }
+  
+  closeAIPanel()
+  
+  toast.add({
+    title: 'Success',
+    description: 'AI suggestions applied to your story.',
+    icon: 'i-lucide-check',
+    color: 'success'
+  })
+}
+
+function handlePaneBack() {
+  sessionPaneRef.value?.handleBack?.()
+}
+
+function handlePaneNextOrAccept() {
+  if (paneIsLastStep.value) {
+    sessionPaneRef.value?.handleAccept?.()
+    return
+  }
+  sessionPaneRef.value?.handleNext?.()
+}
+
+// Check if form has any data (for AI button disabled state)
+const hasFormData = computed(() => {
+  return !!(
+    formDataForCreate.value.hurdleProblem ||
+    formDataForCreate.value.hurdleScope ||
+    formDataForCreate.value.hurdleStakes ||
+    formDataForCreate.value.expectationRole ||
+    formDataForCreate.value.expectationGoals ||
+    formDataForCreate.value.expectationConstraints ||
+    formDataForCreate.value.responseActions ||
+    formDataForCreate.value.responseTools ||
+    formDataForCreate.value.responseChallenges ||
+    formDataForCreate.value.outcomeDeliverable ||
+    formDataForCreate.value.outcomeMetrics ||
+    formDataForCreate.value.outcomeImpact
+  )
+})
+
 async function handleMomentSave(payload: { moment: { id: string | number }; updates: { title: string; rawNotes: string } }) {
   if (!profileId.value) return
   await careerIDStore.updateMoment(profileId.value, payload.moment.id, {
@@ -347,10 +457,23 @@ onMounted(async () => {
 
     <!-- Create/Edit Story Form -->
     <div v-if="isShowingCreateForm" class="mb-6">
-      <UPageCard
-        title="Create New HERO Story"
-        variant="subtle"
-      >
+      <UPageCard variant="subtle">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold">Create New HERO Story</h3>
+            <UButton
+              label="Get AI Help"
+              icon="i-lucide-sparkles"
+              color="primary"
+              variant="ghost"
+              size="sm"
+              class="cursor-pointer"
+              :disabled="!hasFormData"
+              @click="openAIPanel"
+            />
+          </div>
+        </template>
+        
         <div class="space-y-4">
           <!-- Title Section -->
           <div>
@@ -547,6 +670,7 @@ onMounted(async () => {
         @create="startAddingStory"
         @delete="handleDeleteStory"
         @save="handleSaveStory"
+        @open-a-i-help="openAIPanelForStory"
       />
     </div>
 
@@ -557,6 +681,7 @@ onMounted(async () => {
         :is-loading="isLoading"
         :error="error"
         @develop="handleMomentDevelop"
+        @develop-with-a-i="handleMomentDevelopWithAI"
         @remove="handleMomentRemove"
         @save="handleMomentSave"
         @start-session="openDiscoverySession"
@@ -597,4 +722,86 @@ onMounted(async () => {
       </div>
     </template>
   </UDrawer>
+
+  <!-- AI Help Panel Slideover -->
+  <USlideover
+    v-model:open="isAIPanelOpen"
+    side="right"
+    :overlay="false"
+    :dismissible="true"
+    :modal="false"
+    :inset="true"
+    :ui="{ content: 'max-w-2xl w-full' }"
+    @update:open="(open) => { if (!open) closeAIPanel() }"
+  >
+    <template #header="{ close }">
+      <div class="w-full flex items-start justify-between gap-4">
+        <div class="flex-1">
+          <h2 class="text-lg font-semibold">Get AI Help for Your Story</h2>
+          <p class="text-sm text-muted mt-1">{{ `Section ${paneCurrentStep} of 4` }}: {{ paneCurrentStep === 1 ? 'Hurdle - The Challenge' : paneCurrentStep === 2 ? 'Expectation - Your Role & Goals' : paneCurrentStep === 3 ? 'Response - Your Actions' : 'Outcome - The Results' }}</p>
+          <UProgress
+            :model-value="paneCurrentStep"
+            :max="4"
+            class="mt-2"
+          />
+        </div>
+        <UButton
+          icon="i-lucide-x"
+          color="neutral"
+          variant="ghost"
+          size="md"
+          class="cursor-pointer"
+          @click="close"
+        />
+      </div>
+    </template>
+    <template #body>
+      <div class="h-full">
+        <ProfileHeroSessionPane
+          v-if="currentStoryIdForAI"
+          ref="sessionPaneRef"
+          :story-id="currentStoryIdForAI"
+          :initial-section-type="'hurdle'"
+          @close="closeAIPanel"
+          @accept="handleAcceptAISuggestions"
+        />
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex items-center justify-between w-full">
+        <UButton
+          v-if="paneCanGoBack"
+          label="Back"
+          icon="i-lucide-arrow-left"
+          color="neutral"
+          variant="outline"
+          class="cursor-pointer"
+          :disabled="paneIsGenerating"
+          @click="handlePaneBack"
+        />
+        <div v-else class="flex-1" />
+
+        <div class="flex gap-2">
+          <UButton
+            label="Dismiss"
+            color="neutral"
+            variant="ghost"
+            class="cursor-pointer"
+            :disabled="paneIsGenerating"
+            @click="closeAIPanel"
+          />
+          <UButton
+            :label="paneNextLabel"
+            :icon="paneIsLastStep ? 'i-lucide-check' : 'i-lucide-arrow-right'"
+            :trailing="!paneIsLastStep"
+            color="primary"
+            class="cursor-pointer"
+            :loading="paneIsGenerating"
+            :disabled="paneIsGenerating"
+            @click="handlePaneNextOrAccept"
+          />
+        </div>
+      </div>
+    </template>
+  </USlideover>
 </template>

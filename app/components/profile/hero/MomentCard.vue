@@ -23,6 +23,7 @@ const emit = defineEmits<{
   edit: []
   remove: []
   develop: []
+  developWithAI: []
   save: [payload: { title: string; raw_notes: string }]
   cancel: []
 }>()
@@ -67,6 +68,10 @@ function handleRemove() {
 
 function handleDevelop() {
   emit('develop')
+}
+
+function handleDevelopWithAI() {
+  emit('developWithAI')
 }
 
 function handleCancel() {
@@ -192,7 +197,7 @@ function handleSave() {
             size="sm"
             class="cursor-pointer"
             :disabled="isEditing"
-            @click="handleDevelop"
+            @click="handleDevelopWithAI"
           />
         </template>
       </div>
