@@ -269,49 +269,57 @@
 **Dependencies:** FE-001 through FE-005
 **Success criteria:** Single "Get AI Help" button appears, proper disabled state, opens container panel at Step 1
 
-### FE-007: Store API Wrappers for Hero Story AI Enhancement (OPTIONAL)
-- [ ] **NOTE:** This task may not be needed - SessionPane can call APIs directly via `$fetch` (following existing pattern)
-- [ ] **If centralization is desired:** Modify `app/stores/sageAIStore.ts` (follows pattern of hero discovery session methods)
-- [ ] Add optional cache state: `heroEnhancementSessionId: number | null` (for session recovery if needed)
-- [ ] Add action: `startHeroEnhancementSession(profileId: string, storyId: string, sectionType: string, currentValues: Record<string, string>, momentTitle?: string, momentDescription?: string)`
+### FE-007: Store Methods for Hero Enhancement Sessions
+- [x] **NOTE:** All API calls must go through stores (project convention)
+- [x] Modify `app/stores/sageAIStore.ts` to add hero enhancement session lifecycle methods (follows pattern of existing `startDiscoverySession`, `continueDiscoverySession`, `endDiscoverySession`)
+- [x] Add state: `heroEnhancementSession: { id: number | null, profile_id: string | null, story_id: string | null, section_type: string | null } | null`
+- [x] Add action: `startHeroEnhancementSession(profileId: string, storyId: string, sectionType: string, currentValues: Record<string, string>, momentTitle?: string, momentDescription?: string)`
   - Calls `POST /api/ai/hero-session/start`
   - Pass: `profile_id`, `story_id`, `section_type`, `current_values`, optional `moment_title`, `moment_description`
   - Returns: `{ session_id, ai_message, suggestions }`
-  - Store session_id in `heroEnhancementSessionId` for reference
+  - Store session data in `heroEnhancementSession` state
   - Handle errors and throw with descriptive messages
-- [ ] Add action: `continueHeroEnhancementSession(sessionId: number, userMessage: string)`
+  - Set `isLoading = true` during call
+- [x] Add action: `continueHeroEnhancementSession(sessionId: number, userMessage: string)`
   - Calls `POST /api/ai/hero-session/continue`
   - Pass: `session_id`, `user_message`
   - Returns: `{ ai_message, is_complete, final_output? }`
   - Handle errors and throw with descriptive messages
-- [ ] Add action: `endHeroEnhancementSession(sessionId: number)` (optional, for cleanup)
+  - Set `isLoading = true` during call
+- [x] Add action: `endHeroEnhancementSession(sessionId: number, status?: 'completed' | 'abandoned')`
   - Calls `POST /api/ai/hero-session/end` (if endpoint exists)
-  - Clears `heroEnhancementSessionId`
+  - Clears `heroEnhancementSession` state
   - Marks session as completed or abandoned
+- [x] **Note:** CRUD operations on hero stories (saving AI-generated content) already exist in `careerIDStore.ts` (`updateStory()`, `createStory()`)
 
 **Dependencies:** BE-001 (API must exist)
-**Success criteria:** Store provides clean API wrappers for backend calls, no UI state management, follows sageAIStore pattern
-**Note:** Can be skipped if SessionPane calls APIs directly
+**Success criteria:** sageAIStore provides hero enhancement session lifecycle methods following discovery session pattern, careerIDStore already handles story CRUD
 
-### FE-008: Wire SessionPane AI Calls (Already Mostly Complete)
+### FE-008: Wire SessionPane to Store Methods
 - [x] SessionPane component already exists and manages all internal state (`@app/components/profile/hero/SessionPane.vue`)
 - [x] hero.vue already has slideover integration with SessionPane (`@app/pages/profile/hero.vue`)
 - [x] "Get AI Help" button already exists in hero.vue (line 465-473)
 - [x] SessionPane already emits `@accept` event with suggestions
 - [x] hero.vue already handles accept event with `handleAcceptAISuggestions()` (line 360-391)
-- [ ] **Only remaining work:** Wire SessionPane's `generateSuggestionsForCurrentStep()` to call actual API
-  - Update `SessionPane.vue` line 129-168 to replace mock logic
-  - Call `POST /api/ai/hero-session/start` or `POST /api/ai/hero-session/continue`
-  - Use store action from FE-007 OR call API directly with `$fetch`
+- [ ] **Wire SessionPane to sageAIStore:**
+  - Update `SessionPane.vue` line 129-168 in `generateSuggestionsForCurrentStep()` to replace mock logic
+  - Import and use `useSageAIStore()`
+  - On first call (session doesn't exist): Call `sageAIStore.startHeroEnhancementSession()` with current section type and answers
+  - On subsequent calls: Call `sageAIStore.continueHeroEnhancementSession()` with session_id and user message
+  - Store returned suggestions in `allStepSuggestions` ref
+  - Use `sageAIStore.isLoading` for loading state instead of local `isGeneratingSuggestions`
+  - On panel close/dismiss: Call `sageAIStore.endHeroEnhancementSession()` with 'abandoned' status
+  - On accept: Call `sageAIStore.endHeroEnhancementSession()` with 'completed' status
 - [ ] **Test the full flow:**
   - Click "Get AI Help" button → SessionPane opens
-  - Answer questions in Step 1 (Hurdle) → Submit → see mock suggestions
-  - Navigate through Steps 2-4 (Expectation, Response, Outcome)
+  - Answer questions in Step 1 (Hurdle) → Submit → verify real API call to `/api/ai/hero-session/start`
+  - Navigate through Steps 2-4 → verify API calls to `/api/ai/hero-session/continue`
   - Accept suggestions → verify form fields populated correctly
+  - Verify suggestions saved to hero story via `careerIDStore.updateStory()` or `createStory()`
   - Verify toast notifications display
 
-**Dependencies:** FE-001 through FE-005 (all complete), BE-001 (API exists), optionally FE-007
-**Success criteria:** Complete 4-step flow works with real API calls: click help → answer questions in each step → AI generates suggestions → accept → form updates with all suggestions
+**Dependencies:** FE-001 through FE-007 (all must be complete), BE-001 (API exists)
+**Success criteria:** SessionPane calls sageAIStore methods (no direct API calls), full 4-step flow works with real API integration, hero story CRUD uses careerIDStore
 
 ## Phase 4: Documentation & Deliverables
 

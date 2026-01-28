@@ -119,6 +119,9 @@ async function handleSaveNewStory() {
       throw new Error('Profile is required to create a story')
     }
 
+    // Clear any existing errors before attempting create
+    careerIDStore.error = null
+
     const created = await careerIDStore.createStory(profileId.value, {
       title: formDataForCreate.value.title.trim(),
       hurdleProblem: formDataForCreate.value.hurdleProblem.trim() || null,
@@ -145,9 +148,10 @@ async function handleSaveNewStory() {
     
     cancelAddingStory()
   } catch (err: any) {
+    // Error is already set in the store, just show a toast
     toast.add({
       title: 'Error',
-      description: err?.message || 'Failed to save HERO story',
+      description: 'Failed to save HERO story. Please try again.',
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
@@ -170,6 +174,9 @@ async function handleSaveStory(payload: { story?: HeroStory; updates?: Partial<H
   if (!storyId || !profileId.value || !payload.updates) return
 
   try {
+    // Clear any existing errors before attempting update
+    careerIDStore.error = null
+    
     await careerIDStore.updateStory(profileId.value, storyId, payload.updates)
     toast.add({
       title: 'Success',
@@ -178,9 +185,10 @@ async function handleSaveStory(payload: { story?: HeroStory; updates?: Partial<H
       color: 'success'
     })
   } catch (err: any) {
+    // Error is already set in the store, just show a toast
     toast.add({
       title: 'Error',
-      description: err?.message || 'Failed to update HERO story',
+      description: 'Failed to update HERO story. Please try again.',
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
@@ -196,6 +204,10 @@ async function handleDeleteStory(story: HeroStory) {
     if (!profileId.value) {
       throw new Error('Profile is required to delete a story')
     }
+    
+    // Clear any existing errors before attempting delete
+    careerIDStore.error = null
+    
     await careerIDStore.deleteStory(profileId.value, story.id)
     toast.add({
       title: 'Success',
@@ -204,9 +216,10 @@ async function handleDeleteStory(story: HeroStory) {
       color: 'success'
     })
   } catch (err: any) {
+    // Error is already set in the store, just show a toast
     toast.add({
       title: 'Error',
-      description: err?.message || 'Failed to delete HERO story',
+      description: 'Failed to delete HERO story. Please try again.',
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
@@ -676,7 +689,6 @@ onMounted(async () => {
       <ProfileHeroStoriesSection
         :stories="heroStories"
         :is-loading="isLoading"
-        :error="error"
         @create="startAddingStory"
         @delete="handleDeleteStory"
         @save="handleSaveStory"
@@ -689,7 +701,6 @@ onMounted(async () => {
       <ProfileHeroDiscoveredMomentsSection
         :moments="heroMoments"
         :is-loading="isLoading"
-        :error="error"
         @develop="handleMomentDevelop"
         @develop-with-a-i="handleMomentDevelopWithAI"
         @remove="handleMomentRemove"
