@@ -27,14 +27,24 @@ const isShowingCreateForm = ref(false)
 const isAIPanelOpen = ref(false)
 const currentStoryIdForAI = ref<string | null>(null)
 const sessionPaneRef = ref<any>(null)
-const paneCanGoBack = computed(() => sessionPaneRef.value?.canGoBack?.value ?? false)
-const paneIsLastStep = computed(() => sessionPaneRef.value?.isLastStep?.value ?? false)
-const paneCurrentStep = computed(() => sessionPaneRef.value?.currentStep?.value ?? 1)
-const paneIsGenerating = computed(() => sessionPaneRef.value?.isGeneratingSuggestions?.value ?? false)
+const aiPanelCurrentStep = ref<1 | 2 | 3 | 4>(1)
+const aiPanelIsGenerating = ref(false)
+
+// Computed values for header and footer
+const stepLabels: Record<1 | 2 | 3 | 4, string> = {
+  1: 'Hurdle - The Challenge',
+  2: 'Expectation - Your Role & Goals',
+  3: 'Response - Your Actions',
+  4: 'Outcome - The Results'
+}
+
+const paneCanGoBack = computed(() => aiPanelCurrentStep.value > 1)
+const paneIsLastStep = computed(() => aiPanelCurrentStep.value === 4)
+const paneStepLabel = computed(() => stepLabels[aiPanelCurrentStep.value])
 const paneNextLabel = computed(() => {
   if (paneIsLastStep.value) return 'Accept Suggestions'
-  if (paneCurrentStep.value === 1) return 'Next: Expectation'
-  if (paneCurrentStep.value === 2) return 'Next: Response'
+  if (aiPanelCurrentStep.value === 1) return 'Next: Expectation'
+  if (aiPanelCurrentStep.value === 2) return 'Next: Response'
   return 'Next: Outcome'
 })
 
@@ -738,9 +748,9 @@ onMounted(async () => {
       <div class="w-full flex items-start justify-between gap-4">
         <div class="flex-1">
           <h2 class="text-lg font-semibold">Get AI Help for Your Story</h2>
-          <p class="text-sm text-muted mt-1">{{ `Section ${paneCurrentStep} of 4` }}: {{ paneCurrentStep === 1 ? 'Hurdle - The Challenge' : paneCurrentStep === 2 ? 'Expectation - Your Role & Goals' : paneCurrentStep === 3 ? 'Response - Your Actions' : 'Outcome - The Results' }}</p>
+          <p class="text-sm text-muted mt-1">{{ `Section ${aiPanelCurrentStep} of 4` }}: {{ paneStepLabel }}</p>
           <UProgress
-            :model-value="paneCurrentStep"
+            :model-value="aiPanelCurrentStep"
             :max="4"
             class="mt-2"
           />
@@ -764,6 +774,8 @@ onMounted(async () => {
           :initial-section-type="'hurdle'"
           @close="closeAIPanel"
           @accept="handleAcceptAISuggestions"
+          @step-changed="(step) => aiPanelCurrentStep = step"
+          @generating-changed="(isGenerating) => aiPanelIsGenerating = isGenerating"
         />
       </div>
     </template>
@@ -776,7 +788,7 @@ onMounted(async () => {
           color="neutral"
           variant="outline"
           class="cursor-pointer"
-          :disabled="paneIsGenerating"
+          :disabled="aiPanelIsGenerating"
           @click="handlePaneBack"
         />
         <div v-else class="flex-1" />
@@ -787,7 +799,7 @@ onMounted(async () => {
             color="neutral"
             variant="ghost"
             class="cursor-pointer"
-            :disabled="paneIsGenerating"
+            :disabled="aiPanelIsGenerating"
             @click="closeAIPanel"
           />
           <UButton
@@ -796,8 +808,8 @@ onMounted(async () => {
             :trailing="!paneIsLastStep"
             color="primary"
             class="cursor-pointer"
-            :loading="paneIsGenerating"
-            :disabled="paneIsGenerating"
+            :loading="aiPanelIsGenerating"
+            :disabled="aiPanelIsGenerating"
             @click="handlePaneNextOrAccept"
           />
         </div>

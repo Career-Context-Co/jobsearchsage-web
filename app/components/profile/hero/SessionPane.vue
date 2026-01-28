@@ -12,6 +12,8 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   close: []
   accept: [suggestions: Record<string, Record<string, string>>]
+  'step-changed': [step: 1 | 2 | 3 | 4]
+  'generating-changed': [isGenerating: boolean]
 }>()
 
 // Reference to the current step pane component
@@ -43,6 +45,16 @@ const stepText = computed(() => `Step ${currentStep.value} of 4: ${currentConfig
 const canGoBack = computed(() => currentStep.value > 1)
 const canGoNext = computed(() => currentStep.value < 4)
 const isLastStep = computed(() => currentStep.value === 4)
+
+// Watch currentStep and emit changes
+watch(() => currentStep.value, (newStep) => {
+  emit('step-changed', newStep)
+}, { immediate: true })
+
+// Watch isGeneratingSuggestions and emit changes
+watch(() => isGeneratingSuggestions.value, (newState) => {
+  emit('generating-changed', newState)
+}, { immediate: true })
 
 // Initialize panel when mounted
 onMounted(() => {
@@ -207,23 +219,38 @@ defineExpose({
 
       <!-- Step 2: Expectation -->
       <div v-else-if="currentStep === 2" class="space-y-4">
-        <div class="p-8 text-center text-muted">
-          <p>Expectation pane coming soon...</p>
-        </div>
+        <ProfileHeroSessionPaneExpectationStep
+          ref="stepPaneRef"
+          :answers="allStepAnswers.expectation"
+          :suggestions="allStepSuggestions?.expectation"
+          :is-loading="isGeneratingSuggestions"
+          @update:answers="handleStepAnswersUpdate"
+          @submit="handleSubmitAnswers"
+        />
       </div>
 
       <!-- Step 3: Response -->
       <div v-else-if="currentStep === 3" class="space-y-4">
-        <div class="p-8 text-center text-muted">
-          <p>Response pane coming soon...</p>
-        </div>
+        <ProfileHeroSessionPaneResponseStep
+          ref="stepPaneRef"
+          :answers="allStepAnswers.response"
+          :suggestions="allStepSuggestions?.response"
+          :is-loading="isGeneratingSuggestions"
+          @update:answers="handleStepAnswersUpdate"
+          @submit="handleSubmitAnswers"
+        />
       </div>
 
       <!-- Step 4: Outcome -->
       <div v-else-if="currentStep === 4" class="space-y-4">
-        <div class="p-8 text-center text-muted">
-          <p>Outcome pane coming soon...</p>
-        </div>
+        <ProfileHeroSessionPaneOutcomeStep
+          ref="stepPaneRef"
+          :answers="allStepAnswers.outcome"
+          :suggestions="allStepSuggestions?.outcome"
+          :is-loading="isGeneratingSuggestions"
+          @update:answers="handleStepAnswersUpdate"
+          @submit="handleSubmitAnswers"
+        />
       </div>
     </div>
 

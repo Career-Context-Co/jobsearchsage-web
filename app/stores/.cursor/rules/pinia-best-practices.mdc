@@ -1,0 +1,64 @@
+---
+description: Guidelines for creating maintainable Pinia stores with proper separation of concerns between stores and components
+alwaysApply: false
+---
+
+# Pinia Store Best Practices
+
+## Store Responsibilities
+
+Stores should handle **shared data operations and state**, not page-specific UI concerns:
+
+- ✅ Domain data (entities, collections)
+- ✅ API communication (CRUD operations, session lifecycle)
+- ✅ Shared loading/error states
+- ✅ Data caching and persistence
+- ❌ Component/page UI state (modal open/closed, form data, current step)
+- ❌ Component-specific flow control
+
+## Modular Store Design
+
+Create **focused, domain-specific stores** instead of monolithic ones:
+- Each store manages a single concern (e.g., users, cart, sessions)
+- Improves code organization and performance
+- Easier to maintain and test
+
+## State Management Principles
+
+**Component State:**
+- Components manage their own local UI state
+- Use `ref()` and `computed()` for component-specific data
+- Emit events to communicate changes up the tree
+
+**Store State:**
+- Only add state that multiple components/pages need access to
+- Keep state minimal and focused on data, not UI
+- Use getters for computed/derived state, not stored values
+- Avoid over-splitting actions unless they're used independently
+
+## Architecture Pattern
+
+```
+Store (shared data + API)
+  ↓ provides data methods
+Component (local UI state)
+  ↓ emits events
+Parent (coordinates)
+```
+
+**Example Flow:**
+- Store provides: `fetchItems()`, `createItem()`, `items: []`
+- Component tracks: `isModalOpen`, `currentStep`, `formData`
+- Parent handles: open modal → call store method → close modal
+
+## When to Use Store vs Component State
+
+**Use Store when:**
+- Multiple pages/components need the same data
+- Data needs to persist across navigation
+- API calls are shared across the application
+
+**Use Component State when:**
+- State is specific to one component/page
+- State controls UI presentation (open/closed, active tab, current step)
+- State is temporary and doesn't need to persist
