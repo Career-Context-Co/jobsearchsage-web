@@ -6,6 +6,8 @@
  */
 
 export type HurdleField = 'problem' | 'scope' | 'stakes'
+export type ExpectationField = 'role' | 'goals' | 'constraints'
+export type SectionField = HurdleField | ExpectationField
 
 export interface QuestionOption {
   id: string
@@ -17,7 +19,7 @@ export interface QuestionOption {
 export interface StructuredQuestion {
   id: string
   text: string
-  field: HurdleField
+  field: SectionField
   options: QuestionOption[]
   nextQuestionLogic?: (selectedOption: string) => string | null
 }

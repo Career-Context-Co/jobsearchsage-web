@@ -49,7 +49,7 @@ const sections = [
     description: 'The Plan',
     subtitle: 'What were you trying to achieve?',
     icon: 'i-lucide-target',
-    available: false
+    available: true
   },
   {
     id: 'response',
@@ -69,11 +69,16 @@ const sections = [
   }
 ]
 
-// Field mapping for Hurdle section
+// Field mapping for Hurdle and Expectation sections
 const fieldMapping: Record<string, string> = {
+  // Hurdle fields
   problem: 'hurdleProblem',
   scope: 'hurdleScope',
-  stakes: 'hurdleStakes'
+  stakes: 'hurdleStakes',
+  // Expectation fields
+  role: 'expectationRole',
+  goals: 'expectationGoals',
+  constraints: 'expectationConstraints'
 }
 
 // Hurdle field configurations
@@ -101,10 +106,35 @@ const hurdleFields = [
   }
 ]
 
+// Expectation field configurations
+const expectationFields = [
+  {
+    id: 'role',
+    label: 'Role',
+    description: 'Your Responsibility',
+    subtitle: 'What was your role or authority in addressing this challenge?',
+    icon: 'i-lucide-user'
+  },
+  {
+    id: 'goals',
+    label: 'Goals',
+    description: 'Targets to Achieve',
+    subtitle: 'What were you trying to accomplish? What were the targets?',
+    icon: 'i-lucide-target'
+  },
+  {
+    id: 'constraints',
+    label: 'Constraints',
+    description: 'Limits & Boundaries',
+    subtitle: 'What constraints did you operate under? (budget, timeline, resources)',
+    icon: 'i-lucide-lock'
+  }
+]
+
 // State management
 const currentView = ref<'picker' | 'field-picker' | 'questions' | 'field-complete'>('picker')
 const selectedSection = ref<'hurdle' | 'expectation' | 'response' | 'outcome' | null>(null)
-const selectedField = ref<'problem' | 'scope' | 'stakes' | null>(null)
+const selectedField = ref<'problem' | 'scope' | 'stakes' | 'role' | 'goals' | 'constraints' | null>(null)
 const sessionId = ref<number | null>(null)
 const coachingMessage = ref<string>('I\'ll help you craft a compelling HERO story. Which section would you like to work on?')
 const currentQuestion = ref<StructuredQuestion | null>(null)
@@ -126,6 +156,17 @@ const hurdleFieldSessions = ref<Record<string, {
   stakes: { completed: false, suggestion: null, sessionId: null }
 })
 
+// Expectation field sessions (for tracking 3 fields: role, goals, constraints)
+const expectationFieldSessions = ref<Record<string, {
+  completed: boolean
+  suggestion: string | null
+  sessionId: number | null
+}>>({
+  role: { completed: false, suggestion: null, sessionId: null },
+  goals: { completed: false, suggestion: null, sessionId: null },
+  constraints: { completed: false, suggestion: null, sessionId: null }
+})
+
 // Computed
 // Format the selected field name for display (e.g., "problem" -> "Problem")
 const formattedFieldName = computed(() => {
@@ -145,27 +186,43 @@ interface NextStepOption {
 // Get next step options for field-complete view
 const nextStepOptions = computed<NextStepOption[]>(() => {
   const options: NextStepOption[] = []
+  const sectionType = selectedSection.value || 'hurdle'
 
-  // Check if there are remaining incomplete fields in current section (Hurdle)
-  const incompleteFields = ['problem', 'scope', 'stakes'].filter(
-    field => !hurdleFieldSessions.value[field]?.completed
+  // Get the fields and sessions for the current section
+  let sectionFields: string[] = []
+  let fieldSessions: Record<string, { completed: boolean }> | null = null
+  let sectionLabel = ''
+
+  if (sectionType === 'hurdle') {
+    sectionFields = ['problem', 'scope', 'stakes']
+    fieldSessions = hurdleFieldSessions.value
+    sectionLabel = 'Hurdle'
+  } else if (sectionType === 'expectation') {
+    sectionFields = ['role', 'goals', 'constraints']
+    fieldSessions = expectationFieldSessions.value
+    sectionLabel = 'Expectation'
+  }
+
+  // Check if there are remaining incomplete fields in current section
+  const incompleteFields = sectionFields.filter(
+    field => !fieldSessions?.[field]?.completed
   )
 
   if (incompleteFields.length > 0) {
     options.push({
-      id: 'continue-hurdle',
-      label: 'Continue with Hurdle',
+      id: `continue-${sectionType}`,
+      label: `Continue with ${sectionLabel}`,
       description: `${incompleteFields.length} more aspect${incompleteFields.length > 1 ? 's' : ''} to complete`,
       icon: 'i-lucide-arrow-right',
       action: 'continue-field'
     })
   }
 
-  // Always show option to work on other sections (coming soon)
+  // Always show option to work on other sections
   options.push({
     id: 'other-section',
     label: 'Work on Another Section',
-    description: 'Expectation, Response, or Outcome',
+    description: 'Choose another HERO section',
     icon: 'i-lucide-list',
     action: 'back-to-picker'
   })
@@ -185,12 +242,17 @@ function selectSection(sectionId: string) {
     // Show field picker to let user choose which field to work on
     currentView.value = 'field-picker'
     coachingMessage.value = 'Great choice! Which aspect of the Hurdle would you like to work on?'
+  } else if (sectionId === 'expectation') {
+    // Show field picker to let user choose which field to work on
+    currentView.value = 'field-picker'
+    coachingMessage.value = 'Great choice! Which aspect of the Expectation would you like to work on?'
   }
 }
 
 // Select a specific field within a section and start the session
 async function selectField(fieldId: string) {
-  const field = fieldId as 'problem' | 'scope' | 'stakes'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const field = fieldId as any
   selectedField.value = field
   questionHistory.value = []
   currentFieldSuggestion.value = null
@@ -259,28 +321,54 @@ async function fetchLinkedExperience() {
   }
 }
 
-// Start a field session (problem, scope, or stakes)
-async function startFieldSession(field: 'problem' | 'scope' | 'stakes') {
+// Get the current section's field sessions
+function getCurrentFieldSessions() {
+  if (selectedSection.value === 'hurdle') return hurdleFieldSessions.value
+  if (selectedSection.value === 'expectation') return expectationFieldSessions.value
+  return null
+}
+
+// Start a field session for the current section
+async function startFieldSession(field: string) {
   try {
     isLoading.value = true
     error.value = null
     currentView.value = 'questions'
 
-    // Get previous field results for context
+    const sectionType = selectedSection.value || 'hurdle'
+    const fieldSessions = getCurrentFieldSessions()
+
+    // Get previous field results for context based on section type
     const previousResults: Record<string, string> = {}
-    if (field === 'scope' && hurdleFieldSessions.value.problem?.suggestion) {
-      previousResults.problem = hurdleFieldSessions.value.problem.suggestion
-    }
-    if (field === 'stakes') {
-      if (hurdleFieldSessions.value.problem?.suggestion) {
+    
+    if (sectionType === 'hurdle') {
+      if (field === 'scope' && hurdleFieldSessions.value.problem?.suggestion) {
         previousResults.problem = hurdleFieldSessions.value.problem.suggestion
       }
-      if (hurdleFieldSessions.value.scope?.suggestion) {
-        previousResults.scope = hurdleFieldSessions.value.scope.suggestion
+      if (field === 'stakes') {
+        if (hurdleFieldSessions.value.problem?.suggestion) {
+          previousResults.problem = hurdleFieldSessions.value.problem.suggestion
+        }
+        if (hurdleFieldSessions.value.scope?.suggestion) {
+          previousResults.scope = hurdleFieldSessions.value.scope.suggestion
+        }
+      }
+    } else if (sectionType === 'expectation') {
+      if (field === 'goals' && expectationFieldSessions.value.role?.suggestion) {
+        previousResults.role = expectationFieldSessions.value.role.suggestion
+      }
+      if (field === 'constraints') {
+        if (expectationFieldSessions.value.role?.suggestion) {
+          previousResults.role = expectationFieldSessions.value.role.suggestion
+        }
+        if (expectationFieldSessions.value.goals?.suggestion) {
+          previousResults.goals = expectationFieldSessions.value.goals.suggestion
+        }
       }
     }
 
-    coachingMessage.value = `Let's work on the ${field} for your Hurdle section.`
+    const sectionLabel = sectionType.charAt(0).toUpperCase() + sectionType.slice(1)
+    coachingMessage.value = `Let's work on the ${field} for your ${sectionLabel} section.`
 
     // Prepare the options object with experience context
     const sessionOptions: {
@@ -304,14 +392,14 @@ async function startFieldSession(field: 'problem' | 'scope' | 'stakes') {
     const response = await sageAIStore.startHeroEnhancementSession(
       props.profileId,
       props.storyId,
-      'hurdle',
+      sectionType,
       { field1: '', field2: '', field3: '' },
       sessionOptions
     )
 
     sessionId.value = response.session_id
-    if (hurdleFieldSessions.value[field]) {
-      hurdleFieldSessions.value[field].sessionId = response.session_id
+    if (fieldSessions && fieldSessions[field]) {
+      fieldSessions[field].sessionId = response.session_id
     }
     currentQuestion.value = response.current_question || null
 
@@ -362,7 +450,8 @@ async function handleOptionSelected(data: { optionId: string, customText?: strin
       const currentField = selectedField.value
       const dbFieldName = fieldMapping[currentField]
       const suggestion = dbFieldName ? response.final_output[dbFieldName] : null
-      const fieldSession = hurdleFieldSessions.value[currentField]
+      const fieldSessions = getCurrentFieldSessions()
+      const fieldSession = fieldSessions ? fieldSessions[currentField] : null
 
       if (suggestion && fieldSession) {
         fieldSession.completed = true
@@ -390,34 +479,44 @@ async function handleOptionSelected(data: { optionId: string, customText?: strin
 
 // Accept all suggestions
 function acceptAllSuggestions() {
-  const suggestions: Record<string, string> = {}
+  if (!selectedSection.value) return
+  
+  const fieldSuggestions: Record<string, string> = {}
+  const fieldSessions = getCurrentFieldSessions()
 
-  Object.entries(hurdleFieldSessions.value).forEach(([field, session]) => {
-    if (session.suggestion) {
-      suggestions[field] = session.suggestion
-    }
-  })
+  if (fieldSessions) {
+    Object.entries(fieldSessions).forEach(([field, session]) => {
+      if (session.suggestion) {
+        fieldSuggestions[field] = session.suggestion
+      }
+    })
+  }
 
-  emit('accept-suggestions', 'hurdle', suggestions)
+  // Emit with two arguments: section name and field suggestions
+  emit('accept-suggestions', selectedSection.value, fieldSuggestions)
 }
 
 // Save current field and end
 function saveAndEnd() {
-  if (!selectedField.value || !editableSuggestion.value) return
+  if (!selectedField.value || !editableSuggestion.value || !selectedSection.value) {
+    return
+  }
 
   const currentField = selectedField.value
-  const fieldSession = hurdleFieldSessions.value[currentField]
+  const fieldSessions = getCurrentFieldSessions()
+  const fieldSession = fieldSessions ? fieldSessions[currentField] : null
 
   // Update the field with edited suggestion
   if (fieldSession) {
     fieldSession.suggestion = editableSuggestion.value
   }
 
-  const suggestions: Record<string, string> = {
+  const fieldSuggestions: Record<string, string> = {
     [currentField]: editableSuggestion.value
   }
 
-  emit('accept-suggestions', 'hurdle', suggestions)
+  // Emit with two arguments: section name and field suggestions
+  emit('accept-suggestions', selectedSection.value, fieldSuggestions)
 }
 
 // Handle next step choice from field-complete view
@@ -518,7 +617,7 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Field Picker View (for Hurdle section) -->
+    <!-- Field Picker View (for Hurdle and Expectation sections) -->
     <div v-else-if="currentView === 'field-picker'" class="flex-1 space-y-4">
       <!-- Back button -->
       <button
@@ -530,14 +629,20 @@ onMounted(async () => {
         Back to sections
       </button>
 
-      <!-- Section header -->
-      <div class="flex items-center gap-3">
+      <!-- Section header for Hurdle -->
+      <div v-if="selectedSection === 'hurdle'" class="flex items-center gap-3">
         <UIcon name="i-lucide-mountain" class="w-6 h-6 text-primary-600 dark:text-primary-400" />
         <h2 class="text-xl font-bold text-default">Hurdle</h2>
       </div>
 
-      <!-- Field options -->
-      <div class="grid grid-cols-1 gap-3">
+      <!-- Section header for Expectation -->
+      <div v-else-if="selectedSection === 'expectation'" class="flex items-center gap-3">
+        <UIcon name="i-lucide-target" class="w-6 h-6 text-primary-600 dark:text-primary-400" />
+        <h2 class="text-xl font-bold text-default">Expectation</h2>
+      </div>
+
+      <!-- Field options for Hurdle -->
+      <div v-if="selectedSection === 'hurdle'" class="grid grid-cols-1 gap-3">
         <button
           v-for="field in hurdleFields"
           :key="field.id"
@@ -560,6 +665,49 @@ onMounted(async () => {
                 </h3>
                 <UBadge
                   v-if="hurdleFieldSessions[field.id]?.completed"
+                  color="success"
+                  variant="subtle"
+                  size="xs"
+                >
+                  Done
+                </UBadge>
+              </div>
+              <p class="text-sm font-medium text-muted">
+                {{ field.description }}
+              </p>
+              <p class="text-xs text-muted mt-1">
+                {{ field.subtitle }}
+              </p>
+            </div>
+            <UIcon name="i-lucide-chevron-right" class="w-5 h-5 text-muted shrink-0" />
+          </div>
+        </button>
+      </div>
+
+      <!-- Field options for Expectation -->
+      <div v-else-if="selectedSection === 'expectation'" class="grid grid-cols-1 gap-3">
+        <button
+          v-for="field in expectationFields"
+          :key="field.id"
+          type="button"
+          :class="[
+            'p-5 rounded-lg border-2 transition-all duration-200 text-left',
+            'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
+            'border-primary-200 dark:border-primary-700 bg-white dark:bg-gray-800 hover:border-primary-500 hover:shadow-md cursor-pointer'
+          ]"
+          @click="selectField(field.id)"
+        >
+          <div class="flex items-start gap-4">
+            <div class="shrink-0 p-2 rounded-lg bg-primary-50 dark:bg-primary-900/30">
+              <UIcon :name="field.icon" class="w-5 h-5 text-primary-600 dark:text-primary-400" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <h3 class="text-base font-semibold">
+                  {{ field.label }}
+                </h3>
+                <UBadge
+                  v-if="expectationFieldSessions[field.id]?.completed"
                   color="success"
                   variant="subtle"
                   size="xs"
@@ -700,8 +848,10 @@ onMounted(async () => {
         <!-- Save Action -->
         <div class="flex justify-end pt-2">
           <UButton
+            type="button"
             color="primary"
             icon="i-lucide-check"
+            class="cursor-pointer"
             @click="saveAndEnd"
           >
             Save & Apply to Form

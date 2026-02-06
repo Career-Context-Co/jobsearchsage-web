@@ -304,7 +304,8 @@
 - [x] **Wire SessionPane to sageAIStore:**
   - HeroStorySession.vue uses sageAIStore methods (startHeroEnhancementSession, continueHeroEnhancementSession)
   - Session state managed via sessionId ref and API calls
-  - Suggestions stored in hurdleFieldSessions and passed via accept-suggestions event
+  - Suggestions stored in hurdleFieldSessions and expectationFieldSessions, passed via accept event
+  - Both Hurdle and Expectation sections fully implemented with field picker UI
   - Panel close handled by parent via close event
   - Accept triggers emit to parent which stores/applies suggestions
 - [x] **Wire hero.vue state to HeroStoryCard for edit mode:**
@@ -313,10 +314,12 @@
   - Pass pendingSuggestions through HeroStoriesSection to HeroStoryCard
   - HeroStoryCard watches for pendingSuggestions and applies to form, then emits suggestionsApplied
 - [ ] **Test the full flow:**
-  - Click "Get AI Help" button → SessionPane opens
-  - Answer questions in Step 1 (Hurdle) → Submit → verify real API call to `/api/ai/hero-session/start`
-  - Navigate through Steps 2-4 → verify API calls to `/api/ai/hero-session/continue`
-  - Accept suggestions → verify form fields populated correctly
+  - Click "Get AI Help" button → HeroStorySession opens in slideover
+  - Select Hurdle or Expectation section → field picker appears
+  - Select field (e.g., Problem, Role) → verify API call to `/api/ai/hero-session/start`
+  - Answer questions → verify API calls to `/api/ai/hero-session/continue`
+  - When field complete → verify suggestion displayed and can be edited
+  - Click "Save & Apply to Form" → verify form fields populated correctly
   - Verify suggestions saved to hero story via `careerIDStore.updateStory()` or `createStory()`
   - Verify toast notifications display
 

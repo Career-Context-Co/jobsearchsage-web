@@ -16,7 +16,7 @@ import {
   HeroEnhancementError,
   type StructuredEnhancementInput
 } from '@@/server/utils/hero-story-enhancer'
-import type { HurdleField, QuestionAnswer } from '@@/server/utils/hero-structured-questions'
+import type { SectionField, QuestionAnswer } from '@@/server/utils/hero-structured-questions'
 import { serverSupabaseClient } from '#supabase/server'
 
 const ROUTE_PATH = '/api/ai/hero-session/continue'
@@ -122,7 +122,7 @@ export default eventHandler(async (event) => {
 
     if (isStructuredMode) {
       // STRUCTURED MODE
-      const field = sessionData.session_data.field as HurdleField
+      const field = sessionData.session_data.field as SectionField
       const currentQuestion = sessionData.session_data.current_question
       const answers: QuestionAnswer[] = sessionData.session_data.answers || []
       const previousFieldResults = sessionData.session_data.previous_field_results || {}
@@ -185,9 +185,22 @@ export default eventHandler(async (event) => {
 
         // Determine the database field name
         const fieldMapping: Record<string, string> = {
+          // Hurdle fields
           problem: 'hurdleProblem',
           scope: 'hurdleScope',
-          stakes: 'hurdleStakes'
+          stakes: 'hurdleStakes',
+          // Expectation fields
+          role: 'expectationRole',
+          goals: 'expectationGoals',
+          constraints: 'expectationConstraints',
+          // Response fields (for future)
+          actions: 'responseActions',
+          tools: 'responseTools',
+          challenges: 'responseChallenges',
+          // Outcome fields (for future)
+          deliverable: 'outcomeDeliverable',
+          metrics: 'outcomeMetrics',
+          impact: 'outcomeImpact'
         }
         const dbFieldName = fieldMapping[field]
         if (!dbFieldName) {

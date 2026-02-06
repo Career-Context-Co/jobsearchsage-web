@@ -14,13 +14,22 @@ import {
   type EnhancementInput,
   type StructuredEnhancementInput
 } from '@@/server/utils/hero-story-enhancer'
-import type { HurdleField } from '@@/server/utils/hero-structured-questions'
+import type { SectionField } from '@@/server/utils/hero-structured-questions'
 import { serverSupabaseClient } from '#supabase/server'
 
 const ROUTE_PATH = '/api/ai/hero-session/start'
 
 const VALID_SECTION_TYPES = ['hurdle', 'expectation', 'response', 'outcome']
-const VALID_FIELDS = ['problem', 'scope', 'stakes']
+const VALID_FIELDS = [
+  // Hurdle fields
+  'problem', 'scope', 'stakes',
+  // Expectation fields
+  'role', 'goals', 'constraints',
+  // Response fields (for future)
+  'actions', 'tools', 'challenges',
+  // Outcome fields (for future)
+  'deliverable', 'metrics', 'impact'
+]
 
 export default eventHandler(async (event) => {
   const getElapsed = createTimer()
@@ -171,7 +180,7 @@ export default eventHandler(async (event) => {
 
       logRequest('POST', ROUTE_PATH, { status: 'getting_first_question', field })
       console.log('[START] Getting first question for field:', field)
-      firstQuestion = await startStructuredEnhancement(field as HurdleField, structuredInput)
+      firstQuestion = await startStructuredEnhancement(field as SectionField, structuredInput)
       console.log('[START] First question:', firstQuestion)
     } else {
       // CONVERSATIONAL MODE (legacy)

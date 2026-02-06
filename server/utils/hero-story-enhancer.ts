@@ -10,6 +10,7 @@ import {
   getFirstQuestion,
   getNextQuestion,
   type HurdleField,
+  type SectionField,
   type QuestionAnswer,
   type StructuredQuestion
 } from './hero-structured-questions'
@@ -597,7 +598,7 @@ export interface StructuredEnhancementInput {
  * Returns the first question for that field, contextualized to the user's experience
  */
 export async function startStructuredEnhancement(
-  field: HurdleField,
+  field: SectionField,
   context: StructuredEnhancementInput
 ): Promise<StructuredQuestion> {
   // Generate a contextual first question using AI
@@ -609,7 +610,7 @@ export async function startStructuredEnhancement(
  * Returns next question or null if field is complete
  */
 export async function continueStructuredEnhancement(
-  field: HurdleField,
+  field: SectionField,
   currentQuestion: StructuredQuestion,
   selectedOption: string,
   customText: string | undefined,
@@ -624,7 +625,7 @@ export async function continueStructuredEnhancement(
  * Generate final field text from collected structured answers using AI
  */
 export async function generateFieldTextFromAnswers(
-  field: HurdleField,
+  field: SectionField,
   answers: QuestionAnswer[],
   context: StructuredEnhancementInput
 ): Promise<string> {
@@ -702,8 +703,9 @@ Generate the ${field} text:`
 /**
  * Get field-specific synthesis prompts
  */
-function getFieldSynthesisPrompt(field: HurdleField): string {
+function getFieldSynthesisPrompt(field: SectionField): string {
   switch (field) {
+    // Hurdle fields
     case 'problem':
       return `For the PROBLEM field, synthesize answers to convey:
 - What the specific problem/challenge/opportunity was
@@ -727,6 +729,31 @@ Example: "The issue affected all 25 engineers on the platform team, occurring co
 - Quantifiable impact if mentioned
 
 Example: "Without a solution, the team risked continued productivity loss of 2-3 hours per week per engineer, mounting frustration, and potential talent retention issues as developers complained about slow tooling."`
+
+    // Expectation fields
+    case 'role':
+      return `For the ROLE field, synthesize answers to convey:
+- What their position or title was in this context
+- Their authority and decision-making power
+- Whether they led, collaborated, or contributed individually
+
+Example: "As Senior Backend Engineer and technical lead for the authentication team, I was responsible for architecting the solution, making key technical decisions, and coordinating implementation across three developers."`
+
+    case 'goals':
+      return `For the GOALS field, synthesize answers to convey:
+- What specific outcomes they were trying to achieve
+- How success was measured or defined
+- Who set the goals and why
+
+Example: "My primary goal was to reduce authentication latency to under 500ms while maintaining security standards. Leadership set a hard deadline of Q2 due to customer complaints impacting renewals."`
+
+    case 'constraints':
+      return `For the CONSTRAINTS field, synthesize answers to convey:
+- Budget, timeline, or resource limitations
+- Technical limitations or requirements
+- Organizational or policy constraints
+
+Example: "I had to deliver within 6 weeks with no additional headcount, while maintaining backward compatibility with the existing OAuth implementation and meeting SOC 2 compliance requirements."`
   }
 }
 
@@ -734,7 +761,7 @@ Example: "Without a solution, the team risked continued productivity loss of 2-3
  * Generate contextual question based on experience and previous answers
  */
 async function generateContextualQuestion(
-  field: HurdleField,
+  field: SectionField,
   context: StructuredEnhancementInput,
   previousQuestion: StructuredQuestion | null,
   answers: QuestionAnswer[],
@@ -742,7 +769,8 @@ async function generateContextualQuestion(
   lastCustomText?: string
 ): Promise<StructuredQuestion | null> {
   try {
-    const fieldPrompts = {
+    const fieldPrompts: Record<SectionField, string> = {
+      // Hurdle field prompts
       problem: `Generate a targeted multiple-choice question to help identify the PROBLEM they faced in THIS SPECIFIC ACHIEVEMENT.
 
 CRITICAL: Your question MUST reference the specific work mentioned in the hero story title.
@@ -779,6 +807,47 @@ Focus on:
 - Business impact of NOT solving THIS ISSUE: revenue, deadlines, customers?
 - Team impact of THIS PROBLEM: morale, productivity, retention?
 - Urgency and quantifiable metrics RELATED TO THIS CHALLENGE?
+
+Reference the specific work from the story title and previous answers.`,
+
+      // Expectation field prompts
+      role: `Generate a targeted multiple-choice question to help identify the user's ROLE in THIS SPECIFIC ACHIEVEMENT.
+
+CRITICAL: Your question MUST reference the specific work mentioned in the hero story title.
+For example:
+- If title mentions "database migration", ask about their role in the migration
+- If title mentions "team leadership", ask about their leadership responsibilities
+- If title mentions "system design", ask about their design authority
+
+Focus on:
+- What was their specific position or title?
+- What was their authority or decision-making power IN THIS PROJECT?
+- What responsibilities were they assigned FOR THIS SPECIFIC WORK?
+- Were they leading, collaborating, or contributing individually?
+
+Use the exact terminology from the story title in your question.`,
+      
+      goals: `Generate a targeted multiple-choice question to help identify the GOALS they were trying to achieve in THIS SPECIFIC ACHIEVEMENT.
+
+CRITICAL: Your question MUST connect to the achievement in the story title.
+
+Focus on:
+- What specific outcomes were they trying to accomplish WITH THIS WORK?
+- What targets or metrics defined success FOR THIS PROJECT?
+- Were the goals set by leadership, the team, or themselves?
+- What did "done" look like FOR THIS SPECIFIC ACHIEVEMENT?
+
+Reference the specific work from the story title and previous answers.`,
+      
+      constraints: `Generate a targeted multiple-choice question to help identify the CONSTRAINTS they faced in THIS SPECIFIC ACHIEVEMENT.
+
+CRITICAL: Your question MUST relate to the achievement mentioned in the story title.
+
+Focus on:
+- What limits or boundaries did they operate under IN THIS PROJECT?
+- Were there budget, timeline, or resource constraints FOR THIS WORK?
+- What technical limitations affected THIS SPECIFIC SOLUTION?
+- Were there organizational or policy constraints TO CONSIDER?
 
 Reference the specific work from the story title and previous answers.`
     }
