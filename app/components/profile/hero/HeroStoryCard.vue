@@ -1,18 +1,22 @@
 <script setup lang="ts">
 import type { HeroStory } from '#shared/types/careerId'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 interface Props {
   story: HeroStory
+  pendingSuggestions?: Record<string, Record<string, string>> | null
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  pendingSuggestions: null
+})
 
 const emit = defineEmits<{
   delete: [storyId: string]
   save: [payload: Partial<HeroStory>]
   cancel: []
   openAIHelp: [storyId: string]
+  suggestionsApplied: []
 }>()
 
 const isEditing = ref(false)
@@ -107,6 +111,44 @@ function handleOpenAIHelp() {
 }
 
 const isTitleEmpty = computed(() => !formData.value.title.trim())
+
+// Apply AI suggestions to the form
+function applyAISuggestions(suggestions: Record<string, Record<string, string>>) {
+  if (suggestions.hurdle) {
+    if (suggestions.hurdle.problem) formData.value.hurdleProblem = suggestions.hurdle.problem
+    if (suggestions.hurdle.scope) formData.value.hurdleScope = suggestions.hurdle.scope
+    if (suggestions.hurdle.stakes) formData.value.hurdleStakes = suggestions.hurdle.stakes
+  }
+  if (suggestions.expectation) {
+    if (suggestions.expectation.role) formData.value.expectationRole = suggestions.expectation.role
+    if (suggestions.expectation.goals) formData.value.expectationGoals = suggestions.expectation.goals
+    if (suggestions.expectation.constraints) formData.value.expectationConstraints = suggestions.expectation.constraints
+  }
+  if (suggestions.response) {
+    if (suggestions.response.actions) formData.value.responseActions = suggestions.response.actions
+    if (suggestions.response.tools) formData.value.responseTools = suggestions.response.tools
+    if (suggestions.response.challenges) formData.value.responseChallenges = suggestions.response.challenges
+  }
+  if (suggestions.outcome) {
+    if (suggestions.outcome.deliverable) formData.value.outcomeDeliverable = suggestions.outcome.deliverable
+    if (suggestions.outcome.metrics) formData.value.outcomeMetrics = suggestions.outcome.metrics
+    if (suggestions.outcome.impact) formData.value.outcomeImpact = suggestions.outcome.impact
+  }
+}
+
+// Watch for pending suggestions and apply them
+watch(() => props.pendingSuggestions, (newSuggestions) => {
+  if (newSuggestions) {
+    // Ensure we're in edit mode
+    if (!isEditing.value) {
+      startEditing()
+    }
+    // Apply the suggestions to the form
+    applyAISuggestions(newSuggestions)
+    // Notify parent that suggestions have been applied
+    emit('suggestionsApplied')
+  }
+}, { immediate: true })
 </script>
 
 <template>

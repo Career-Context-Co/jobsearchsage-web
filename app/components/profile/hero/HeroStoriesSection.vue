@@ -2,13 +2,20 @@
 import { ref, computed } from 'vue'
 import type { HeroStory } from '#shared/types/careerId'
 
+interface PendingSuggestions {
+  storyId: string
+  suggestions: Record<string, Record<string, string>>
+}
+
 interface Props {
   stories: HeroStory[]
   isLoading?: boolean
+  pendingSuggestions?: PendingSuggestions | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  isLoading: false
+  isLoading: false,
+  pendingSuggestions: null
 })
 
 const emit = defineEmits<{
@@ -17,6 +24,7 @@ const emit = defineEmits<{
   save: [payload: { story: HeroStory; updates: Partial<HeroStory> }]
   cancel: []
   openAIHelp: [storyId: string]
+  clearPendingSuggestions: []
 }>()
 
 // Collapsible state
@@ -50,6 +58,18 @@ function handleSave(story: HeroStory, updates: Partial<HeroStory>) {
 
 function handleOpenAIHelp(storyId: string) {
   emit('openAIHelp', storyId)
+}
+
+function handleClearPendingSuggestions() {
+  emit('clearPendingSuggestions')
+}
+
+// Get pending suggestions for a specific story
+function getPendingSuggestionsForStory(storyId: string) {
+  if (props.pendingSuggestions?.storyId === storyId) {
+    return props.pendingSuggestions.suggestions
+  }
+  return null
 }
 </script>
 
@@ -126,9 +146,11 @@ function handleOpenAIHelp(storyId: string) {
           v-for="story in sortedStories"
           :key="story.id"
           :story="story"
+          :pending-suggestions="getPendingSuggestionsForStory(story.id)"
           @delete="handleDelete(story)"
           @save="(updates) => handleSave(story, updates)"
           @open-a-i-help="handleOpenAIHelp"
+          @suggestions-applied="handleClearPendingSuggestions"
         />
       </div>
     </template>

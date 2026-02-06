@@ -1,11 +1,18 @@
 /**
  * Hero Story Enhancement AI Service
- * 
+ *
  * Handles AI-powered conversational coaching for HERO story sections.
- * Uses multi-turn conversations to extract information through targeted questions.
+ * Supports both free-form conversational and structured question-based modes.
  */
 
 import { createGateway, generateText } from 'ai'
+import {
+  getFirstQuestion,
+  getNextQuestion,
+  type HurdleField,
+  type QuestionAnswer,
+  type StructuredQuestion
+} from './hero-structured-questions'
 
 const apiKey = useRuntimeConfig().aiGatewayApiKey
 if (!apiKey) {
@@ -13,7 +20,7 @@ if (!apiKey) {
 }
 
 const gateway = createGateway({
-  apiKey: apiKey,
+  apiKey: apiKey
 })
 
 /**
@@ -42,7 +49,7 @@ const SECTION_FIELD_NAMES: Record<SectionType, [string, string, string]> = {
   hurdle: ['problem', 'scope', 'stakes'],
   expectation: ['role', 'goals', 'constraints'],
   response: ['actions', 'tools', 'challenges'],
-  outcome: ['deliverable', 'metrics', 'impact'],
+  outcome: ['deliverable', 'metrics', 'impact']
 }
 
 /**
@@ -52,7 +59,7 @@ const SECTION_DB_FIELD_NAMES: Record<SectionType, [string, string, string]> = {
   hurdle: ['hurdleProblem', 'hurdleScope', 'hurdleStakes'],
   expectation: ['expectationRole', 'expectationGoals', 'expectationConstraints'],
   response: ['responseActions', 'responseTools', 'responseChallenges'],
-  outcome: ['outcomeDeliverable', 'outcomeMetrics', 'outcomeImpact'],
+  outcome: ['outcomeDeliverable', 'outcomeMetrics', 'outcomeImpact']
 }
 
 /**
@@ -363,7 +370,7 @@ export interface EnhancementInput {
 /**
  * Format current field values for display
  */
-function formatCurrentValues(sectionType: SectionType, currentValues: { field1: string | null; field2: string | null; field3: string | null }): string {
+function formatCurrentValues(sectionType: SectionType, currentValues: { field1: string | null, field2: string | null, field3: string | null }): string {
   const fieldNames = SECTION_FIELD_NAMES[sectionType]
   return `- ${fieldNames[0].toUpperCase()}: ${currentValues.field1 || 'empty'}
 - ${fieldNames[1].toUpperCase()}: ${currentValues.field2 || 'empty'}
@@ -375,20 +382,24 @@ function formatCurrentValues(sectionType: SectionType, currentValues: { field1: 
  */
 function buildInputMessage(sectionType: SectionType, input: EnhancementInput): string {
   // Build moment context if provided
-  const momentContext = input.moment_title ? `
+  const momentContext = input.moment_title
+    ? `
 - Hero Moment Title: ${input.moment_title}
-- Hero Moment Description: ${input.moment_description || 'none'}` : ''
+- Hero Moment Description: ${input.moment_description || 'none'}`
+    : ''
 
   // Build experience context if provided
-  const experienceContext = input.experience ? `
+  const experienceContext = input.experience
+    ? `
 - Source Experience: ${input.experience.title} at ${input.experience.employer}
 - Employment Type: ${input.experience.employment_type}
 - Experience Duration: ${input.experience.start_date} to ${input.experience.end_date || 'Present'}
 - Experience Summary: ${input.experience.summary || 'none'}
 - Experience Highlights: ${input.experience.highlights.length > 0 ? input.experience.highlights.join('; ') : 'none'}
 - Experience Context Notes: ${input.experience.context_notes || 'none'}
-- Location: ${input.experience.location || 'not specified'} (${input.experience.location_type || 'not specified'})` : ''
-  
+- Location: ${input.experience.location || 'not specified'} (${input.experience.location_type || 'not specified'})`
+    : ''
+
   // Build contextual coaching guidance
   let coachingGuidance = 'Begin your interactive coaching session by asking your first targeted question.'
   if (input.experience) {
@@ -421,7 +432,7 @@ export async function startEnhancementConversation(
       system: systemPrompt,
       prompt: userPrompt,
       temperature: 0.6,
-      maxTokens: 500,
+      maxTokens: 500
     })
 
     return result.text
@@ -458,14 +469,14 @@ export async function continueEnhancementConversation(
   sectionType: SectionType,
   conversationHistory: ConversationMessage[],
   userMessage: string
-): Promise<{ aiMessage: string; isComplete: boolean; finalOutput?: EnhancementOutput }> {
+): Promise<{ aiMessage: string, isComplete: boolean, finalOutput?: EnhancementOutput }> {
   try {
     const systemPrompt = getSystemPromptForSection(sectionType)
-    
+
     // Build messages array with full history
     const messages = [
       ...conversationHistory,
-      { role: 'user' as const, content: userMessage },
+      { role: 'user' as const, content: userMessage }
     ]
 
     const result = await generateText({
@@ -473,10 +484,10 @@ export async function continueEnhancementConversation(
       system: systemPrompt,
       messages: messages.map(m => ({
         role: m.role,
-        content: m.content,
+        content: m.content
       })),
       temperature: 0.6,
-      maxTokens: 800,
+      maxTokens: 800
     })
 
     const aiResponse = result.text
@@ -492,7 +503,7 @@ export async function continueEnhancementConversation(
     return {
       aiMessage: aiResponse,
       isComplete,
-      finalOutput,
+      finalOutput
     }
   } catch (error: any) {
     if (error instanceof HeroEnhancementError) {
@@ -518,7 +529,8 @@ function checkIfComplete(aiResponse: string): boolean {
       const parsed = JSON.parse(jsonMatch[0])
       return parsed.conversation_complete === true
     }
-  } catch (e) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (_e) {
     // Not JSON yet, conversation continues
   }
   return false
@@ -532,11 +544,11 @@ function extractFinalOutput(aiResponse: string, sectionType: SectionType): Enhan
   if (!jsonMatch) {
     throw new HeroEnhancementError('No final JSON output found', 'INVALID_RESPONSE', { response: aiResponse })
   }
-  
+
   const parsed = JSON.parse(jsonMatch[0])
   const fieldNames = SECTION_FIELD_NAMES[sectionType]
   const dbFieldNames = SECTION_DB_FIELD_NAMES[sectionType]
-  
+
   // Validate all 3 expected fields exist
   if (!parsed[fieldNames[0]] || !parsed[fieldNames[1]] || !parsed[fieldNames[2]]) {
     throw new HeroEnhancementError(
@@ -545,11 +557,425 @@ function extractFinalOutput(aiResponse: string, sectionType: SectionType): Enhan
       { parsed, expectedFields: fieldNames }
     )
   }
-  
+
   // Return with database field names (camelCase)
   return {
     [dbFieldNames[0]]: parsed[fieldNames[0]],
     [dbFieldNames[1]]: parsed[fieldNames[1]],
-    [dbFieldNames[2]]: parsed[fieldNames[2]],
+    [dbFieldNames[2]]: parsed[fieldNames[2]]
   }
+}
+
+/**
+ * ========================================
+ * STRUCTURED QUESTION MODE
+ * ========================================
+ */
+
+/**
+ * Structured enhancement input context
+ */
+export interface StructuredEnhancementInput {
+  moment_title?: string | null
+  moment_description?: string | null
+  experience?: {
+    id: number
+    title: string
+    employer: string
+    summary?: string | null
+    highlights: string[]
+    context_notes?: string | null
+  }
+  previous_field_results?: {
+    problem?: string
+    scope?: string
+  }
+}
+
+/**
+ * Start structured enhancement for a specific field
+ * Returns the first question for that field, contextualized to the user's experience
+ */
+export async function startStructuredEnhancement(
+  field: HurdleField,
+  context: StructuredEnhancementInput
+): Promise<StructuredQuestion> {
+  // Generate a contextual first question using AI
+  return await generateContextualQuestion(field, context, null, [])
+}
+
+/**
+ * Continue structured enhancement with user's answer
+ * Returns next question or null if field is complete
+ */
+export async function continueStructuredEnhancement(
+  field: HurdleField,
+  currentQuestion: StructuredQuestion,
+  selectedOption: string,
+  customText: string | undefined,
+  context: StructuredEnhancementInput,
+  answers: QuestionAnswer[]
+): Promise<StructuredQuestion | null> {
+  // Generate next contextual question using AI
+  return await generateContextualQuestion(field, context, currentQuestion, answers, selectedOption, customText)
+}
+
+/**
+ * Generate final field text from collected structured answers using AI
+ */
+export async function generateFieldTextFromAnswers(
+  field: HurdleField,
+  answers: QuestionAnswer[],
+  context: StructuredEnhancementInput
+): Promise<string> {
+  try {
+    // Build context for AI
+    const momentContext = context.moment_title
+      ? `
+Hero Moment: ${context.moment_title}
+Description: ${context.moment_description || 'none'}`
+      : ''
+
+    const experienceContext = context.experience
+      ? `
+Experience: ${context.experience.title} at ${context.experience.employer}
+Summary: ${context.experience.summary || 'none'}
+Highlights: ${context.experience.highlights.join('; ') || 'none'}`
+      : ''
+
+    const previousFieldsContext = context.previous_field_results
+      ? `
+Previous Fields:
+${context.previous_field_results.problem ? `- Problem: ${context.previous_field_results.problem}` : ''}
+${context.previous_field_results.scope ? `- Scope: ${context.previous_field_results.scope}` : ''}`
+      : ''
+
+    // Format answers for AI
+    const answersText = answers.map((a) => {
+      const customPart = a.customText ? ` (custom: ${a.customText})` : ''
+      return `- ${a.questionId}: ${a.selectedOption}${customPart}`
+    }).join('\n')
+
+    const fieldPrompt = getFieldSynthesisPrompt(field)
+
+    const systemPrompt = `You are an expert at synthesizing structured question answers into compelling, concise achievement story text.
+
+${fieldPrompt}
+
+Your task:
+1. Review the user's answers to structured questions
+2. Use the context provided (hero moment, experience, previous fields) to write contextual text
+3. Generate a single cohesive paragraph (2-4 sentences) that captures the essence
+4. Use specific details from their answers
+5. Keep it concise but informative
+6. Write in past tense, active voice
+7. Do NOT include field labels or headers in output
+8. Output ONLY the paragraph text, nothing else`
+
+    const userPrompt = `${momentContext}${experienceContext}${previousFieldsContext}
+
+User's Answers to ${field.toUpperCase()} Questions:
+${answersText}
+
+Generate the ${field} text:`
+
+    const result = await generateText({
+      model: gateway('openai/gpt-4o-mini'),
+      system: systemPrompt,
+      prompt: userPrompt,
+      temperature: 0.7,
+      maxTokens: 300
+    })
+
+    return result.text.trim()
+  } catch (error: any) {
+    if (error.code === 'ERR_TIMEOUT') {
+      throw new HeroEnhancementError('AI request timed out', 'TIMEOUT', error)
+    }
+    if (error.message?.includes('API key')) {
+      throw new HeroEnhancementError('AI Gateway API key is missing or invalid', 'API_KEY_MISSING', error)
+    }
+    throw new HeroEnhancementError('Failed to generate field text from answers', 'API_ERROR', error)
+  }
+}
+
+/**
+ * Get field-specific synthesis prompts
+ */
+function getFieldSynthesisPrompt(field: HurdleField): string {
+  switch (field) {
+    case 'problem':
+      return `For the PROBLEM field, synthesize answers to convey:
+- What the specific problem/challenge/opportunity was
+- The nature of the issue (technical, process, business, etc.)
+- How it was impacting things
+
+Example: "Authentication API endpoints were experiencing 8-10 second response times due to unoptimized database queries and lack of caching, blocking developer productivity across the engineering team of 25 people who logged in multiple times daily."`
+
+    case 'scope':
+      return `For the SCOPE field, synthesize answers to convey:
+- Who was affected (team, department, customers, etc.)
+- How frequently it occurred
+- How long it had been a problem
+
+Example: "The issue affected all 25 engineers on the platform team, occurring constantly with every login attempt, and had been degrading developer experience for 6 months."`
+
+    case 'stakes':
+      return `For the STAKES field, synthesize answers to convey:
+- What was at risk if not solved
+- The urgency level
+- Quantifiable impact if mentioned
+
+Example: "Without a solution, the team risked continued productivity loss of 2-3 hours per week per engineer, mounting frustration, and potential talent retention issues as developers complained about slow tooling."`
+  }
+}
+
+/**
+ * Generate contextual question based on experience and previous answers
+ */
+async function generateContextualQuestion(
+  field: HurdleField,
+  context: StructuredEnhancementInput,
+  previousQuestion: StructuredQuestion | null,
+  answers: QuestionAnswer[],
+  lastSelectedOption?: string,
+  lastCustomText?: string
+): Promise<StructuredQuestion | null> {
+  try {
+    const fieldPrompts = {
+      problem: `Generate a targeted multiple-choice question to help identify the PROBLEM they faced in THIS SPECIFIC ACHIEVEMENT.
+
+CRITICAL: Your question MUST reference the specific work mentioned in the hero story title.
+For example:
+- If title mentions "database migration", ask about database issues
+- If title mentions "API performance", ask about API problems  
+- If title mentions "authentication system", ask about auth challenges
+
+Focus on:
+- What was broken, slow, missing, or inefficient IN THIS SPECIFIC PROJECT?
+- Was it technical, process, business, or UX-related TO THIS WORK?
+- What triggered their awareness of this problem IN THIS CONTEXT?
+
+Use the exact terminology and technology from the story title in your question.`,
+      
+      scope: `Generate a targeted multiple-choice question to help identify the SCOPE of this specific problem.
+
+CRITICAL: Your question MUST connect to the achievement in the story title.
+
+Focus on:
+- Who was affected BY THIS SPECIFIC ISSUE? (team size, department, customers)
+- How frequently did THIS PROBLEM occur?
+- How long had THIS SPECIFIC ISSUE been a problem?
+- What was the scale or reach OF THIS PARTICULAR CHALLENGE?
+
+Reference the specific work from the story title and previous answers.`,
+      
+      stakes: `Generate a targeted multiple-choice question to help identify the STAKES for this specific problem.
+
+CRITICAL: Your question MUST relate to the achievement mentioned in the story title.
+
+Focus on:
+- What was at risk if THIS SPECIFIC PROBLEM wasn't solved?
+- Business impact of NOT solving THIS ISSUE: revenue, deadlines, customers?
+- Team impact of THIS PROBLEM: morale, productivity, retention?
+- Urgency and quantifiable metrics RELATED TO THIS CHALLENGE?
+
+Reference the specific work from the story title and previous answers.`
+    }
+
+    // Build context string
+    const contextStr = buildContextString(context)
+    const answersStr = answers.length > 0 
+      ? `\nPrevious Answers:\n${answers.map(a => `Q: ${a.questionId}\nA: ${a.selectedOption}${a.customText ? ` (${a.customText})` : ''}`).join('\n')}`
+      : ''
+    
+    const previousQuestionStr = previousQuestion && lastSelectedOption
+      ? `\nPrevious Question: ${previousQuestion.text}\nUser Selected: ${lastSelectedOption}${lastCustomText ? ` (${lastCustomText})` : ''}`
+      : ''
+
+    // Determine if we need another question
+    const shouldContinue = answers.length < 3 // Max 3 questions per field
+
+    const systemPrompt = `You are an AI coach generating targeted, contextual questions for a HERO story enhancement session.
+
+${fieldPrompts[field]}
+
+CRITICAL FOCUS RULES:
+1. The HERO STORY TITLE is the PRIMARY subject - you MUST reference it directly in your question
+2. Extract the key action/technology from the title and incorporate it into your question
+3. Example: If title is "Migrated database to cloud infrastructure", ask about the DATABASE MIGRATION and CLOUD aspects
+4. Example: If title is "Reduced API latency by 60%", ask about the LATENCY PROBLEM and API performance
+5. Your questions should help elaborate on the SPECIFIC achievement mentioned in the title
+
+QUESTION GENERATION RULES:
+1. ALWAYS reference the specific achievement from the story title in your question
+2. Make the question about the exact work described in the title, not generic problems
+3. Extract keywords from the title (e.g., "database migration", "cloud infrastructure") and use them
+4. Provide 4-6 clear, relevant multiple-choice options that relate to the story title
+5. Options should be specific to the type of work mentioned in the title
+6. Include an "Other (specify)" option that allows custom text
+7. Keep questions conversational but SPECIFIC to their story
+8. If you have enough information (after 2-3 questions), return null to indicate completion
+
+BAD EXAMPLE (too generic):
+Title: "Migrated database to cloud infrastructure"
+Question: "What inefficiencies did you encounter at work?"
+
+GOOD EXAMPLE (references the story):
+Title: "Migrated database to cloud infrastructure"
+Question: "What specific issues with the existing database setup prompted the need for migrating to cloud infrastructure?"
+
+OUTPUT FORMAT:
+Return a JSON object with this structure:
+{
+  "question": "Your specific question here?",
+  "options": [
+    { "id": "option1", "label": "First option", "emoji": "🎯" },
+    { "id": "option2", "label": "Second option", "emoji": "📊" },
+    { "id": "other", "label": "Other (specify)", "allowCustom": true }
+  ],
+  "continue": true
+}
+
+If no more questions needed, return:
+{
+  "continue": false
+}
+
+Generate ONE targeted question that moves the conversation forward.`
+
+    const userPrompt = `${contextStr}${answersStr}${previousQuestionStr}
+
+Field: ${field.toUpperCase()}
+Questions asked so far: ${answers.length}/3
+
+REMINDER: Your question must directly reference the specific achievement from the hero story title above. Extract keywords from the title and incorporate them into your question. Make it about THAT specific work, not generic problems.
+
+Generate the ${shouldContinue ? 'next' : 'final'} question or indicate completion:`
+
+    const result = await generateText({
+      model: gateway('openai/gpt-4o-mini'),
+      system: systemPrompt,
+      prompt: userPrompt,
+      temperature: 0.8,
+      maxTokens: 500
+    })
+
+    // Parse the response
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      throw new Error('Invalid AI response format')
+    }
+
+    const parsed = JSON.parse(jsonMatch[0])
+
+    // Check if conversation should continue
+    if (!parsed.continue || !parsed.question) {
+      return null // No more questions needed
+    }
+
+    // Return structured question
+    return {
+      id: `${field}_q${answers.length + 1}`,
+      text: parsed.question,
+      field,
+      options: parsed.options || []
+    }
+  } catch (error: any) {
+    console.error('Error generating contextual question:', error)
+    // Fallback to static question if AI fails
+    return getFirstQuestion(field)
+  }
+}
+
+/**
+ * Build context string for AI prompts
+ */
+function buildContextString(context: StructuredEnhancementInput): string {
+  let contextStr = ''
+
+  // HERO STORY is the PRIMARY focus
+  if (context.moment_title) {
+    contextStr += `\n=== PRIMARY FOCUS: THIS IS THE STORY ===
+Hero Story Title: ${context.moment_title}`
+    if (context.moment_description) {
+      contextStr += `\nStory Description: ${context.moment_description}`
+    }
+    contextStr += '\n\nALL questions must be about THIS specific achievement shown in the title above.'
+  }
+
+  // Experience provides background context ONLY
+  if (context.experience) {
+    contextStr += `\n\n=== BACKGROUND CONTEXT (for reference only) ===
+- Their Role: ${context.experience.title} at ${context.experience.employer}`
+    
+    // Only include summary if it's brief, skip highlights to avoid confusion
+    if (context.experience.summary && context.experience.summary.length < 200) {
+      contextStr += `\n- Role Summary: ${context.experience.summary}`
+    }
+    
+    contextStr += '\n\nUse the role and company for context, but do NOT ask about other projects.'
+  }
+
+  if (context.previous_field_results) {
+    contextStr += '\n\n=== PREVIOUS FIELD RESULTS ==='
+    if (context.previous_field_results.problem) {
+      contextStr += `\n- Problem: ${context.previous_field_results.problem}`
+    }
+    if (context.previous_field_results.scope) {
+      contextStr += `\n- Scope: ${context.previous_field_results.scope}`
+    }
+  }
+
+  return contextStr
+}
+
+/**
+ * Generate contextual transition message for structured questions
+ */
+export async function generateTransitionMessage(
+  field: HurdleField,
+  _previousAnswer: { questionId: string, selectedOption: string, customText?: string },
+  nextQuestion: StructuredQuestion | null,
+  _context: StructuredEnhancementInput,
+  questionNumber?: number,
+  totalQuestions?: number
+): Promise<string> {
+  if (!nextQuestion) {
+    return `Great! I have everything I need for ${field}.`
+  }
+
+  // Generate contextual coaching based on progress
+  const progress = questionNumber && totalQuestions ? questionNumber / totalQuestions : 0
+
+  // Early in conversation (< 33%)
+  if (progress < 0.33) {
+    const earlyMessages = [
+      'This is great! Let me ask a few more questions to understand the full picture.',
+      'Perfect! Just a few more questions to go.',
+      'Got it! Let\'s continue building your story.',
+      'Thanks for that. I\'m starting to see the picture.'
+    ]
+    return earlyMessages[Math.floor(Math.random() * earlyMessages.length)]
+  }
+
+  // Mid conversation (33% - 66%)
+  if (progress < 0.66) {
+    const midMessages = [
+      'This is good info! Just a few more questions to understand the scope...',
+      'Great progress! We\'re halfway there.',
+      'Excellent! I\'m getting a clear picture of your situation.',
+      'Perfect! A couple more questions and we\'ll have everything we need.'
+    ]
+    return midMessages[Math.floor(Math.random() * midMessages.length)]
+  }
+
+  // Near completion (> 66%)
+  const lateMessages = [
+    'Almost there! Just one or two more questions...',
+    'We\'re nearly done! This is coming together nicely.',
+    'Great! We\'re in the home stretch now.',
+    'Excellent work! Just wrapping up with a final question or two.'
+  ]
+  return lateMessages[Math.floor(Math.random() * lateMessages.length)]
 }

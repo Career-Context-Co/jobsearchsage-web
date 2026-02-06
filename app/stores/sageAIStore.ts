@@ -167,7 +167,7 @@ export const useSageAIStore = defineStore('sageAI', {
 
         const updatedCapturedMoments = response.session_state?.captured_moments ?? capturedMoments
         const dedupedCapturedMoments = dedupeCapturedMoments(updatedCapturedMoments)
-        const updatedConversation: Array<{ role: 'assistant' | 'user'; content: string }> = [
+        const updatedConversation: Array<{ role: 'assistant' | 'user', content: string }> = [
           ...(this.discoverySession?.session_data?.conversation_history ?? []),
           { role: 'user', content: userMessage },
           { role: 'assistant', content: response.ai_message }
@@ -312,8 +312,13 @@ export const useSageAIStore = defineStore('sageAI', {
       storyId: string,
       sectionType: string,
       currentValues: Record<string, string>,
-      momentTitle?: string,
-      momentDescription?: string
+      options?: {
+        momentTitle?: string
+        momentDescription?: string
+        field?: string // NEW: for structured mode
+        previousFieldResults?: Record<string, string> // NEW: context from previous fields
+        sourceExperience?: Experience // NEW: linked experience for context
+      }
     ) {
       this.isLoading = true
       this.error = null
@@ -326,19 +331,35 @@ export const useSageAIStore = defineStore('sageAI', {
           current_values: currentValues
         }
 
-        if (momentTitle) {
-          body.moment_title = momentTitle
+        if (options?.momentTitle) {
+          body.moment_title = options.momentTitle
         }
 
-        if (momentDescription) {
-          body.moment_description = momentDescription
+        if (options?.momentDescription) {
+          body.moment_description = options.momentDescription
+        }
+
+        if (options?.field) {
+          body.field = options.field
+        }
+
+        if (options?.previousFieldResults) {
+          body.previous_field_results = options.previousFieldResults
+        }
+
+        if (options?.sourceExperience) {
+          body.source_experience = options.sourceExperience
         }
 
         const response = await $fetch<{
           success: boolean
           session_id: number
-          ai_message: string
+          ai_message?: string
           suggestions?: Record<string, string>
+          // Structured mode fields
+          field?: string
+          current_question?: any
+          is_complete: boolean
         }>('/api/ai/hero-session/start', {
           method: 'POST',
           body
@@ -368,23 +389,43 @@ export const useSageAIStore = defineStore('sageAI', {
 
     async continueHeroEnhancementSession(
       sessionId: number,
-      userMessage: string
+      input: {
+        userMessage?: string // For conversational mode
+        selectedOption?: string // For structured mode
+        customText?: string // For structured mode with "Other" option
+      }
     ) {
       this.isLoading = true
       this.error = null
 
       try {
+        const body: Record<string, any> = {
+          session_id: sessionId
+        }
+
+        // Support both conversational and structured modes
+        if (input.userMessage) {
+          body.user_message = input.userMessage
+        }
+
+        if (input.selectedOption) {
+          body.selected_option = input.selectedOption
+        }
+
+        if (input.customText) {
+          body.custom_text = input.customText
+        }
+
         const response = await $fetch<{
           success: boolean
-          ai_message: string
+          ai_message?: string
           is_complete: boolean
           final_output?: Record<string, string>
+          // Structured mode fields
+          current_question?: any
         }>('/api/ai/hero-session/continue', {
           method: 'POST',
-          body: {
-            session_id: sessionId,
-            user_message: userMessage
-          }
+          body
         })
 
         if (!response.success) {

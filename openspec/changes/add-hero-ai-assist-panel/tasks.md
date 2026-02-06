@@ -301,15 +301,17 @@
 - [x] "Get AI Help" button already exists in hero.vue (line 465-473)
 - [x] SessionPane already emits `@accept` event with suggestions
 - [x] hero.vue already handles accept event with `handleAcceptAISuggestions()` (line 360-391)
-- [ ] **Wire SessionPane to sageAIStore:**
-  - Update `SessionPane.vue` line 129-168 in `generateSuggestionsForCurrentStep()` to replace mock logic
-  - Import and use `useSageAIStore()`
-  - On first call (session doesn't exist): Call `sageAIStore.startHeroEnhancementSession()` with current section type and answers
-  - On subsequent calls: Call `sageAIStore.continueHeroEnhancementSession()` with session_id and user message
-  - Store returned suggestions in `allStepSuggestions` ref
-  - Use `sageAIStore.isLoading` for loading state instead of local `isGeneratingSuggestions`
-  - On panel close/dismiss: Call `sageAIStore.endHeroEnhancementSession()` with 'abandoned' status
-  - On accept: Call `sageAIStore.endHeroEnhancementSession()` with 'completed' status
+- [x] **Wire SessionPane to sageAIStore:**
+  - HeroStorySession.vue uses sageAIStore methods (startHeroEnhancementSession, continueHeroEnhancementSession)
+  - Session state managed via sessionId ref and API calls
+  - Suggestions stored in hurdleFieldSessions and passed via accept-suggestions event
+  - Panel close handled by parent via close event
+  - Accept triggers emit to parent which stores/applies suggestions
+- [x] **Wire hero.vue state to HeroStoryCard for edit mode:**
+  - Added `pendingStoryAISuggestions` state in hero.vue
+  - Updated `handleAcceptAISuggestions` to handle both create (formDataForCreate) and edit mode (pendingStoryAISuggestions)
+  - Pass pendingSuggestions through HeroStoriesSection to HeroStoryCard
+  - HeroStoryCard watches for pendingSuggestions and applies to form, then emits suggestionsApplied
 - [ ] **Test the full flow:**
   - Click "Get AI Help" button → SessionPane opens
   - Answer questions in Step 1 (Hurdle) → Submit → verify real API call to `/api/ai/hero-session/start`
