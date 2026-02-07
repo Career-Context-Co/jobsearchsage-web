@@ -13,16 +13,15 @@ interface Moment {
 interface Props {
   moments: Moment[]
   isLoading?: boolean
-  error?: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  isLoading: false,
-  error: null
+  isLoading: false
 })
 
 const emit = defineEmits<{
   develop: [moment: Moment]
+  developWithAI: [moment: Moment]
   remove: [moment: Moment]
   save: [payload: { moment: Moment; updates: { title: string; rawNotes: string } }]
   cancel: [moment: Moment]
@@ -45,6 +44,10 @@ function toggleExpanded() {
 
 function handleDevelop(moment: Moment) {
   emit('develop', moment)
+}
+
+function handleDevelopWithAI(moment: Moment) {
+  emit('developWithAI', moment)
 }
 
 function handleRemove(moment: Moment) {
@@ -106,10 +109,6 @@ function handleStartSession() {
 
     <!-- Expanded Content -->
     <template v-if="isExpanded">
-      <div v-if="error" class="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">
-        {{ error }}
-      </div>
-
       <div v-if="isLoading" class="px-3 text-sm text-muted">
         Loading moments...
       </div>
@@ -146,6 +145,7 @@ function handleStartSession() {
           :moment="moment"
           context="management"
           @develop="handleDevelop(moment)"
+          @develop-with-a-i="handleDevelopWithAI(moment)"
           @remove="handleRemove(moment)"
           @save="(updates) => handleSave(moment, updates)"
           @cancel="() => handleCancel(moment)"

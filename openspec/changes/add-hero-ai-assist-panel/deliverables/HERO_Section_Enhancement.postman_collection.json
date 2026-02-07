@@ -1,0 +1,789 @@
+{
+  "info": {
+    "name": "HERO Section Enhancement API",
+    "description": "API tests for hero story section enhancement with AI-guided conversation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "profile_id",
+      "value": "prof_myf2i85se9xri4e4wgsxxim7",
+      "type": "string"
+    },
+    {
+      "key": "story_id",
+      "value": "hero_j1pez9j9k14y",
+      "type": "string"
+    },
+    {
+      "key": "session_id_hurdle",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "session_id_expectation",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "session_id_response",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "session_id_outcome",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Happy Path Tests",
+      "item": [
+        {
+          "name": "Start Hurdle Enhancement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has success=true', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('Response contains session_id', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.session_id).to.be.a('number');",
+                  "    pm.collectionVariables.set('session_id_hurdle', jsonData.session_id);",
+                  "});",
+                  "",
+                  "pm.test('Response contains ai_message', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.ai_message).to.be.a('string');",
+                  "    pm.expect(jsonData.ai_message.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('is_complete is false', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.is_complete).to.be.false;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profile_id\": \"{{profile_id}}\",\n  \"story_id\": \"{{story_id}}\",\n  \"section_type\": \"hurdle\",\n  \"moment_title\": \"Reduced authentication latency by 80%\",\n  \"moment_description\": \"Optimized slow login system that was blocking team productivity\",\n  \"current_values\": {\n    \"field1\": null,\n    \"field2\": null,\n    \"field3\": null\n  },\n  \"source_experience\": {\n    \"id\": 62,\n    \"title\": \"Senior Backend Engineer\",\n    \"employer\": \"TechCorp\",\n    \"employment_type\": \"full_time\",\n    \"start_date\": \"2022-03-01\",\n    \"end_date\": null,\n    \"current_position\": true,\n    \"summary\": \"Led backend infrastructure improvements for core authentication services\",\n    \"highlights\": [\n      \"Reduced API response time by 60%\",\n      \"Implemented caching layer serving 1M+ requests/day\"\n    ],\n    \"context_notes\": \"Focus on performance optimization and scalability. Work often involved database query optimization and distributed caching strategies.\",\n    \"location\": \"San Francisco, CA\",\n    \"location_type\": \"hybrid\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "start"]
+            }
+          }
+        },
+        {
+          "name": "Continue Hurdle Enhancement - Round 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has success=true', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('Response contains ai_message', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.ai_message).to.be.a('string');",
+                  "    pm.expect(jsonData.ai_message.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('is_complete field is present', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('is_complete');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": {{session_id_hurdle}},\n  \"user_message\": \"Login was taking 8-10 seconds and users were complaining about it every day.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/continue",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "continue"]
+            }
+          }
+        },
+        {
+          "name": "Continue Hurdle Enhancement - Round 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has success=true', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": {{session_id_hurdle}},\n  \"user_message\": \"Slow database queries and no caching. We had inefficient queries hitting the user table on every request.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/continue",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "continue"]
+            }
+          }
+        },
+        {
+          "name": "Continue Hurdle Enhancement - Round 3",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has success=true', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": {{session_id_hurdle}},\n  \"user_message\": \"Our whole engineering team of 25 people. Every single login, multiple times per day.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/continue",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "continue"]
+            }
+          }
+        },
+        {
+          "name": "Continue Hurdle Enhancement - Complete",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('is_complete is true', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.is_complete).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('final_output is present', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.final_output).to.exist;",
+                  "});",
+                  "",
+                  "pm.test('final_output has proper field names for Hurdle', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.final_output.hurdleProblem).to.be.a('string');",
+                  "    pm.expect(jsonData.final_output.hurdleScope).to.be.a('string');",
+                  "    pm.expect(jsonData.final_output.hurdleStakes).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": {{session_id_hurdle}},\n  \"user_message\": \"It was blocking daily work. Engineers couldn't access internal tools quickly and it was slowing down the whole team's productivity.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/continue",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "continue"]
+            }
+          }
+        },
+        {
+          "name": "End Hurdle Enhancement - Save to Database",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has success=true', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('Response contains story_id', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.story_id).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('Section type is hurdle', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.section_type).to.equal('hurdle');",
+                  "});",
+                  "",
+                  "pm.test('Fields updated contains 3 hurdle fields', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.fields_updated).to.be.an('array');",
+                  "    pm.expect(jsonData.fields_updated).to.include('hurdleProblem');",
+                  "    pm.expect(jsonData.fields_updated).to.include('hurdleScope');",
+                  "    pm.expect(jsonData.fields_updated).to.include('hurdleStakes');",
+                  "});",
+                  "",
+                  "pm.test('Response contains updated_story', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.updated_story).to.exist;",
+                  "    pm.expect(jsonData.updated_story).to.be.an('object');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": {{session_id_hurdle}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/end",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "end"]
+            }
+          }
+        },
+        {
+          "name": "Start Expectation Enhancement (Minimal Context)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response contains session_id', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.session_id).to.be.a('number');",
+                  "    pm.collectionVariables.set('session_id_expectation', jsonData.session_id);",
+                  "});",
+                  "",
+                  "pm.test('Works with minimal context (no moment or experience)', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.ai_message).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profile_id\": \"{{profile_id}}\",\n  \"story_id\": \"{{story_id}}\",\n  \"section_type\": \"expectation\",\n  \"current_values\": {\n    \"field1\": \"Led the performance optimization initiative\",\n    \"field2\": null,\n    \"field3\": null\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "start"]
+            }
+          }
+        },
+        {
+          "name": "Start Response Enhancement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response contains session_id', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('session_id_response', jsonData.session_id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profile_id\": \"{{profile_id}}\",\n  \"story_id\": \"{{story_id}}\",\n  \"section_type\": \"response\",\n  \"moment_title\": \"Reduced authentication latency by 80%\",\n  \"current_values\": {\n    \"field1\": null,\n    \"field2\": null,\n    \"field3\": null\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "start"]
+            }
+          }
+        },
+        {
+          "name": "Start Outcome Enhancement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response contains session_id', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('session_id_outcome', jsonData.session_id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profile_id\": \"{{profile_id}}\",\n  \"story_id\": \"{{story_id}}\",\n  \"section_type\": \"outcome\",\n  \"moment_title\": \"Reduced authentication latency by 80%\",\n  \"current_values\": {\n    \"field1\": \"Implemented Redis caching layer\",\n    \"field2\": null,\n    \"field3\": null\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "start"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Error Tests",
+      "item": [
+        {
+          "name": "Start - Missing profile_id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions profile_id', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.error.message).to.include('profile_id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"story_id\": \"{{story_id}}\",\n  \"section_type\": \"hurdle\",\n  \"current_values\": {\n    \"field1\": null,\n    \"field2\": null,\n    \"field3\": null\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "start"]
+            }
+          }
+        },
+        {
+          "name": "Start - Missing section_type",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions section_type', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.error.message).to.include('section_type');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profile_id\": \"{{profile_id}}\",\n  \"story_id\": \"{{story_id}}\",\n  \"current_values\": {\n    \"field1\": null,\n    \"field2\": null,\n    \"field3\": null\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "start"]
+            }
+          }
+        },
+        {
+          "name": "Start - Invalid section_type",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions valid section types', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.error.message).to.include('hurdle');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profile_id\": \"{{profile_id}}\",\n  \"story_id\": \"{{story_id}}\",\n  \"section_type\": \"invalid_section\",\n  \"current_values\": {\n    \"field1\": null,\n    \"field2\": null,\n    \"field3\": null\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "start"]
+            }
+          }
+        },
+        {
+          "name": "Continue - Missing session_id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions session_id', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.error.message).to.include('session_id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_message\": \"Test message\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/continue",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "continue"]
+            }
+          }
+        },
+        {
+          "name": "Continue - Invalid session_id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Error indicates session not found', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.error.code).to.equal('SESSION_NOT_FOUND');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": 999999,\n  \"user_message\": \"Test message\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/continue",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "continue"]
+            }
+          }
+        },
+        {
+          "name": "Continue - Missing user_message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions user_message', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.error.message).to.include('user_message');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": {{session_id_hurdle}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/continue",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "continue"]
+            }
+          }
+        },
+        {
+          "name": "End - Missing session_id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions session_id', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.error.message).to.include('session_id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/end",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "end"]
+            }
+          }
+        },
+        {
+          "name": "End - Session Not Completed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error code is SESSION_NOT_COMPLETE', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.error.code).to.equal('SESSION_NOT_COMPLETE');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": {{session_id_expectation}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/hero-session/end",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "hero-session", "end"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

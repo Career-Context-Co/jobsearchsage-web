@@ -23,6 +23,16 @@ const savedDiscoverySessions = new Set<number>()
 // Show create form inline
 const isShowingCreateForm = ref(false)
 
+// AI Panel state
+const isAIPanelOpen = ref(false)
+const currentStoryIdForAI = ref<string | null>(null)
+
+// Pending AI suggestions for existing stories (edit mode)
+const pendingStoryAISuggestions = ref<{
+  storyId: string
+  suggestions: Record<string, Record<string, string>>
+} | null>(null)
+
 // Inline form state for creating new story only
 const formDataForCreate = ref({
   title: '',
@@ -63,7 +73,7 @@ function resetCreateForm() {
   formErrors.value = {}
 }
 
-function startAddingStory(prefill?: { title?: string; sourceExperienceId?: number | null }) {
+function startAddingStory(prefill?: { title?: string, sourceExperienceId?: number | null }) {
   resetCreateForm()
   if (prefill?.title) {
     formDataForCreate.value.title = prefill.title
@@ -81,11 +91,11 @@ function cancelAddingStory() {
 
 async function handleSaveNewStory() {
   const errors: Record<string, string> = {}
-  
+
   if (!formDataForCreate.value.title.trim()) {
     errors.title = 'Story title is required'
   }
-  
+
   formErrors.value = errors
   if (Object.keys(errors).length > 0) return
 
@@ -93,6 +103,9 @@ async function handleSaveNewStory() {
     if (!profileId.value) {
       throw new Error('Profile is required to create a story')
     }
+
+    // Clear any existing errors before attempting create
+    careerIDStore.error = null
 
     const created = await careerIDStore.createStory(profileId.value, {
       title: formDataForCreate.value.title.trim(),
@@ -117,12 +130,13 @@ async function handleSaveNewStory() {
       icon: 'i-lucide-check',
       color: 'success'
     })
-    
+
     cancelAddingStory()
   } catch (err: any) {
+    // Error is already set in the store, just show a toast
     toast.add({
       title: 'Error',
-      description: err?.message || 'Failed to save HERO story',
+      description: 'Failed to save HERO story. Please try again.',
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
@@ -140,11 +154,14 @@ const capturedMoments = computed(() =>
   }))
 )
 
-async function handleSaveStory(payload: { story?: HeroStory; updates?: Partial<HeroStory> }) {
+async function handleSaveStory(payload: { story?: HeroStory, updates?: Partial<HeroStory> }) {
   const storyId = payload.story?.id
   if (!storyId || !profileId.value || !payload.updates) return
 
   try {
+    // Clear any existing errors before attempting update
+    careerIDStore.error = null
+
     await careerIDStore.updateStory(profileId.value, storyId, payload.updates)
     toast.add({
       title: 'Success',
@@ -153,9 +170,10 @@ async function handleSaveStory(payload: { story?: HeroStory; updates?: Partial<H
       color: 'success'
     })
   } catch (err: any) {
+    // Error is already set in the store, just show a toast
     toast.add({
       title: 'Error',
-      description: err?.message || 'Failed to update HERO story',
+      description: 'Failed to update HERO story. Please try again.',
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
@@ -166,11 +184,15 @@ async function handleDeleteStory(story: HeroStory) {
   if (!confirm('Are you sure you want to delete this HERO story?')) {
     return
   }
-  
+
   try {
     if (!profileId.value) {
       throw new Error('Profile is required to delete a story')
     }
+
+    // Clear any existing errors before attempting delete
+    careerIDStore.error = null
+
     await careerIDStore.deleteStory(profileId.value, story.id)
     toast.add({
       title: 'Success',
@@ -179,9 +201,10 @@ async function handleDeleteStory(story: HeroStory) {
       color: 'success'
     })
   } catch (err: any) {
+    // Error is already set in the store, just show a toast
     toast.add({
       title: 'Error',
-      description: err?.message || 'Failed to delete HERO story',
+      description: 'Failed to delete HERO story. Please try again.',
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
@@ -218,7 +241,7 @@ function closeDiscoverySession() {
   router.push({ query })
 }
 
-async function handleSendMessage(payload: { userMessage: string; capturedMoments: Array<{ title: string; rawNotes: string }> }) {
+async function handleSendMessage(payload: { userMessage: string, capturedMoments: Array<{ title: string, rawNotes: string }> }) {
   if (!discoverySession.value?.id) return
   const response = await sageAIStore.continueDiscoverySession(
     discoverySession.value.id,
@@ -236,7 +259,7 @@ async function handleEndSession() {
   await finalizeDiscoverySession()
 }
 
-const dedupeCapturedMoments = (moments: Array<{ title: string; rawNotes: string }>) => {
+const dedupeCapturedMoments = (moments: Array<{ title: string, rawNotes: string }>) => {
   const seen = new Set<string>()
   return moments.filter((moment) => {
     const key = `${moment.title}||${moment.rawNotes}`
@@ -275,7 +298,7 @@ async function finalizeDiscoverySession() {
   savedDiscoverySessions.add(sessionId)
 }
 
-async function handleSaveMoments(payload: { capturedMoments: Array<{ title: string; rawNotes: string }> }) {
+async function handleSaveMoments(payload: { capturedMoments: Array<{ title: string, rawNotes: string }> }) {
   if (!discoverySession.value?.id || !profileId.value) return
 
   const uniqueMoments = dedupeCapturedMoments(payload.capturedMoments)
@@ -302,7 +325,7 @@ function normalizeSourceExperienceId(value: unknown): number | null {
   return null
 }
 
-function handleMomentDevelop(moment?: { title?: string; source_experience_id?: string | number | null }) {
+function handleMomentDevelop(moment?: { title?: string, source_experience_id?: string | number | null }) {
   const sourceExperienceId = normalizeSourceExperienceId(moment?.source_experience_id)
   startAddingStory({
     title: moment?.title?.trim() || undefined,
@@ -310,7 +333,106 @@ function handleMomentDevelop(moment?: { title?: string; source_experience_id?: s
   })
 }
 
-async function handleMomentSave(payload: { moment: { id: string | number }; updates: { title: string; rawNotes: string } }) {
+function handleMomentDevelopWithAI(moment?: { title?: string, source_experience_id?: string | number | null }) {
+  // Pre-fill create form with moment data
+  const sourceExperienceId = normalizeSourceExperienceId(moment?.source_experience_id)
+
+  if (moment?.title) {
+    formDataForCreate.value.title = moment.title.trim()
+  }
+  if (sourceExperienceId !== null) {
+    formDataForCreate.value.sourceExperienceId = sourceExperienceId
+  }
+
+  currentStoryIdForAI.value = 'create'
+  isAIPanelOpen.value = true
+}
+
+// AI Panel functions
+function openAIPanel() {
+  // Use a temporary ID for create form
+  currentStoryIdForAI.value = 'create'
+  isAIPanelOpen.value = true
+}
+
+function openAIPanelForStory(storyId: string) {
+  currentStoryIdForAI.value = storyId
+  isAIPanelOpen.value = true
+}
+
+function closeAIPanel() {
+  isAIPanelOpen.value = false
+  currentStoryIdForAI.value = null
+}
+
+function applyAISuggestionsToCreateForm(suggestions: Record<string, Record<string, string>>) {
+  if (suggestions.hurdle) {
+    formDataForCreate.value.hurdleProblem = suggestions.hurdle.problem || formDataForCreate.value.hurdleProblem
+    formDataForCreate.value.hurdleScope = suggestions.hurdle.scope || formDataForCreate.value.hurdleScope
+    formDataForCreate.value.hurdleStakes = suggestions.hurdle.stakes || formDataForCreate.value.hurdleStakes
+  }
+  if (suggestions.expectation) {
+    formDataForCreate.value.expectationRole = suggestions.expectation.role || formDataForCreate.value.expectationRole
+    formDataForCreate.value.expectationGoals = suggestions.expectation.goals || formDataForCreate.value.expectationGoals
+    formDataForCreate.value.expectationConstraints = suggestions.expectation.constraints || formDataForCreate.value.expectationConstraints
+  }
+  if (suggestions.response) {
+    formDataForCreate.value.responseActions = suggestions.response.actions || formDataForCreate.value.responseActions
+    formDataForCreate.value.responseTools = suggestions.response.tools || formDataForCreate.value.responseTools
+    formDataForCreate.value.responseChallenges = suggestions.response.challenges || formDataForCreate.value.responseChallenges
+  }
+  if (suggestions.outcome) {
+    formDataForCreate.value.outcomeDeliverable = suggestions.outcome.deliverable || formDataForCreate.value.outcomeDeliverable
+    formDataForCreate.value.outcomeMetrics = suggestions.outcome.metrics || formDataForCreate.value.outcomeMetrics
+    formDataForCreate.value.outcomeImpact = suggestions.outcome.impact || formDataForCreate.value.outcomeImpact
+  }
+}
+
+function handleAcceptAISuggestions(suggestions: Record<string, Record<string, string>>) {
+  if (currentStoryIdForAI.value === 'create') {
+    // CREATE mode: Apply suggestions directly to create form
+    applyAISuggestionsToCreateForm(suggestions)
+  } else if (currentStoryIdForAI.value) {
+    // EDIT mode: Store pending suggestions for the HeroStoryCard to consume
+    pendingStoryAISuggestions.value = {
+      storyId: currentStoryIdForAI.value,
+      suggestions
+    }
+  }
+
+  closeAIPanel()
+
+  toast.add({
+    title: 'Success',
+    description: 'AI suggestions applied to your story.',
+    icon: 'i-lucide-check',
+    color: 'success'
+  })
+}
+
+function clearPendingAISuggestions() {
+  pendingStoryAISuggestions.value = null
+}
+
+// Check if form has any data (for AI button disabled state)
+const hasFormData = computed(() => {
+  return !!(
+    formDataForCreate.value.hurdleProblem
+    || formDataForCreate.value.hurdleScope
+    || formDataForCreate.value.hurdleStakes
+    || formDataForCreate.value.expectationRole
+    || formDataForCreate.value.expectationGoals
+    || formDataForCreate.value.expectationConstraints
+    || formDataForCreate.value.responseActions
+    || formDataForCreate.value.responseTools
+    || formDataForCreate.value.responseChallenges
+    || formDataForCreate.value.outcomeDeliverable
+    || formDataForCreate.value.outcomeMetrics
+    || formDataForCreate.value.outcomeImpact
+  )
+})
+
+async function handleMomentSave(payload: { moment: { id: string | number }, updates: { title: string, rawNotes: string } }) {
   if (!profileId.value) return
   await careerIDStore.updateMoment(profileId.value, payload.moment.id, {
     title: payload.updates.title,
@@ -337,20 +459,37 @@ onMounted(async () => {
   <div class="space-y-4">
     <!-- Page Header -->
     <div class="mb-8 space-y-2">
-        <div>
-          <h1 class="text-2xl sm:text-3xl font-semibold mb-2">Your HERO Journey</h1>
-          <p class="text-sm text-muted">
-            Discover and develop your achievement moments into complete HERO stories.
-          </p>
-        </div>
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-semibold mb-2">
+          Your HERO Journey
+        </h1>
+        <p class="text-sm text-muted">
+          Discover and develop your achievement moments into complete HERO stories.
+        </p>
+      </div>
     </div>
 
     <!-- Create/Edit Story Form -->
     <div v-if="isShowingCreateForm" class="mb-6">
-      <UPageCard
-        title="Create New HERO Story"
-        variant="subtle"
-      >
+      <UPageCard variant="subtle">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold">
+              Create New HERO Story
+            </h3>
+            <UButton
+              label="Get AI Help"
+              icon="i-lucide-sparkles"
+              color="primary"
+              variant="ghost"
+              size="sm"
+              class="cursor-pointer"
+              :disabled="!hasFormData"
+              @click="openAIPanel"
+            />
+          </div>
+        </template>
+
         <div class="space-y-4">
           <!-- Title Section -->
           <div>
@@ -361,14 +500,18 @@ onMounted(async () => {
               class="w-full"
               :error="!!formErrors.title"
             />
-            <p v-if="formErrors.title" class="text-sm text-error mt-1">{{ formErrors.title }}</p>
+            <p v-if="formErrors.title" class="text-sm text-error mt-1">
+              {{ formErrors.title }}
+            </p>
           </div>
 
           <!-- HERO Sections - Grouped -->
           <div class="space-y-3">
             <!-- HURDLE Section -->
             <div class="pb-3 border-b border-default">
-              <h4 class="text-xs font-semibold text-foreground mb-2">🎯 The Hurdle</h4>
+              <h4 class="text-xs font-semibold text-foreground mb-2">
+                🎯 The Hurdle
+              </h4>
               <div class="space-y-2">
                 <div>
                   <label class="block text-xs font-medium text-muted mb-1">[PROBLEM] The Specific Challenge</label>
@@ -405,7 +548,9 @@ onMounted(async () => {
 
             <!-- EXPECTATION Section -->
             <div class="pb-3 border-b border-default">
-              <h4 class="text-xs font-semibold text-foreground mb-2">📋 The Expectation</h4>
+              <h4 class="text-xs font-semibold text-foreground mb-2">
+                📋 The Expectation
+              </h4>
               <div class="space-y-2">
                 <div>
                   <label class="block text-xs font-medium text-muted mb-1">[ROLE] Your Responsibility</label>
@@ -442,7 +587,9 @@ onMounted(async () => {
 
             <!-- RESPONSE Section -->
             <div class="pb-3 border-b border-default">
-              <h4 class="text-xs font-semibold text-foreground mb-2">⚡ The Response</h4>
+              <h4 class="text-xs font-semibold text-foreground mb-2">
+                ⚡ The Response
+              </h4>
               <div class="space-y-2">
                 <div>
                   <label class="block text-xs font-medium text-muted mb-1">[ACTIONS] Steps You Took</label>
@@ -479,7 +626,9 @@ onMounted(async () => {
 
             <!-- OUTCOME Section -->
             <div>
-              <h4 class="text-xs font-semibold text-foreground mb-2">🏆 The Outcome</h4>
+              <h4 class="text-xs font-semibold text-foreground mb-2">
+                🏆 The Outcome
+              </h4>
               <div class="space-y-2">
                 <div>
                   <label class="block text-xs font-medium text-muted mb-1">[DELIVERABLE] What Was Delivered</label>
@@ -529,9 +678,9 @@ onMounted(async () => {
               color="primary"
               size="sm"
               icon="i-lucide-check"
-              @click="handleSaveNewStory"
               :loading="isSaving"
               :disabled="!formDataForCreate.title.trim() || isSaving"
+              @click="handleSaveNewStory"
             />
           </div>
         </div>
@@ -543,10 +692,12 @@ onMounted(async () => {
       <ProfileHeroStoriesSection
         :stories="heroStories"
         :is-loading="isLoading"
-        :error="error"
+        :pending-suggestions="pendingStoryAISuggestions"
         @create="startAddingStory"
         @delete="handleDeleteStory"
         @save="handleSaveStory"
+        @open-a-i-help="openAIPanelForStory"
+        @clear-pending-suggestions="clearPendingAISuggestions"
       />
     </div>
 
@@ -555,8 +706,8 @@ onMounted(async () => {
       <ProfileHeroDiscoveredMomentsSection
         :moments="heroMoments"
         :is-loading="isLoading"
-        :error="error"
         @develop="handleMomentDevelop"
+        @develop-with-a-i="handleMomentDevelopWithAI"
         @remove="handleMomentRemove"
         @save="handleMomentSave"
         @start-session="openDiscoverySession"
@@ -597,4 +748,59 @@ onMounted(async () => {
       </div>
     </template>
   </UDrawer>
+
+  <!-- AI Help Panel Slideover -->
+  <USlideover
+    v-model:open="isAIPanelOpen"
+    side="right"
+    :overlay="false"
+    :dismissible="true"
+    :modal="false"
+    :inset="true"
+    :ui="{ content: 'max-w-2xl w-full' }"
+    @update:open="(open) => { if (!open) closeAIPanel() }"
+  >
+    <template #header="{ close }">
+      <div class="w-full flex items-start justify-between gap-4">
+        <div class="flex-1">
+          <h2 class="text-lg font-semibold">
+            Get AI Help for Your Story
+          </h2>
+          <p class="text-sm text-muted mt-1">
+            AI-guided story enhancement
+          </p>
+        </div>
+        <UButton
+          icon="i-lucide-x"
+          color="neutral"
+          variant="ghost"
+          size="md"
+          class="cursor-pointer"
+          @click="close"
+        />
+      </div>
+    </template>
+    <template #body>
+      <div class="h-full">
+        <ProfileHeroSessionPane
+          v-if="currentStoryIdForAI && profileId"
+          :story-id="currentStoryIdForAI"
+          :profile-id="profileId"
+          @close="closeAIPanel"
+          @accept="handleAcceptAISuggestions"
+        />
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex items-center justify-end w-full">
+        <UButton
+          label="Close"
+          color="neutral"
+          variant="ghost"
+          class="cursor-pointer"
+          @click="closeAIPanel"
+        />
+      </div>
+    </template>
+  </USlideover>
 </template>

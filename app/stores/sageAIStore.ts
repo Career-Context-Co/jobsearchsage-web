@@ -38,9 +38,17 @@ const getDiscoverySessionStage = () => {
   return discoverySessionStage
 }
 
+type HeroEnhancementSession = {
+  id: number | null
+  profile_id: string | null
+  story_id: string | null
+  section_type: string | null
+}
+
 export const useSageAIStore = defineStore('sageAI', {
   state: () => ({
     discoverySession: null as DiscoverySession | null,
+    heroEnhancementSession: null as HeroEnhancementSession | null,
     isLoading: false,
     error: null as string | null
   }),
@@ -159,7 +167,7 @@ export const useSageAIStore = defineStore('sageAI', {
 
         const updatedCapturedMoments = response.session_state?.captured_moments ?? capturedMoments
         const dedupedCapturedMoments = dedupeCapturedMoments(updatedCapturedMoments)
-        const updatedConversation: Array<{ role: 'assistant' | 'user'; content: string }> = [
+        const updatedConversation: Array<{ role: 'assistant' | 'user', content: string }> = [
           ...(this.discoverySession?.session_data?.conversation_history ?? []),
           { role: 'user', content: userMessage },
           { role: 'assistant', content: response.ai_message }
@@ -296,6 +304,179 @@ export const useSageAIStore = defineStore('sageAI', {
 
       const capturedMoments = session.session_data?.captured_moments ?? []
       return await this.continueDiscoverySession(sessionId, lastEntry.content, capturedMoments)
+    },
+
+    // Hero Enhancement Session Methods
+    async startHeroEnhancementSession(
+      profileId: string,
+      storyId: string,
+      sectionType: string,
+      currentValues: Record<string, string>,
+      options?: {
+        momentTitle?: string
+        momentDescription?: string
+        field?: string // NEW: for structured mode
+        previousFieldResults?: Record<string, string> // NEW: context from previous fields
+        sourceExperience?: Experience // NEW: linked experience for context
+      }
+    ) {
+      this.isLoading = true
+      this.error = null
+
+      try {
+        const body: Record<string, any> = {
+          profile_id: profileId,
+          story_id: storyId,
+          section_type: sectionType,
+          current_values: currentValues
+        }
+
+        if (options?.momentTitle) {
+          body.moment_title = options.momentTitle
+        }
+
+        if (options?.momentDescription) {
+          body.moment_description = options.momentDescription
+        }
+
+        if (options?.field) {
+          body.field = options.field
+        }
+
+        if (options?.previousFieldResults) {
+          body.previous_field_results = options.previousFieldResults
+        }
+
+        if (options?.sourceExperience) {
+          body.source_experience = options.sourceExperience
+        }
+
+        const response = await $fetch<{
+          success: boolean
+          session_id: number
+          ai_message?: string
+          suggestions?: Record<string, string>
+          // Structured mode fields
+          field?: string
+          current_question?: any
+          is_complete: boolean
+        }>('/api/ai/hero-session/start', {
+          method: 'POST',
+          body
+        })
+
+        if (!response.success || !response.session_id) {
+          throw new Error('Failed to start hero enhancement session')
+        }
+
+        this.heroEnhancementSession = {
+          id: response.session_id,
+          profile_id: profileId,
+          story_id: storyId,
+          section_type: sectionType
+        }
+
+        return response
+      } catch (error: any) {
+        const errorMessage = error?.data?.error?.message || error?.message || 'Failed to start hero enhancement session'
+        this.error = errorMessage
+        console.error('startHeroEnhancementSession failed', error)
+        throw error
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async continueHeroEnhancementSession(
+      sessionId: number,
+      input: {
+        userMessage?: string // For conversational mode
+        selectedOption?: string // For structured mode
+        customText?: string // For structured mode with "Other" option
+      }
+    ) {
+      this.isLoading = true
+      this.error = null
+
+      try {
+        const body: Record<string, any> = {
+          session_id: sessionId
+        }
+
+        // Support both conversational and structured modes
+        if (input.userMessage) {
+          body.user_message = input.userMessage
+        }
+
+        if (input.selectedOption) {
+          body.selected_option = input.selectedOption
+        }
+
+        if (input.customText) {
+          body.custom_text = input.customText
+        }
+
+        const response = await $fetch<{
+          success: boolean
+          ai_message?: string
+          is_complete: boolean
+          final_output?: Record<string, string>
+          // Structured mode fields
+          current_question?: any
+        }>('/api/ai/hero-session/continue', {
+          method: 'POST',
+          body
+        })
+
+        if (!response.success) {
+          throw new Error('Failed to continue hero enhancement session')
+        }
+
+        return response
+      } catch (error: any) {
+        const errorMessage = error?.data?.error?.message || error?.message || 'Failed to continue hero enhancement session'
+        this.error = errorMessage
+        console.error('continueHeroEnhancementSession failed', error)
+        throw error
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async endHeroEnhancementSession(
+      sessionId: number,
+      status: 'completed' | 'abandoned' = 'completed'
+    ) {
+      this.isLoading = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+        }>('/api/ai/hero-session/end', {
+          method: 'POST',
+          body: {
+            session_id: sessionId,
+            status
+          }
+        })
+
+        if (!response.success) {
+          throw new Error('Failed to end hero enhancement session')
+        }
+
+        // Clear the session state
+        this.heroEnhancementSession = null
+
+        return response
+      } catch (error: any) {
+        const errorMessage = error?.data?.error?.message || error?.message || 'Failed to end hero enhancement session'
+        this.error = errorMessage
+        console.error('endHeroEnhancementSession failed', error)
+        throw error
+      } finally {
+        this.isLoading = false
+      }
     }
   }
 })
