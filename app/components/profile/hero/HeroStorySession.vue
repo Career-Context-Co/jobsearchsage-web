@@ -437,10 +437,14 @@ async function handleOptionSelected(data: { optionId: string, customText?: strin
     // This prevents showing a "ghost" question while loading
     currentQuestion.value = null
 
+    // Send the actual answer text (label), not the option ID
+    // If custom text is provided, use that; otherwise use the selected option's label
+    const answerText = data.customText || selectedOption?.label || data.optionId
+
     const response = await sageAIStore.continueHeroEnhancementSession(
       sessionId.value!,
       {
-        selectedOption: data.optionId,
+        selectedOption: answerText,
         customText: data.customText
       }
     )

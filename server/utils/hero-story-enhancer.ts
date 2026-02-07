@@ -146,19 +146,21 @@ WHAT TO LOOK FOR AND ASK ABOUT PER TAG:
 
 [ROLE]:
 - What was their official job title when this happened?
-- Were they leading this effort or supporting someone else?
 - Did they have decision-making authority? Approval needed?
 - Were they working solo, leading a team, or part of a team?
-- Cross-functional coordination needed? Which teams/stakeholders?
-- Was this their main job or a side initiative?
+- Focus ONLY on position and authority - extract the MINIMUM necessary
+- Do NOT extract specific work activities, technical details, or project descriptions
+- Keep role description to 1-2 sentences maximum
 
 [GOALS]:
-- What were they trying to achieve? What would "success" look like?
-- Were there specific metrics or targets? (speed, cost, quality, adoption)
-- Was there a deadline or milestone driving this?
-- Who set these goals - leadership, the team, or themselves?
-- Primary goal vs. secondary goals?
-- Quantifiable whenever possible
+- FIRST: Ask qualitatively what they were expected to accomplish (not metrics yet!)
+  Example: "For the database migration, what were you expected to accomplish?"
+- THEN: Ask about metrics, timelines, targets that defined success
+  Example: "How was success measured? Were there specific performance targets?"
+- FINALLY: Ask who set these goals and why
+  Example: "Who decided on these goals - was it a leadership directive or team initiative?"
+- Use the Hurdle context to understand what problem they were solving
+- Focus on BUSINESS OUTCOMES: cost reduction, performance improvements, adoption rates
 
 [CONSTRAINTS]:
 - Timeline: How much time did they have? Sprint, quarter, specific deadline?
@@ -170,10 +172,11 @@ WHAT TO LOOK FOR AND ASK ABOUT PER TAG:
 
 CRITICAL RULES:
 1. DO NOT invent authority or scope they didn't have
-2. If they're unsure about goals/metrics, ask what "done" looked like
-3. Help them identify constraints even if they didn't think about them explicitly
-4. Preserve their exact numbers and timelines
-5. Keep questions conversational and one at a time
+2. For ROLE: focus only on their responsibility and authority - do NOT include specific actions, metrics, or achievements
+3. If they're unsure about goals/metrics, ask what "done" looked like
+4. Help them identify constraints even if they didn't think about them explicitly
+5. Preserve their exact numbers and timelines
+6. Keep questions conversational and one at a time
 
 CONVERSATION FLOW:
 1. Start with ROLE - understand their position and authority
@@ -185,8 +188,8 @@ CONVERSATION FLOW:
 OUTPUT FORMAT:
 After the conversation loop, return valid JSON:
 {
-  "role": "role and authority extracted from conversation",
-  "goals": "specific goals extracted from conversation",
+  "role": "1-2 sentences MAX: job title + decision authority + team structure ONLY. NO actions, NO detailed responsibilities, NO project descriptions",
+  "goals": "1-2 sentences: CORPORATE INITIATIVE or BUSINESS TARGET with specific metrics, timelines, and who set them. Example: 'Leadership mandated reducing support tickets by 30% within 6 months to retain at-risk contracts'",
   "constraints": "constraints extracted from conversation",
   "questions_asked": ["list of questions you asked"],
   "conversation_complete": true
@@ -590,6 +593,7 @@ export interface StructuredEnhancementInput {
   previous_field_results?: {
     problem?: string
     scope?: string
+    stakes?: string
   }
 }
 
@@ -637,8 +641,12 @@ Hero Moment: ${context.moment_title}
 Description: ${context.moment_description || 'none'}`
       : ''
 
+    // For ROLE and GOALS fields, only include job title and employer (no summary/highlights to avoid bleeding)
     const experienceContext = context.experience
-      ? `
+      ? (field === 'role' || field === 'goals')
+        ? `
+Experience: ${context.experience.title} at ${context.experience.employer}`
+        : `
 Experience: ${context.experience.title} at ${context.experience.employer}
 Summary: ${context.experience.summary || 'none'}
 Highlights: ${context.experience.highlights.join('; ') || 'none'}`
@@ -646,15 +654,22 @@ Highlights: ${context.experience.highlights.join('; ') || 'none'}`
 
     const previousFieldsContext = context.previous_field_results
       ? `
-Previous Fields:
-${context.previous_field_results.problem ? `- Problem: ${context.previous_field_results.problem}` : ''}
-${context.previous_field_results.scope ? `- Scope: ${context.previous_field_results.scope}` : ''}`
+=== HURDLE SECTION (Context about the problem they faced) ===
+${context.previous_field_results.problem ? `Problem: ${context.previous_field_results.problem}` : ''}
+${context.previous_field_results.scope ? `Scope: ${context.previous_field_results.scope}` : ''}
+${context.previous_field_results.stakes ? `Stakes: ${context.previous_field_results.stakes}` : ''}
+${'='.repeat(50)}`
       : ''
 
-    // Format answers for AI
-    const answersText = answers.map((a) => {
+    // Format answers for AI with clear labels
+    const answersText = answers.map((a, idx) => {
       const customPart = a.customText ? ` (custom: ${a.customText})` : ''
-      return `- ${a.questionId}: ${a.selectedOption}${customPart}`
+      const answerLabel = field === 'goals' 
+        ? idx === 0 ? 'OBJECTIVE' : idx === 1 ? 'METRICS' : 'SOURCE'
+        : field === 'role'
+        ? idx === 0 ? 'TITLE' : idx === 1 ? 'AUTHORITY' : 'TEAM'
+        : `Q${idx + 1}`
+      return `${answerLabel}: "${a.selectedOption}${customPart}"`
     }).join('\n')
 
     const fieldPrompt = getFieldSynthesisPrompt(field)
@@ -665,27 +680,44 @@ ${fieldPrompt}
 
 Your task:
 1. Review the user's answers to structured questions
-2. Use the context provided (hero moment, experience, previous fields) to write contextual text
-3. Generate a single cohesive paragraph (2-4 sentences) that captures the essence
-4. Use specific details from their answers
-5. Keep it concise but informative
+2. Generate concise text by COMBINING their exact answers into a coherent sentence
+3. Use the EXACT WORDS from their answers - do NOT paraphrase, do NOT use synonyms, do NOT embellish
+4. For ROLE and GOALS fields: IGNORE all context except the user's direct answers
+5. DO NOT invent information, details, or terminology not in their answers
 6. Write in past tense, active voice
 7. Do NOT include field labels or headers in output
-8. Output ONLY the paragraph text, nothing else`
+8. Output ONLY the combined text, nothing else
+
+CRITICAL: If user said "enhance system reliability", write "enhance system reliability" - NOT "improve performance" or "drive innovation"`
 
     const userPrompt = `${momentContext}${experienceContext}${previousFieldsContext}
 
 User's Answers to ${field.toUpperCase()} Questions:
 ${answersText}
 
-Generate the ${field} text:`
+${(field === 'role' || field === 'goals') 
+  ? `CRITICAL INSTRUCTIONS:
+- Use the EXACT WORDS from the user's answers above
+- Simply combine their answers into one coherent sentence
+- DO NOT paraphrase, rephrase, or use synonyms
+- DO NOT add words like "innovation", "features", "adoption" unless they said those words
+- If they said "enhance system reliability" → write "enhance system reliability"
+- If they said "user satisfaction ratings" → write "user satisfaction ratings"
 
+` 
+  : ''}Generate the ${field} text:`
+
+    // Use fewer tokens for role and goals fields to enforce brevity and prevent hallucination
+    const maxTokens = (field === 'role' || field === 'goals') ? 150 : 300
+    // Use very low temperature for role and goals to reduce creativity/hallucination
+    const temperature = (field === 'role' || field === 'goals') ? 0.1 : 0.7
+    
     const result = await generateText({
       model: gateway('openai/gpt-4o-mini'),
       system: systemPrompt,
       prompt: userPrompt,
-      temperature: 0.7,
-      maxTokens: 300
+      temperature,
+      maxTokens
     })
 
     return result.text.trim()
@@ -732,20 +764,56 @@ Example: "Without a solution, the team risked continued productivity loss of 2-3
 
     // Expectation fields
     case 'role':
-      return `For the ROLE field, synthesize answers to convey:
-- What their position or title was in this context
-- Their authority and decision-making power
-- Whether they led, collaborated, or contributed individually
+      return `For the ROLE field, write 1-2 SHORT sentences by DIRECTLY COMBINING the user's answers.
 
-Example: "As Senior Backend Engineer and technical lead for the authentication team, I was responsible for architecting the solution, making key technical decisions, and coordinating implementation across three developers."`
+YOU WILL RECEIVE:
+- TITLE: Their job title
+- AUTHORITY: Their decision-making authority
+- TEAM: Team structure (solo, led team, part of team)
+
+STRICT RULES:
+1. Use the EXACT WORDS from their answers - copy them directly
+2. Do NOT add actions (no "designing", "managing", "implementing")
+3. Maximum 2 sentences, maximum 40 words
+4. Just combine: [TITLE] + [AUTHORITY] + [TEAM]
+
+OUTPUT FORMAT:
+"As [TITLE text], I [AUTHORITY text] and [TEAM text]."
+
+Example:
+If TITLE: "Software Engineer 2"
+If AUTHORITY: "Collaborated with cross-functional teams with shared decision-making"
+If TEAM: "Part of a team"
+
+Output: "As Software Engineer 2, I collaborated with cross-functional teams with shared decision-making and was part of a team."
+
+DO NOT CHANGE THE WORDS. Just combine them.`
 
     case 'goals':
-      return `For the GOALS field, synthesize answers to convey:
-- What specific outcomes they were trying to achieve
-- How success was measured or defined
-- Who set the goals and why
+      return `For the GOALS field, write 1-2 sentences by DIRECTLY COMBINING the user's answers.
 
-Example: "My primary goal was to reduce authentication latency to under 500ms while maintaining security standards. Leadership set a hard deadline of Q2 due to customer complaints impacting renewals."`
+YOU WILL RECEIVE:
+- OBJECTIVE: What they were expected to accomplish
+- METRICS: How success was measured
+- SOURCE: Who set the goals
+
+STRICT RULES:
+1. Use the EXACT WORDS from their answers - copy them directly
+2. Do NOT paraphrase "Enhance system reliability" into "improve performance" or "drive innovation"
+3. Do NOT add words like "innovation", "features", "adoption" unless those exact words appear in answers
+4. Simply concatenate: [OBJECTIVE] + [METRICS] + [SOURCE]
+
+OUTPUT FORMAT:
+"The goal was to [OBJECTIVE text], with success measured by [METRICS text], set by [SOURCE text]."
+
+Example:
+If OBJECTIVE: "Enhance system reliability and uptime"
+If METRICS: "User satisfaction ratings post-migration"
+If SOURCE: "Engineering team to improve system stability"
+
+Output: "The goal was to enhance system reliability and uptime, with success measured by user satisfaction ratings post-migration, set by the engineering team to improve system stability."
+
+DO NOT CHANGE THE WORDS. Just combine them.`
 
     case 'constraints':
       return `For the CONSTRAINTS field, synthesize answers to convey:
@@ -811,88 +879,111 @@ Focus on:
 Reference the specific work from the story title and previous answers.`,
 
       // Expectation field prompts
-      role: `Generate a targeted multiple-choice question to help identify the user's ROLE in THIS SPECIFIC ACHIEVEMENT.
+      role: `Generate ONE conversational question to help identify the user's ROLE for this story.
 
-CRITICAL: Your question MUST reference the specific work mentioned in the hero story title.
-For example:
-- If title mentions "database migration", ask about their role in the migration
-- If title mentions "team leadership", ask about their leadership responsibilities
-- If title mentions "system design", ask about their design authority
+ROLE has exactly 3 aspects - ask ONE question per aspect:
+  - Question 1: Job title/position during this work
+  - Question 2: Decision-making authority (full authority, collaborative, directive from manager)
+  - Question 3: Team structure (worked solo, led team, part of team)
 
-Focus on:
-- What was their specific position or title?
-- What was their authority or decision-making power IN THIS PROJECT?
-- What responsibilities were they assigned FOR THIS SPECIFIC WORK?
-- Were they leading, collaborating, or contributing individually?
+STOP after 3 questions.
 
-Use the exact terminology from the story title in your question.`,
+Reference the story title in your question. Provide 4-6 specific answer options.
+
+Example questions:
+- "What was your job title when you worked on this project?"
+- "What level of decision-making authority did you have?"
+- "Did you work solo or as part of a team?"
+
+Good answer options for authority:
+- "Full decision authority - I made all technical calls"
+- "Collaborative - decisions made with team input"  
+- "Directive from management - I executed their plan"
+- "Needed approval from senior leadership"`,
       
-      goals: `Generate a targeted multiple-choice question to help identify the GOALS they were trying to achieve in THIS SPECIFIC ACHIEVEMENT.
+      goals: `Generate ONE conversational question to help identify the GOALS for this story.
 
-CRITICAL: Your question MUST connect to the achievement in the story title.
+GOALS has exactly 3 aspects - ask ONE question per aspect:
+  - Question 1: What were you/your team expected to accomplish? (qualitative objective)
+  - Question 2: How was success measured? (metrics, timelines, targets)
+  - Question 3: Who set these goals? (leadership directive, team initiative, business need)
 
-Focus on:
-- What specific outcomes were they trying to accomplish WITH THIS WORK?
-- What targets or metrics defined success FOR THIS PROJECT?
-- Were the goals set by leadership, the team, or themselves?
-- What did "done" look like FOR THIS SPECIFIC ACHIEVEMENT?
+STOP after 3 questions.
 
-Reference the specific work from the story title and previous answers.`,
+Reference the story title in your question. Provide 4-6 specific answer options.
+
+Example questions:
+- "What were you expected to accomplish with this project?"
+- "Were there specific metrics or timelines to meet?"
+- "Who set these goals - leadership, your team, or was it self-driven?"`,
       
-      constraints: `Generate a targeted multiple-choice question to help identify the CONSTRAINTS they faced in THIS SPECIFIC ACHIEVEMENT.
+      constraints: `Generate ONE conversational question to help identify the CONSTRAINTS for this story.
 
-CRITICAL: Your question MUST relate to the achievement mentioned in the story title.
+Focus areas (max 5 questions):
+- Timeline constraints (deadlines, sprint cycles)
+- Budget or resource limitations
+- Technical constraints (backward compatibility, no downtime)
+- Team constraints (limited headcount)
+- Organizational constraints (approvals, stakeholder buy-in)
 
-Focus on:
-- What limits or boundaries did they operate under IN THIS PROJECT?
-- Were there budget, timeline, or resource constraints FOR THIS WORK?
-- What technical limitations affected THIS SPECIFIC SOLUTION?
-- Were there organizational or policy constraints TO CONSIDER?
+Reference the story title in your question. Provide 4-6 specific answer options.
 
-Reference the specific work from the story title and previous answers.`
+Example questions:
+- "What timeline were you working with for this project?"
+- "Were there any budget or resource limitations?"
+- "Were there technical constraints you had to work within?"`
     }
 
     // Build context string
-    const contextStr = buildContextString(context)
+    const contextStr = buildContextString(context, field)
     const answersStr = answers.length > 0 
-      ? `\nPrevious Answers:\n${answers.map(a => `Q: ${a.questionId}\nA: ${a.selectedOption}${a.customText ? ` (${a.customText})` : ''}`).join('\n')}`
+      ? `\n=== PREVIOUS ANSWERS (DO NOT REPEAT THESE TOPICS) ===\n${answers.map((a, idx) => `Question ${idx + 1}: ${a.questionId}\nAnswer: ${a.selectedOption}${a.customText ? ` (${a.customText})` : ''}`).join('\n\n')}\n${'='.repeat(50)}`
       : ''
     
     const previousQuestionStr = previousQuestion && lastSelectedOption
       ? `\nPrevious Question: ${previousQuestion.text}\nUser Selected: ${lastSelectedOption}${lastCustomText ? ` (${lastCustomText})` : ''}`
       : ''
 
-    // Determine if we need another question
-    const shouldContinue = answers.length < 3 // Max 3 questions per field
+    // Role and Goals fields have exactly 3 aspects, so cap at 3 questions
+    const maxQuestionsForField = (field === 'role' || field === 'goals') ? 3 : 5
+    const shouldContinue = answers.length < maxQuestionsForField
+    
+    // Force completion if max questions reached
+    if (!shouldContinue) {
+      return null
+    }
 
     const systemPrompt = `You are an AI coach generating targeted, contextual questions for a HERO story enhancement session.
 
 ${fieldPrompts[field]}
 
 CRITICAL FOCUS RULES:
-1. The HERO STORY TITLE is the PRIMARY subject - you MUST reference it directly in your question
-2. Extract the key action/technology from the title and incorporate it into your question
-3. Example: If title is "Migrated database to cloud infrastructure", ask about the DATABASE MIGRATION and CLOUD aspects
-4. Example: If title is "Reduced API latency by 60%", ask about the LATENCY PROBLEM and API performance
-5. Your questions should help elaborate on the SPECIFIC achievement mentioned in the title
+1. Read the STORY TITLE in the context - your questions must be about that specific story
+2. Use the key action from the title in your questions (e.g., "database migration", "API optimization")
+3. Use the Job Title and Employer for context about their role
+4. If Hurdle section is provided, use it for additional context about the problem
 
 QUESTION GENERATION RULES:
 1. ALWAYS reference the specific achievement from the story title in your question
-2. Make the question about the exact work described in the title, not generic problems
-3. Extract keywords from the title (e.g., "database migration", "cloud infrastructure") and use them
-4. Provide 4-6 clear, relevant multiple-choice options that relate to the story title
-5. Options should be specific to the type of work mentioned in the title
+2. Make questions CONVERSATIONAL - vary your phrasing, don't repeat the same question structure
+3. Extract keywords from the title (e.g., "database migration", "cloud infrastructure") and use them naturally
+4. Provide 4-6 SPECIFIC, CONTEXTUAL multiple-choice options (not generic ones)
+5. Options should feel like real answers someone would give, not generic categories
 6. Include an "Other (specify)" option that allows custom text
-7. Keep questions conversational but SPECIFIC to their story
-8. If you have enough information (after 2-3 questions), return null to indicate completion
+7. CRITICAL: Check "Previous Answers" section carefully - NEVER ask about something already covered
+8. If an aspect is already known (e.g., job title already answered), move to the next aspect
+9. Only indicate completion when you have ALL the information needed OR max questions reached
 
-BAD EXAMPLE (too generic):
-Title: "Migrated database to cloud infrastructure"
-Question: "What inefficiencies did you encounter at work?"
+BAD EXAMPLES (repetitive format):
+"In the achievement related to migrating the database, what was your job title?"
+"In the achievement related to migrating the database, what was your authority?"
+(Same structure = robotic)
 
-GOOD EXAMPLE (references the story):
-Title: "Migrated database to cloud infrastructure"
-Question: "What specific issues with the existing database setup prompted the need for migrating to cloud infrastructure?"
+GOOD EXAMPLES (conversational, varied):
+"What was your job title when you worked on the database migration?"
+"Who had the final say on technical decisions for this migration?"
+"Did you lead this migration effort, or were you part of a larger team?"
+(Different structures = natural conversation)
 
 OUTPUT FORMAT:
 Return a JSON object with this structure:
@@ -916,11 +1007,22 @@ Generate ONE targeted question that moves the conversation forward.`
     const userPrompt = `${contextStr}${answersStr}${previousQuestionStr}
 
 Field: ${field.toUpperCase()}
-Questions asked so far: ${answers.length}/3
+Questions asked so far: ${answers.length}/${maxQuestionsForField}
 
-REMINDER: Your question must directly reference the specific achievement from the hero story title above. Extract keywords from the title and incorporate them into your question. Make it about THAT specific work, not generic problems.
+IMPORTANT:
+1. Your question must reference the Story Title from the context
+2. DO NOT repeat questions already answered above
+3. Check previous answers to avoid asking the same thing
 
-Generate the ${shouldContinue ? 'next' : 'final'} question or indicate completion:`
+COMPLETION CRITERIA:
+${field === 'role' 
+  ? 'ROLE needs 3 aspects: (1) job title, (2) authority, (3) team structure. Stop after 3 questions.'
+  : field === 'goals'
+  ? 'GOALS needs 3 aspects: (1) objective, (2) metrics, (3) who set goals. Stop after 3 questions.'
+  : 'CONSTRAINTS: Ask up to 5 questions about limitations they faced.'}
+
+${!shouldContinue ? 'STOP: Maximum questions reached. Return {"continue": false}' : 'Generate the next question or indicate completion if you have sufficient information:'}
+`
 
     const result = await generateText({
       model: gateway('openai/gpt-4o-mini'),
@@ -943,9 +1045,23 @@ Generate the ${shouldContinue ? 'next' : 'final'} question or indicate completio
       return null // No more questions needed
     }
 
+    // Generate more descriptive question ID based on field and question number
+    let questionId = `${field}_q${answers.length + 1}`
+    if (field === 'role') {
+      const roleAspects = ['title', 'authority', 'team']
+      if (answers.length < roleAspects.length) {
+        questionId = `${field}_${roleAspects[answers.length]}`
+      }
+    } else if (field === 'goals') {
+      const goalsAspects = ['objective', 'metrics', 'source']
+      if (answers.length < goalsAspects.length) {
+        questionId = `${field}_${goalsAspects[answers.length]}`
+      }
+    }
+
     // Return structured question
     return {
-      id: `${field}_q${answers.length + 1}`,
+      id: questionId,
       text: parsed.question,
       field,
       options: parsed.options || []
@@ -953,46 +1069,67 @@ Generate the ${shouldContinue ? 'next' : 'final'} question or indicate completio
   } catch (error: any) {
     console.error('Error generating contextual question:', error)
     // Fallback to static question if AI fails
-    return getFirstQuestion(field)
+    // Note: getFirstQuestion only works for hurdle fields (problem, scope, stakes)
+    if (field === 'problem' || field === 'scope' || field === 'stakes') {
+      return getFirstQuestion(field)
+    }
+    // For role/goals/constraints, return a generic fallback question
+    return {
+      id: `${field}_fallback`,
+      text: field === 'role' 
+        ? 'What was your job title during this achievement?'
+        : field === 'goals'
+        ? 'What were you trying to accomplish with this project?'
+        : 'What constraints or limitations did you face?',
+      field,
+      options: [
+        { id: 'option1', label: 'Please specify', allowCustom: true }
+      ]
+    }
   }
 }
 
 /**
  * Build context string for AI prompts
  */
-function buildContextString(context: StructuredEnhancementInput): string {
+function buildContextString(context: StructuredEnhancementInput, field?: string): string {
   let contextStr = ''
 
-  // HERO STORY is the PRIMARY focus
-  if (context.moment_title) {
-    contextStr += `\n=== PRIMARY FOCUS: THIS IS THE STORY ===
-Hero Story Title: ${context.moment_title}`
-    if (context.moment_description) {
-      contextStr += `\nStory Description: ${context.moment_description}`
-    }
-    contextStr += '\n\nALL questions must be about THIS specific achievement shown in the title above.'
+  // HERO STORY TITLE is the PRIMARY focus
+  if (context.moment_title && context.moment_title.trim().length > 0) {
+    contextStr += `=== PRIMARY: THE STORY ===
+Story Title: "${context.moment_title}"
+ALL questions must be about this specific story: "${context.moment_title}"`
   }
 
-  // Experience provides background context ONLY
+  // Experience context - include job title and employer, but NOT summary/highlights for role/goals
   if (context.experience) {
-    contextStr += `\n\n=== BACKGROUND CONTEXT (for reference only) ===
-- Their Role: ${context.experience.title} at ${context.experience.employer}`
+    contextStr += `\n\n=== BACKGROUND ===
+Job Title: ${context.experience.title}
+Employer: ${context.experience.employer}`
     
-    // Only include summary if it's brief, skip highlights to avoid confusion
-    if (context.experience.summary && context.experience.summary.length < 200) {
-      contextStr += `\n- Role Summary: ${context.experience.summary}`
+    // Only include summary/highlights for fields other than role/goals to prevent confusion
+    if (field !== 'role' && field !== 'goals') {
+      if (context.experience.summary) {
+        contextStr += `\nSummary: ${context.experience.summary}`
+      }
+      if (context.experience.highlights && context.experience.highlights.length > 0) {
+        contextStr += `\nHighlights: ${context.experience.highlights.join('; ')}`
+      }
     }
-    
-    contextStr += '\n\nUse the role and company for context, but do NOT ask about other projects.'
   }
 
+  // Include Hurdle context if it exists AND is filled in
   if (context.previous_field_results) {
-    contextStr += '\n\n=== PREVIOUS FIELD RESULTS ==='
-    if (context.previous_field_results.problem) {
-      contextStr += `\n- Problem: ${context.previous_field_results.problem}`
-    }
-    if (context.previous_field_results.scope) {
-      contextStr += `\n- Scope: ${context.previous_field_results.scope}`
+    const hasProblem = context.previous_field_results.problem && context.previous_field_results.problem.trim().length > 20
+    const hasScope = context.previous_field_results.scope && context.previous_field_results.scope.trim().length > 20
+    const hasStakes = context.previous_field_results.stakes && context.previous_field_results.stakes.trim().length > 20
+    
+    if (hasProblem || hasScope || hasStakes) {
+      contextStr += '\n\n=== HURDLE SECTION (already filled) ==='
+      if (hasProblem) contextStr += `\nProblem: ${context.previous_field_results.problem}`
+      if (hasScope) contextStr += `\nScope: ${context.previous_field_results.scope}`
+      if (hasStakes) contextStr += `\nStakes: ${context.previous_field_results.stakes}`
     }
   }
 
