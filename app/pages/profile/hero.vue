@@ -2,6 +2,10 @@
 import { storeToRefs } from 'pinia'
 import type { HeroStory } from '#shared/types/careerId'
 
+definePageMeta({
+  middleware: ['hero-feature']
+})
+
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()

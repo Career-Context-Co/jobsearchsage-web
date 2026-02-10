@@ -3,25 +3,12 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
 const toast = useToast()
+const accountStore = useAccountStore()
 
 const open = ref(false)
 
-const links = [[
-{
-  label: 'Home',
-  icon: 'i-lucide-house',
-  to: '/',
-  onSelect: () => {
-    open.value = false
-  }
-}, 
-{
-  label: 'Profile',
-  icon: 'i-lucide-user',
-  to: '/profile',
-  type: 'trigger',
-  defaultOpen: true,
-  children: [{
+const profileChildren = computed(() => {
+  const baseChildren = [{
     label: 'Overview',
     to: '/profile',
     exact: true,
@@ -52,13 +39,37 @@ const links = [[
     onSelect: () => {
       open.value = false
     }
-  }, {
-    label: 'HERO',
-    to: '/profile/hero',
-    onSelect: () => {
-      open.value = false
-    }
   }]
+
+  if (accountStore.isHeroEnabled) {
+    baseChildren.push({
+      label: 'HERO',
+      to: '/profile/hero',
+      onSelect: () => {
+        open.value = false
+      }
+    })
+  }
+
+  return baseChildren
+})
+
+const links = computed(() => [[
+{
+  label: 'Home',
+  icon: 'i-lucide-house',
+  to: '/',
+  onSelect: () => {
+    open.value = false
+  }
+}, 
+{
+  label: 'Profile',
+  icon: 'i-lucide-user',
+  to: '/profile',
+  type: 'trigger',
+  defaultOpen: true,
+  children: profileChildren.value
 }],
 [{
   label: 'Feedback',
@@ -70,12 +81,12 @@ const links = [[
   icon: 'i-lucide-info',
   to: 'https://github.com/nuxt-ui-templates/dashboard',
   target: '_blank'
-}]] satisfies NavigationMenuItem[][]
+}]] satisfies NavigationMenuItem[][])
 
 const groups = computed(() => [{
   id: 'links',
   label: 'Go to',
-  items: links.flat()
+  items: links.value.flat()
 }, {
   id: 'code',
   label: 'Code',

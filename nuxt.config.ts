@@ -25,6 +25,12 @@ export default defineNuxtConfig({
     }
   },
 
+  nitro: {
+    rollupConfig: {
+      external: ['pdf-parse', 'pdfjs-dist']
+    }
+  },
+
   compatibilityDate: '2024-07-11',
 
   supabase: {

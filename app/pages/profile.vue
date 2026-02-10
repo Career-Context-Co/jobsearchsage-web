@@ -4,6 +4,7 @@ import { useCareerIDStore } from '~/stores/careerIDStore'
 
 const route = useRoute()
 const careerIDStore = useCareerIDStore()
+const accountStore = useAccountStore()
 
 // Check if we're on the onboarding page
 const isOnboarding = computed(() => route.path === '/profile/onboarding')
@@ -13,39 +14,49 @@ const showContinueOnboarding = computed(() =>
   careerIDStore.profile?.completionStatus === 'incomplete'
 )
 
-const links = computed(() => [[{
-  label: 'Overview',
-  icon: 'i-lucide-user',
-  to: '/profile',
-  exact: true
-}, {
-  label: 'Experience',
-  icon: 'i-lucide-briefcase',
-  to: '/profile/experience'
-}, {
-  label: 'Education',
-  icon: 'i-lucide-graduation-cap',
-  to: '/profile/education'
-}, {
-  label: 'Certifications',
-  icon: 'i-lucide-award',
-  to: '/profile/certifications'
-}, {
-  label: 'Skills',
-  icon: 'i-lucide-wrench',
-  to: '/profile/skills'
-}, {
-  label: 'HERO',
-  icon: 'i-lucide-zap',
-  to: '/profile/hero'
-}],
- ...(showContinueOnboarding.value ? [[{
-  label: 'Continue Onboarding',
-  icon: 'i-lucide-arrow-right',
-  color: 'primary',
-  to: '/profile/onboarding',
-  class: 'bg-gradient-to-r from-indigo-500 to-green-500 cursor-pointer rounded text-white hover:text-white font-semibold'
-}]] : [])] satisfies NavigationMenuItem[][])
+const links = computed(() => {
+  const baseLinks: NavigationMenuItem[] = [{
+    label: 'Overview',
+    icon: 'i-lucide-user',
+    to: '/profile',
+    exact: true
+  }, {
+    label: 'Experience',
+    icon: 'i-lucide-briefcase',
+    to: '/profile/experience'
+  }, {
+    label: 'Education',
+    icon: 'i-lucide-graduation-cap',
+    to: '/profile/education'
+  }, {
+    label: 'Certifications',
+    icon: 'i-lucide-award',
+    to: '/profile/certifications'
+  }, {
+    label: 'Skills',
+    icon: 'i-lucide-wrench',
+    to: '/profile/skills'
+  }]
+
+  if (accountStore.isHeroEnabled) {
+    baseLinks.push({
+      label: 'HERO',
+      icon: 'i-lucide-zap',
+      to: '/profile/hero'
+    })
+  }
+
+  return [
+    baseLinks,
+    ...(showContinueOnboarding.value ? [[{
+      label: 'Continue Onboarding',
+      icon: 'i-lucide-arrow-right',
+      color: 'primary' as const,
+      to: '/profile/onboarding',
+      class: 'bg-gradient-to-r from-indigo-500 to-green-500 cursor-pointer rounded text-white hover:text-white font-semibold'
+    }]] : [])
+  ] satisfies NavigationMenuItem[][]
+})
 </script>
 
 <template>

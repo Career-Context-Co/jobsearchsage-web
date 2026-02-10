@@ -472,7 +472,7 @@ onMounted(async () => {
   <div v-else class="space-y-4">
     <!-- Page Header -->
     <div class="mb-8 space-y-2">
-      <h1 class="text-2xl sm:text-3xl font-semibold">Skills</h1>
+      <h1 class="text-2xl font-semibold">Skills</h1>
       <p class="text-sm text-muted">
         Organize your professional skills by group with proficiency levels and years of experience.
       </p>

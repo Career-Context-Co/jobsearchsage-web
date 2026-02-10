@@ -12,17 +12,20 @@
  */
 
 import { createGateway, generateText } from 'ai'
-import { PDFParse } from 'pdf-parse'
 import type { ContactInfo, Experience, Education, ProfileSkill, Certification } from '@@/shared/types/careerId'
 
-const apiKey = useRuntimeConfig().aiGatewayApiKey
-if (!apiKey) {
-  throw new Error('API Key is not set')
+// Lazy-load gateway to avoid initialization errors
+let _gateway: ReturnType<typeof createGateway> | null = null
+function getGateway() {
+  if (!_gateway) {
+    const apiKey = useRuntimeConfig().aiGatewayApiKey
+    if (!apiKey) {
+      throw new Error('API Key is not set')
+    }
+    _gateway = createGateway({ apiKey })
+  }
+  return _gateway
 }
-
-const gateway = createGateway({
-  apiKey: apiKey,
-});
 
 /**
  * Type for the extraction result from AI
@@ -52,8 +55,10 @@ export class ExtractionError extends Error {
 
 /**
  * Extract text from PDF file using pdf-parse v2/v3 API
+ * Uses dynamic import to avoid loading pdfjs-dist at startup
  */
 async function extractPdfText(buffer: Buffer | Uint8Array): Promise<string> {
+  const { PDFParse } = await import('pdf-parse')
   const parser = new PDFParse({ data: Buffer.from(buffer) })
   try {
     const result = await parser.getText()
@@ -66,8 +71,10 @@ async function extractPdfText(buffer: Buffer | Uint8Array): Promise<string> {
 
 /**
  * Extract metadata from PDF headers (useful if contact info is missing from body)
+ * Uses dynamic import to avoid loading pdfjs-dist at startup
  */
 async function extractPdfMetadata(buffer: Buffer | Uint8Array): Promise<Record<string, any>> {
+  const { PDFParse } = await import('pdf-parse')
   const parser = new PDFParse({ data: Buffer.from(buffer) })
   try {
     const info = await parser.getInfo()
@@ -138,7 +145,7 @@ export async function extractResumeData(
     
     // Generate text extraction using Vercel AI SDK with AI Gateway
     const { text } = await generateText({
-      model: gateway('google/gemini-2.5-flash-lite'),
+      model: getGateway()('google/gemini-2.5-flash-lite'),
       system: `You are an expert resume parser. Extract career information from resumes and return ONLY valid JSON.
 
         EXTRACTION RULES:
