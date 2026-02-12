@@ -5,6 +5,7 @@ const STORAGE_KEY = 'jobsearchsage-account'
 interface AccountState {
   features: {
     hero: boolean
+    bulletEnhancement: boolean
   }
   // Future: theme, locale, notifications, etc.
 }
@@ -12,12 +13,14 @@ interface AccountState {
 export const useAccountStore = defineStore('account', {
   state: (): AccountState => ({
     features: {
-      hero: false // HERO framework features - disabled by default
+      hero: false, // HERO framework features - disabled by default
+      bulletEnhancement: false // AI bullet enhancement - disabled by default
     }
   }),
 
   getters: {
-    isHeroEnabled: (state) => state.features.hero
+    isHeroEnabled: (state) => state.features.hero,
+    isBulletEnhancementEnabled: (state) => state.features.bulletEnhancement
   },
 
   actions: {
@@ -51,6 +54,14 @@ export const useAccountStore = defineStore('account', {
      */
     toggleHeroFeatures() {
       this.features.hero = !this.features.hero
+      this._persist()
+    },
+
+    /**
+     * Enable or disable AI bullet enhancement
+     */
+    setBulletEnhancementEnabled(enabled: boolean) {
+      this.features.bulletEnhancement = enabled
       this._persist()
     },
 

@@ -5,6 +5,14 @@ const heroEnabled = computed({
   get: () => accountStore.isHeroEnabled,
   set: (value: boolean) => accountStore.setHeroEnabled(value)
 })
+
+const bulletEnhancementEnabled = computed({
+  get: () => accountStore.isBulletEnhancementEnabled,
+  set: (value: boolean) => accountStore.setBulletEnhancementEnabled(value)
+})
+
+// Coming soon features (not yet functional)
+const resumeGenerationEnabled = ref(false)
 </script>
 
 <template>
@@ -16,18 +24,54 @@ const heroEnabled = computed({
     class="mb-4"
   />
 
-  <UPageCard variant="subtle">
-    <div class="flex max-sm:flex-col justify-between items-start gap-4">
-      <div class="flex-1 min-w-0">
-        <div class="font-medium text-highlighted">HERO Framework</div>
-        <p class="text-sm text-muted mt-1">
-          Enable the HERO story framework to capture and develop your career achievements using the Hurdle, Expectation, Response, Outcome methodology. Perfect for preparing compelling interview stories.
-        </p>
-      </div>
-      <USwitch
-        v-model="heroEnabled"
-        size="lg"      
-      />
-    </div>
-  </UPageCard>
+  <!-- Available Section -->
+  <div class="mb-6">
+    <UPageCard
+      title="Available"
+      description="These features are ready to use. Toggle them on to enable them in your account. You can turn them off at any time."
+      variant="naked"
+      class="mb-4"
+    />
+
+    <UPageCard variant="subtle" :ui="{ container: 'divide-y divide-default' }">
+      <UFormField
+        name="bulletEnhancement"
+        label="AI Bullet Enhancement"
+        description="Use AI to enhance your resume bullet points with more impactful, metrics-driven language that highlights your achievements."
+        class="flex items-center justify-between not-last:pb-4 gap-2"
+      >
+        <USwitch v-model="bulletEnhancementEnabled" />
+      </UFormField>
+    </UPageCard>
+  </div>
+
+  <!-- Coming Soon Section -->
+  <div>
+    <UPageCard
+      title="Coming Soon"
+      description="These features are in development and will be available soon. Check back later to try them out."
+      variant="naked"
+      class="mb-4"
+    />
+
+    <UPageCard variant="subtle" :ui="{ container: 'divide-y divide-default' }">
+      <UFormField
+        name="hero"
+        label="HERO Framework"
+        description="Enable the HERO story framework to capture and develop your career achievements using the Hurdle, Expectation, Response, Outcome methodology. Perfect for preparing compelling interview stories."
+        class="flex items-center justify-between not-last:pb-4 gap-2 opacity-60"
+      >
+        <USwitch v-model="heroEnabled" disabled />
+      </UFormField>
+
+      <UFormField
+        name="resumeGeneration"
+        label="Resume Generation"
+        description="Automatically generate polished, ATS-optimized resumes from your career profile. Choose from multiple professional templates and export to PDF."
+        class="flex items-center justify-between not-last:pb-4 gap-2 opacity-60"
+      >
+        <USwitch v-model="resumeGenerationEnabled" disabled />
+      </UFormField>
+    </UPageCard>
+  </div>
 </template>

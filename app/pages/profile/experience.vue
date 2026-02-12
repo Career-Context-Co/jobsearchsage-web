@@ -4,6 +4,7 @@ import { vMaska } from 'maska/vue'
 import { validateRequired, validateUrl, validateMonthYear, validateDateRange } from '~/utils/validation'
 
 const careerIDStore = useCareerIDStore()
+const accountStore = useAccountStore()
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
@@ -671,7 +672,7 @@ onMounted(async () => {
                   </div>
 
                   <!-- Enhancement Status Badge -->
-                  <div class="flex items-center gap-2 mt-3">
+                  <div v-if="accountStore.isBulletEnhancementEnabled" class="flex items-center gap-2 mt-3">
                     <UBadge
                       v-if="experience.lastEnhancedAt"
                       color="success"
@@ -686,6 +687,7 @@ onMounted(async () => {
                 </div>
                 <div class="flex gap-2">
                   <UButton
+                    v-if="accountStore.isBulletEnhancementEnabled"
                     icon="i-lucide-sparkles"
                     color="primary"
                     variant="ghost"
@@ -913,6 +915,7 @@ onMounted(async () => {
                 :disabled="isSaving"
               />
               <UButton
+                v-if="accountStore.isBulletEnhancementEnabled"
                 label="Enhance"
                 color="primary"
                 variant="outline"
@@ -953,6 +956,7 @@ onMounted(async () => {
 
   <!-- Enhancement Drawer -->
   <UDrawer
+    v-if="accountStore.isBulletEnhancementEnabled"
     v-model:open="isEnhancementPaneOpen"
     direction="right"
     inset
