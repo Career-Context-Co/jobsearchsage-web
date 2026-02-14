@@ -2,18 +2,19 @@
 
 ## Overview
 
-Tasks are grouped by **parent Issue** (Database, Backend, or Frontend), then by **logical testable unit**, with unique IDs for easy reference. Each task is independently completable and testable.
+Tasks are grouped by **parent Issue** (Frontend, Backend, or Database), then by **logical testable unit**, with unique IDs for easy reference. Each task is independently completable and testable.
 
 ---
 
 ## Core Principles
 
-1. **Strict Phase Order:** Database → Backend → Frontend (never out of order)
-2. **Logical Testable Units:** One entity/component/endpoint group per task (not everything at once)
-3. **Task IDs:** DB-001, BE-001, FE-001 (semantic, easy to reference)
-4. **Explicit Dependencies:** Know what must be done first
-5. **Clear Scope:** Each task fits in one focused effort
-6. **Minimal:** Don't add testing, documentation, or deployment tasks
+1. **Strict Phase Order:** Frontend → Backend → Database (never out of order)
+2. **Frontend-First Rationale:** Prototype the UI first to discover the right data shapes, interactions, and edge cases. Changes cascade backward — it's far cheaper to change a mock component than to rework a database schema.
+3. **Logical Testable Units:** One entity/component/endpoint group per task (not everything at once)
+4. **Task IDs:** FE-001, BE-001, DB-001 (semantic, easy to reference)
+5. **Explicit Dependencies:** Know what must be done first
+6. **Clear Scope:** Each task fits in one focused effort
+7. **Minimal:** Don't add testing, documentation, or deployment tasks
 
 ---
 
@@ -29,12 +30,12 @@ Tasks are grouped by **parent Issue** (Database, Backend, or Frontend), then by 
 ## Task ID System
 
 ```
-DB-001, DB-002, DB-003...  = Database tasks
-BE-001, BE-002, BE-003...  = Backend tasks
 FE-001, FE-002, FE-003...  = Frontend tasks
+BE-001, BE-002, BE-003...  = Backend tasks
+DB-001, DB-002, DB-003...  = Database tasks
 ```
 
-Each phase starts at 001. IDs are sequential and semantic (DB-001 is foundational, BE-002 depends on DB-002, etc.)
+Each phase starts at 001. IDs are sequential and semantic.
 
 ---
 
@@ -64,17 +65,25 @@ For completed tasks:
 
 ## Phase Breakdown
 
-### Phase 1: Database
-One task per **table/function group**. Each task includes design, migration script, and documentation.
+### Phase 1A: Frontend Prototype
+One task per **component type**. Built with mock/placeholder data, no API calls. The goal is to nail down the UI, data shapes, and user interactions before writing any backend code.
 
 **Example grouping:**
-- DB-001: User Profiles Table
-- DB-002: Work Experience Table
-- DB-003: Education Table
-- DB-004: Skills Master Catalog + Profile Skills Junction
+- FE-001: Onboarding Page (layout, navigation)
+- FE-002: Contact Info Component (form with mock data)
+- FE-003: Experience Component (list with mock data)
+
+### Phase 1B: Frontend Store & Types
+Define the Pinia store shape and shared types based on what the prototype revealed. Still uses mock data — no API calls yet.
+
+**Example grouping:**
+- FE-004: Type Definitions (shared types based on prototype)
+- FE-005: Store Setup (state, getters, basic actions with mock data)
+
+**Key:** Prototyping (1A) discovers the data shapes. Store setup (1B) formalizes them into types and state. Both happen before any backend work.
 
 ### Phase 2: Backend
-One task per **logical endpoint group**. Group related CRUD operations together.
+One task per **logical endpoint group**. API shape is driven by what the frontend needs — the prototype and store types from Phase 1 define the contract.
 
 **Example grouping:**
 - BE-001: Profile Get/Create Endpoints
@@ -89,25 +98,25 @@ After completing all backend endpoint tasks in a phase, create a **Postman Colle
 - Add error scenario tests (validation, not found, forbidden, etc.)
 - Pre-configure variables and auto-capture response IDs for dependent requests
 - Store in `openspec/changes/[change-id]/deliverables/` with complete setup documentation
-- This enables QA/frontend teams to test against real APIs without starting the full frontend integration
 
-### Phase 3A: Frontend Mock UI
-One task per **component type**. Built with placeholder data, no API calls.
-
-**Example grouping:**
-- FE-001: Onboarding Page (layout, navigation)
-- FE-002: Contact Info Component (form with mock data)
-- FE-003: Experience Component (list with mock data)
-
-### Phase 3B: Frontend Integration
-One task per **major integration point**. Connect to store and real APIs.
+### Phase 3: Database
+One task per **table/function group**. Schema is designed to serve the backend's needs, which were driven by the frontend's needs. Designed last so you only build what's actually required.
 
 **Example grouping:**
-- FE-004: Store Setup (state, getters, basic actions)
-- FE-005: Experience Store Actions (add, update, delete)
-- FE-006: Component Integration (contact component to store)
+- DB-001: User Profiles Table
+- DB-002: Work Experience Table
+- DB-003: Education Table
+- DB-004: Skills Master Catalog + Profile Skills Junction
 
-**Key:** Mock UI (3A) can start before backend is ready. Integration (3B) must wait for backend.
+### Phase 4: Integration
+Connect everything end-to-end. Replace mock data with real API calls, wire store actions to backend endpoints.
+
+**Example grouping:**
+- FE-006: Store Actions (CRUD actions with real API calls)
+- FE-007: Component Integration (connect components to store)
+- FE-008: Error Handling & UX (toasts, validation, loading states)
+
+**Key:** Integration only starts after backend and database are ready.
 
 ---
 
@@ -185,35 +194,39 @@ deliverables/
 ---
 
 ### ✅ DO
-- One table = one DB task
+- One component type = one FE task (prototype) or one integration point = one FE task (integration)
 - One endpoint group (related CRUD) = one BE task
-- One component type = one FE task (mock) or one integration point = one FE task (integration)
+- One table = one DB task
 - Group by logical unit (all profile endpoints together)
 - Use task IDs for everything
 - List dependencies explicitly
 - Show what was actually built (file paths, specific outputs)
+- Let the frontend prototype drive the data shapes for backend and database
 
 ### ❌ DON'T
-- Don't put all database work in one task
+- Don't start backend before the frontend prototype validates the data shapes
+- Don't design database tables before knowing what the backend needs to persist
 - Don't mix multiple unrelated components in one FE task
+- Don't put all database work in one task
 - Don't describe completed work ("API is complete"); show deliverables with file paths
 - Don't skip dependencies
-- Don't mix Frontend mock UI with Integration in the same task
+- Don't mix Frontend prototype with Integration in the same task
 - Don't make tasks so broad they can't be completed in one focused effort
 
 ---
 
 ## Dependency Rules
 
-- **DB tasks:** Usually no dependencies (except later DB tasks depend on earlier ones)
-- **BE tasks:** Depend on their corresponding DB task (BE-001 depends on DB-001)
-- **FE Mock (3A):** Depend on nothing (independent of DB/BE)
-- **FE Integration (3B):** Depend on both their BE counterpart AND their FE Mock task
+- **FE Prototype (1A):** No dependencies (independent, uses mock data)
+- **FE Store/Types (1B):** Depend on their corresponding FE Prototype task
+- **BE tasks:** Depend on FE Store/Types (the types define the API contract)
+- **DB tasks:** Depend on their corresponding BE task (schema serves the API)
+- **FE Integration (4):** Depend on both their BE counterpart AND their FE Prototype task
 
 Example:
 ```
-FE-006: Experience Component Integration
-**Dependencies:** BE-002 (endpoints), FE-003 (mock component)
+FE-007: Experience Component Integration
+**Dependencies:** BE-002 (endpoints), FE-003 (prototype component), FE-006 (store actions)
 ```
 
 ---
@@ -228,31 +241,7 @@ FE-006: Experience Component Integration
 **Key Constraints:** Profile in career_id schema, skills bulk operations, store as single source of truth
 ```
 
-### Step 2: Create Database Phase (3-4 tasks)
-```markdown
-### DB-001: Core Profile Table
-- [ ] Design profiles table schema
-- [ ] Create migration script
-- [ ] Document schema
-
-### DB-002: Experience Table
-- [ ] Design experience table schema
-- [ ] Create migration script
-```
-
-### Step 3: Create Backend Phase (3-5 tasks)
-```markdown
-### BE-001: Profile Endpoints
-- [ ] Create GET /api/career-id/profile/:id
-- [ ] Create POST /api/career-id/profile
-- [ ] Add validation and error handling
-
-### BE-002: Experience Endpoints
-- [ ] Create GET /api/career-id/profile/:id/experience
-- [ ] Create POST (create), PATCH (update), DELETE endpoints
-```
-
-### Step 4: Create Frontend Phase A - Mock UI (2-3 tasks)
+### Step 2: Create Frontend Prototype Phase (2-4 tasks)
 ```markdown
 ### FE-001: Onboarding Page
 - [ ] Create pages/profile/onboarding.vue
@@ -262,21 +251,55 @@ FE-006: Experience Component Integration
 ### FE-002: Experience Component
 - [ ] Create components/profile/ExperienceSection.vue
 - [ ] Add form with mock data
+- [ ] Discover required fields and interactions
 ```
 
-### Step 5: Create Frontend Phase B - Integration (3-4 tasks)
+### Step 3: Create Frontend Store & Types Phase (1-2 tasks)
 ```markdown
-### FE-003: Pinia Store Setup
+### FE-003: Type Definitions
+- [ ] Define types based on prototype: Profile, Experience, Education, etc.
+- [ ] Create shared types in shared/types/
+
+### FE-004: Pinia Store Setup
 - [ ] Create careerIDStore with state and getters
-- [ ] Add profile lifecycle actions (fetch, create, reset)
+- [ ] Add mock CRUD actions (no API calls yet)
+```
 
-### FE-004: Experience Store Actions
-- [ ] Add experience CRUD actions to store
+### Step 4: Create Backend Phase (3-5 tasks)
+```markdown
+### BE-001: Profile Endpoints
+- [ ] Create GET /api/career-id/profile/:id
+- [ ] Create POST /api/career-id/profile
+- [ ] Add validation and error handling
+- [ ] Match response shape to frontend types
 
-### FE-005: Experience Component Integration
-- [ ] Connect component to store
+### BE-002: Experience Endpoints
+- [ ] Create GET /api/career-id/profile/:id/experience
+- [ ] Create POST (create), PATCH (update), DELETE endpoints
+```
+
+### Step 5: Create Database Phase (3-4 tasks)
+```markdown
+### DB-001: Core Profile Table
+- [ ] Design profiles table schema (based on BE-001 needs)
+- [ ] Create migration script
+
+### DB-002: Experience Table
+- [ ] Design experience table schema (based on BE-002 needs)
+- [ ] Create migration script
+```
+
+### Step 6: Create Integration Phase (3-4 tasks)
+```markdown
+### FE-005: Store Actions - Real API Calls
+- [ ] Replace mock actions with real $fetch calls
+- [ ] Add error handling
+**Dependencies:** BE-001, BE-002, FE-004
+
+### FE-006: Component Integration
+- [ ] Connect components to store
 - [ ] Add save handlers with API calls
-**Dependencies:** BE-002, FE-002, FE-003, FE-004
+**Dependencies:** FE-005, FE-002
 ```
 
 ---
@@ -286,10 +309,10 @@ FE-006: Experience Component Integration
 Before submitting a task list:
 
 - [ ] User story exists in context/ folder and is documented
-- [ ] Tasks use ID system (DB-001, BE-001, FE-001)
-- [ ] Phases in correct order (Database → Backend → Frontend)
+- [ ] Tasks use ID system (FE-001, BE-001, DB-001)
+- [ ] Phases in correct order (Frontend → Backend → Database → Integration)
 - [ ] Tasks grouped by logical unit (one testable unit per task)
-- [ ] Frontend separated into Phase A (Mock) and Phase B (Integration)
+- [ ] Frontend separated into Prototype (mock) and Integration (real APIs)
 - [ ] Dependencies listed for every task
 - [ ] Completed tasks show actual deliverables (not descriptions)
 - [ ] No task too broad (must be completable in one focused effort)
@@ -311,159 +334,7 @@ Before submitting a task list:
 
 ---
 
-## PHASE 1: DATABASE
-
-### DB-001: Core Profile Table
-- [x] Design `career_id.profiles` table (id, user_id, created_at, updated_at, completion_status)
-- [x] Create migration: `deliverables/migrations/002_create_profiles.sql`
-- [x] Document in `deliverables/schemas/profile_schema.md`
-
-**Dependencies:** None
-**Testable by:** Database team (verify table structure, apply migration)
-**Status:** ✅ Complete
-
----
-
-### DB-002: Work Experience Table
-- [x] Design `career_id.experience` table (id, profile_id, employer, title, employment_type, location_type, start_date, end_date, highlights JSONB, display_order)
-- [x] Create migration: `deliverables/migrations/003_create_experience.sql`
-- [x] Add indexes on profile_id
-
-**Dependencies:** DB-001
-**Testable by:** Database team
-**Status:** ✅ Complete
-
----
-
-### DB-003: Education Table
-- [x] Design `career_id.education` table (id, profile_id, degree, institution, graduation_year, coursework, display_order)
-- [x] Create migration: `deliverables/migrations/004_create_education.sql`
-- [x] Add indexes on profile_id
-
-**Dependencies:** DB-001
-**Testable by:** Database team
-**Status:** ✅ Complete
-
----
-
-### DB-004: Certifications & Skills Tables
-- [x] Design `career_id.certifications` table (id, profile_id, name, issuing_org, date_obtained, display_order)
-- [x] Create migration: `deliverables/migrations/005_create_certifications.sql`
-- [x] Design `reference.skills` master catalog table (id, skill_name, category, aliases)
-- [x] Create migration: `deliverables/migrations/006_create_skills.sql`
-- [x] Design `career_id.profile_skills` junction table (id, profile_id, skill_id, proficiency_level, years_experience, category, display_order)
-- [x] Create migration: `deliverables/migrations/007_create_profile_skills.sql`
-- [x] Seed with 424 common skills
-
-**Dependencies:** DB-001
-**Testable by:** Database team
-**Status:** ✅ Complete
-
----
-
-### DB-005: Contact & Social Tables
-- [x] Design `career_id.contact_info` table (id, profile_id, email, phone, location, first_name, last_name)
-- [x] Create migration: `deliverables/migrations/008_create_contact_info.sql`
-- [x] Design `reference.social_platforms` master catalog
-- [x] Create migration: `deliverables/migrations/009_create_social_platforms.sql`
-- [x] Design `career_id.profile_social_links` junction table (id, profile_id, platform_id, url, display_order)
-- [x] Create migration: `deliverables/migrations/010_create_profile_social_links.sql`
-
-**Dependencies:** DB-001
-**Testable by:** Database team
-**Status:** ✅ Complete
-
----
-
-### DB-006: Database Functions
-- [x] Create `career_id.get_complete_profile(p_user_id TEXT)` function with all joins
-- [x] Create migration: `deliverables/migrations/014_create_get_profile_function.sql`
-- [x] Add all necessary indexes
-
-**Dependencies:** DB-001 through DB-005
-**Testable by:** Database team (test function with sample queries)
-**Status:** ✅ Complete
-
----
-
-## PHASE 2: BACKEND
-
-### BE-001: Profile Endpoints
-- [x] Create `server/api/career-id/profile/index.get.ts` - GET with complete data
-- [x] Create `server/api/career-id/profile/index.post.ts` - POST to create profile shell
-- [x] Generate prefixed IDs (`prof_*`)
-- [x] Add validation and error handling
-- [x] Document in `deliverables/schemas/api-spec.md`
-
-**Dependencies:** DB-001, DB-006
-**Testable by:** Backend team (curl/Postman tests)
-**Status:** ✅ Complete
-
----
-
-### BE-002: Experience Endpoints
-- [x] Create GET, POST, PATCH, DELETE endpoints for `career_id.experience`
-- [x] Add validation: employer, title, start_date required; end_date after start_date
-- [x] Add error handling and logging
-- [x] Document in api-spec.md
-
-**Dependencies:** DB-002, BE-001
-**Testable by:** Backend team
-**Status:** ✅ Complete
-
----
-
-### BE-003: Education Endpoints
-- [x] Create GET, POST, PATCH, DELETE endpoints for `career_id.education`
-- [x] Add validation: degree_type, area_of_study, institution required
-- [x] Add error handling and logging
-
-**Dependencies:** DB-003, BE-001
-**Testable by:** Backend team
-**Status:** ✅ Complete
-
----
-
-### BE-004: Certifications & Skills Endpoints
-- [x] Create certifications GET, POST, PATCH, DELETE endpoints
-- [x] Create skills GET, POST (bulk add with free-form text), PATCH (bulk update), DELETE (bulk delete)
-- [x] Create `server/api/reference/skills/search.get.ts` for autocomplete
-- [x] Add validation and error handling
-
-**Dependencies:** DB-004, BE-001
-**Testable by:** Backend team
-**Status:** ✅ Complete
-
----
-
-### BE-005: Contact & Social Endpoints
-- [x] Create contact info GET, POST, PATCH, DELETE endpoints
-- [x] Create social links GET, POST (bulk), PATCH, DELETE endpoints
-- [x] Create `server/api/reference/social-platforms/index.get.ts` for dropdown
-- [x] Add validation: email, phone format; URL validation; prevent duplicate platforms
-- [x] Add error handling
-
-**Dependencies:** DB-005, BE-001
-**Testable by:** Backend team
-**Status:** ✅ Complete
-
----
-
-### BE-006: Error Handling & Utilities
-- [x] Create `server/utils/error-handler.ts` (database error mapping)
-- [x] Create `server/utils/logger.ts` (structured logging)
-- [x] Create `server/utils/validation.ts` (common patterns)
-- [x] Apply patterns to all endpoints
-- [x] Create `deliverables/schemas/api-spec.md` with all endpoints
-- [x] Create `deliverables/schemas/api-dtos.ts` with DTOs
-
-**Dependencies:** BE-001 through BE-005
-**Testable by:** Backend team
-**Status:** ✅ Complete
-
----
-
-## PHASE 3A: FRONTEND - MOCK UI
+## PHASE 1A: FRONTEND PROTOTYPE
 
 ### FE-001: Onboarding Page
 - [x] Create `app/pages/profile/onboarding.vue`
@@ -513,17 +384,17 @@ Before submitting a task list:
 
 ---
 
+## PHASE 1B: FRONTEND STORE & TYPES
+
 ### FE-005: Type Definitions
 - [x] Create `app/types/careerID/index.ts`
 - [x] Define all types: Profile, Experience, Education, Certification, Skill, ContactInfo, SocialLink, etc.
 
-**Dependencies:** None
+**Dependencies:** FE-001 through FE-004 (types derived from prototype)
 **Testable by:** Frontend team (type checking)
 **Status:** ✅ Complete
 
 ---
-
-## PHASE 3B: FRONTEND - INTEGRATION
 
 ### FE-006: Pinia Store Setup
 - [x] Create `app/stores/careerIDStore.ts`
@@ -531,11 +402,165 @@ Before submitting a task list:
 - [x] Add UI state: isLoading, isSaving, error, lastSaved
 - [x] Create getters: isProfileLoaded, completionPercentage, skillsByProficiency, hasContactInfo, sectionCounts
 
-**Dependencies:** None
+**Dependencies:** FE-005
 **Testable by:** Frontend team (unit tests)
 **Status:** ✅ Complete
 
 ---
+
+## PHASE 2: BACKEND
+
+### BE-001: Profile Endpoints
+- [x] Create `server/api/career-id/profile/index.get.ts` - GET with complete data
+- [x] Create `server/api/career-id/profile/index.post.ts` - POST to create profile shell
+- [x] Generate prefixed IDs (`prof_*`)
+- [x] Add validation and error handling
+- [x] Document in `deliverables/schemas/api-spec.md`
+
+**Dependencies:** FE-005, FE-006 (types define the API contract)
+**Testable by:** Backend team (curl/Postman tests)
+**Status:** ✅ Complete
+
+---
+
+### BE-002: Experience Endpoints
+- [x] Create GET, POST, PATCH, DELETE endpoints for `career_id.experience`
+- [x] Add validation: employer, title, start_date required; end_date after start_date
+- [x] Add error handling and logging
+- [x] Document in api-spec.md
+
+**Dependencies:** FE-005, BE-001
+**Testable by:** Backend team
+**Status:** ✅ Complete
+
+---
+
+### BE-003: Education Endpoints
+- [x] Create GET, POST, PATCH, DELETE endpoints for `career_id.education`
+- [x] Add validation: degree_type, area_of_study, institution required
+- [x] Add error handling and logging
+
+**Dependencies:** FE-005, BE-001
+**Testable by:** Backend team
+**Status:** ✅ Complete
+
+---
+
+### BE-004: Certifications & Skills Endpoints
+- [x] Create certifications GET, POST, PATCH, DELETE endpoints
+- [x] Create skills GET, POST (bulk add with free-form text), PATCH (bulk update), DELETE (bulk delete)
+- [x] Create `server/api/reference/skills/search.get.ts` for autocomplete
+- [x] Add validation and error handling
+
+**Dependencies:** FE-005, BE-001
+**Testable by:** Backend team
+**Status:** ✅ Complete
+
+---
+
+### BE-005: Contact & Social Endpoints
+- [x] Create contact info GET, POST, PATCH, DELETE endpoints
+- [x] Create social links GET, POST (bulk), PATCH, DELETE endpoints
+- [x] Create `server/api/reference/social-platforms/index.get.ts` for dropdown
+- [x] Add validation: email, phone format; URL validation; prevent duplicate platforms
+- [x] Add error handling
+
+**Dependencies:** FE-005, BE-001
+**Testable by:** Backend team
+**Status:** ✅ Complete
+
+---
+
+### BE-006: Error Handling & Utilities
+- [x] Create `server/utils/error-handler.ts` (database error mapping)
+- [x] Create `server/utils/logger.ts` (structured logging)
+- [x] Create `server/utils/validation.ts` (common patterns)
+- [x] Apply patterns to all endpoints
+- [x] Create `deliverables/schemas/api-spec.md` with all endpoints
+- [x] Create `deliverables/schemas/api-dtos.ts` with DTOs
+
+**Dependencies:** BE-001 through BE-005
+**Testable by:** Backend team
+**Status:** ✅ Complete
+
+---
+
+## PHASE 3: DATABASE
+
+### DB-001: Core Profile Table
+- [x] Design `career_id.profiles` table (id, user_id, created_at, updated_at, completion_status)
+- [x] Create migration: `deliverables/migrations/002_create_profiles.sql`
+- [x] Document in `deliverables/schemas/profile_schema.md`
+
+**Dependencies:** BE-001 (schema serves the API)
+**Testable by:** Database team (verify table structure, apply migration)
+**Status:** ✅ Complete
+
+---
+
+### DB-002: Work Experience Table
+- [x] Design `career_id.experience` table (id, profile_id, employer, title, employment_type, location_type, start_date, end_date, highlights JSONB, display_order)
+- [x] Create migration: `deliverables/migrations/003_create_experience.sql`
+- [x] Add indexes on profile_id
+
+**Dependencies:** DB-001, BE-002
+**Testable by:** Database team
+**Status:** ✅ Complete
+
+---
+
+### DB-003: Education Table
+- [x] Design `career_id.education` table (id, profile_id, degree, institution, graduation_year, coursework, display_order)
+- [x] Create migration: `deliverables/migrations/004_create_education.sql`
+- [x] Add indexes on profile_id
+
+**Dependencies:** DB-001, BE-003
+**Testable by:** Database team
+**Status:** ✅ Complete
+
+---
+
+### DB-004: Certifications & Skills Tables
+- [x] Design `career_id.certifications` table (id, profile_id, name, issuing_org, date_obtained, display_order)
+- [x] Create migration: `deliverables/migrations/005_create_certifications.sql`
+- [x] Design `reference.skills` master catalog table (id, skill_name, category, aliases)
+- [x] Create migration: `deliverables/migrations/006_create_skills.sql`
+- [x] Design `career_id.profile_skills` junction table (id, profile_id, skill_id, proficiency_level, years_experience, category, display_order)
+- [x] Create migration: `deliverables/migrations/007_create_profile_skills.sql`
+- [x] Seed with 424 common skills
+
+**Dependencies:** DB-001, BE-004
+**Testable by:** Database team
+**Status:** ✅ Complete
+
+---
+
+### DB-005: Contact & Social Tables
+- [x] Design `career_id.contact_info` table (id, profile_id, email, phone, location, first_name, last_name)
+- [x] Create migration: `deliverables/migrations/008_create_contact_info.sql`
+- [x] Design `reference.social_platforms` master catalog
+- [x] Create migration: `deliverables/migrations/009_create_social_platforms.sql`
+- [x] Design `career_id.profile_social_links` junction table (id, profile_id, platform_id, url, display_order)
+- [x] Create migration: `deliverables/migrations/010_create_profile_social_links.sql`
+
+**Dependencies:** DB-001, BE-005
+**Testable by:** Database team
+**Status:** ✅ Complete
+
+---
+
+### DB-006: Database Functions
+- [x] Create `career_id.get_complete_profile(p_user_id TEXT)` function with all joins
+- [x] Create migration: `deliverables/migrations/014_create_get_profile_function.sql`
+- [x] Add all necessary indexes
+
+**Dependencies:** DB-001 through DB-005
+**Testable by:** Database team (test function with sample queries)
+**Status:** ✅ Complete
+
+---
+
+## PHASE 4: FRONTEND INTEGRATION
 
 ### FE-007: Store Actions - Profile & Lifecycle
 - [x] Add `fetchProfile(profileId)` - GET /api/career-id/profile/:profileId
