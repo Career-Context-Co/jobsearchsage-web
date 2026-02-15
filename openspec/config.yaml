@@ -1,20 +1,26 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Tech stack: Nuxt 4 SPA, Vue 3, TypeScript, Tailwind CSS and Nuxt UI 4
+  Backend: Nitro server, Supabase (auth + DB), Vercel AI SDK
+  State: Pinia stores, auto-imported composables/components/utils
+  DB conventions: snake_case columns, camelCase API responses, CUID2 IDs, soft deletes
+  API style: RESTful, structured responses { success, data/error }, file-based routing
+  Package manager: pnpm 10.21.0
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  proposal:
+    - List affected specs (check with `openspec list --specs`)
+    - Mark breaking changes with **BREAKING**
+    - Check for conflicts with active changes (`openspec list`)
+  specs:
+    - Use SHALL/MUST for normative requirements
+    - Every requirement needs at least one `#### Scenario:` (4 hashtags)
+    - For MODIFIED requirements, copy the full existing requirement — partial deltas lose detail
+  design:
+    - Reference existing codebase patterns before introducing new ones
+    - Include snake_case↔camelCase field mappings for new tables
+    - Specify ID prefix for new entity types (e.g., `cert_*`, `story_*`)
+  tasks:
+    - Follow the frontend-first workflow in openspec/task-guide.md
+    - "Phase order: Frontend Prototype → Store/Types → Backend → Database → Integration"
