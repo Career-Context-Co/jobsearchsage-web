@@ -6,9 +6,8 @@ interface Props {
     lastName?: string | null
     email?: string | null
     phone?: string | null
-    city?: string | null
-    state?: string | null
   }
+  linkedInUsername?: string | null
   jobTitle?: string
   selectedContent?: {
     summary?: { text: string, enabled: boolean }
@@ -47,6 +46,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   accentColor: '#0d9488',
   contactInfo: () => ({}),
+  linkedInUsername: null,
   jobTitle: '',
   selectedContent: () => ({})
 })
@@ -57,7 +57,7 @@ const displayContact = computed(() => ({
   lastName: props.contactInfo?.lastName || 'Last',
   email: props.contactInfo?.email || 'email@example.com',
   phone: props.contactInfo?.phone || '(555) 123-4567',
-  location: [props.contactInfo?.city, props.contactInfo?.state].filter(Boolean).join(', ') || 'City, State',
+  linkedIn: props.linkedInUsername || null,
   jobTitle: props.jobTitle || 'Job Title'
 }))
 
@@ -152,8 +152,8 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
         <span v-if="displayContact.phone">Phone: {{ displayContact.phone }}</span>
         <span v-if="displayContact.phone && displayContact.email"> | </span>
         <span v-if="displayContact.email">Email: {{ displayContact.email }}</span>
-        <span v-if="(displayContact.phone || displayContact.email) && displayContact.location"> | </span>
-        <span v-if="displayContact.location">{{ displayContact.location }}</span>
+        <span v-if="(displayContact.phone || displayContact.email) && displayContact.linkedIn"> | </span>
+        <span v-if="displayContact.linkedIn">LinkedIn: {{ displayContact.linkedIn }}</span>
       </div>
     </header>
 

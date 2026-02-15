@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const careerIDStore = useCareerIDStore()
+const { generatePdf, isGenerating: isExporting } = usePdfLibResume()
 
 const activeTab = ref('content')
 
@@ -62,10 +63,16 @@ const contactInfoForPreview = computed(() => ({
   firstName: careerIDStore.contactInfo?.firstName,
   lastName: careerIDStore.contactInfo?.lastName,
   email: careerIDStore.contactInfo?.email,
-  phone: careerIDStore.contactInfo?.phone || undefined,
-  city: careerIDStore.contactInfo?.city || undefined,
-  state: careerIDStore.contactInfo?.stateRegion || undefined
+  phone: careerIDStore.contactInfo?.phone || undefined
 }))
+
+// Extract LinkedIn username from social links
+const linkedInUsername = computed(() => {
+  const linkedInLink = careerIDStore.profileSocialLinks.find(link => link.platformId === 1)
+  if (!linkedInLink?.url) return null
+  const match = linkedInLink.url.match(/linkedin\.com\/in\/([^/?]+)/i)
+  return match ? match[1] : linkedInLink.url
+})
 
 // Get profile data from store - using correct field names from types
 const profileData = computed(() => ({
@@ -331,53 +338,17 @@ const hasSelectedContent = computed(() => {
     selectedCertifications.value.size > 0
 })
 
-// Export PDF loading state
-const isExporting = ref(false)
-
 async function exportPDF() {
-  isExporting.value = true
   try {
-    // Dynamically import html2pdf
-    const html2pdf = (await import('html2pdf.js')).default
-    
-    // Get the preview element
-    const previewElement = document.getElementById('resume-preview')
-    if (!previewElement) {
-      throw new Error('Resume preview element not found')
-    }
-    
-    // Configure PDF options
-    // Margin is 0 - the preview component has 0.5in padding built in
-    const opt = {
-      margin: 0,
-      filename: 'resume.pdf',
-      image: { type: 'jpeg' as const, quality: 0.98 },
-      pagebreak: { 
-        mode: ['avoid-all', 'css'],
-        avoid: ['.resume-section', '.resume-entry', 'header', 'h2', 'h3']
-      },
-      html2canvas: { 
-        scale: 2, 
-        useCORS: true,
-        onclone: (clonedDoc: Document) => {
-          // Remove all stylesheets from cloned document to prevent oklch() parsing errors
-          // The resume preview uses inline hex colors only, so external styles aren't needed
-          Array.from(clonedDoc.styleSheets).forEach((sheet) => {
-            if (sheet.ownerNode) {
-              sheet.ownerNode.remove()
-            }
-          })
-        }
-      },
-      jsPDF: { unit: 'in' as const, format: 'letter' as const, orientation: 'portrait' as const }
-    }
-    
-    // Generate and download PDF
-    await html2pdf().set(opt).from(previewElement).save()
+    await generatePdf({
+      accentColor: accentColor.value,
+      contactInfo: contactInfoForPreview.value,
+      jobTitle: careerIDStore.contactInfo?.jobTitle || '',
+      selectedContent: previewData.value,
+      socialLinks: careerIDStore.profileSocialLinks
+    })
   } catch (error) {
     console.error('PDF generation failed:', error)
-  } finally {
-    isExporting.value = false
   }
 }
 </script>
@@ -651,6 +622,7 @@ async function exportPDF() {
           <ResumePreview 
             :accent-color="accentColor"
             :contact-info="contactInfoForPreview"
+            :linked-in-username="linkedInUsername"
             :job-title="careerIDStore.contactInfo?.jobTitle || ''"
             :selected-content="previewData"
           />
