@@ -14,22 +14,72 @@ const accentColor = ref('#0d9488')
 // Load profile data on mount
 onMounted(async () => {
   if (!careerIDStore.isProfileLoaded) {
-    await careerIDStore.loadProfile()
+    await careerIDStore.fetchProfile(careerIDStore.profileId)
   }
   initializeSelections()
 })
 
-// Get profile data from store
+/**
+ * Format date from YYYY-MM-DD to display format (e.g., "Jan 2023")
+ */
+function formatDateForDisplay(dateString: string | null | undefined): string {
+  if (!dateString) return ''
+  
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return dateString
+  
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
+/**
+ * Format employment type for display (e.g., "full_time" -> "Full-time")
+ */
+function formatEmploymentType(type: string): string {
+  const types: Record<string, string> = {
+    'full_time': 'Full-time',
+    'part_time': 'Part-time',
+    'contract': 'Contract',
+    'freelance': 'Freelance',
+    'internship': 'Internship'
+  }
+  return types[type] || type
+}
+
+/**
+ * Format location type for display (e.g., "on_site" -> "On-site")
+ */
+function formatLocationType(type: string): string {
+  const types: Record<string, string> = {
+    'on_site': 'On-site',
+    'remote': 'Remote',
+    'hybrid': 'Hybrid'
+  }
+  return types[type] || type
+}
+
+// Contact info formatted for preview component
+const contactInfoForPreview = computed(() => ({
+  firstName: careerIDStore.contactInfo?.firstName,
+  lastName: careerIDStore.contactInfo?.lastName,
+  email: careerIDStore.contactInfo?.email,
+  phone: careerIDStore.contactInfo?.phone || undefined,
+  city: careerIDStore.contactInfo?.city || undefined,
+  state: careerIDStore.contactInfo?.stateRegion || undefined
+}))
+
+// Get profile data from store - using correct field names from types
 const profileData = computed(() => ({
-  professionalSummary: careerIDStore.profile?.professionalSummary || '',
+  // Professional summary is in contactInfo.summary
+  professionalSummary: careerIDStore.contactInfo?.summary || '',
   workExperience: careerIDStore.experience.map(exp => ({
     id: exp.id,
     employer: exp.employer,
-    jobTitle: exp.jobTitle,
-    employmentType: exp.employmentType || 'Full-time',
-    locationType: exp.locationType || 'On-site',
+    jobTitle: exp.title, // Experience uses 'title' not 'jobTitle'
+    employmentType: formatEmploymentType(exp.employmentType),
+    locationType: formatLocationType(exp.locationType),
     startDate: exp.startDate,
     endDate: exp.endDate,
+    currentPosition: exp.currentPosition,
     highlights: (exp.highlights || []).map((h, index) => ({
       id: `${exp.id}-h${index}`,
       text: h
@@ -38,19 +88,19 @@ const profileData = computed(() => ({
   education: careerIDStore.education.map(edu => ({
     id: edu.id,
     institution: edu.institution,
-    degree: edu.degreeType || 'Degree',
+    degree: edu.degreeType,
     areaOfStudy: edu.areaOfStudy || '',
     startDate: edu.startDate,
     endDate: edu.endDate
   })),
   skills: careerIDStore.profileSkills.map(skill => ({
     id: skill.id,
-    name: skill.skillName
+    name: skill.name // ProfileSkill uses 'name' not 'skillName'
   })),
   certifications: careerIDStore.certifications.map(cert => ({
     id: cert.id,
-    name: cert.certificationName,
-    issuer: cert.issuingOrganization || '',
+    name: cert.name, // Certification uses 'name' not 'certificationName'
+    issuer: cert.issuer || '',
     issueDate: cert.issueDate || ''
   }))
 }))
@@ -141,21 +191,20 @@ function toggleSection(section: 'summary' | 'workExperience' | 'education' | 'sk
   }
 }
 
-// Format date range
-function formatDateRange(startDate: string, endDate: string | null) {
-  const start = new Date(startDate + '-01')
-  const startFormatted = start.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+// Format date range for display
+function formatDateRange(startDate: string | null | undefined, endDate: string | null | undefined, currentPosition?: boolean) {
+  const startFormatted = formatDateForDisplay(startDate) || 'Unknown'
   
-  if (!endDate) return `${startFormatted} - Present`
+  if (currentPosition || !endDate) {
+    return `${startFormatted} - Present`
+  }
   
-  const end = new Date(endDate + '-01')
-  const endFormatted = end.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  const endFormatted = formatDateForDisplay(endDate)
   return `${startFormatted} - ${endFormatted}`
 }
 
-function formatMonthYear(dateStr: string) {
-  const date = new Date(dateStr + '-01')
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+function formatMonthYear(dateStr: string | null | undefined) {
+  return formatDateForDisplay(dateStr)
 }
 
 const accordionItems = [
@@ -244,12 +293,29 @@ async function exportPDF() {
     }
     
     // Configure PDF options
+    // Margin is 0 - the preview component has 0.5in padding built in
     const opt = {
-      margin: 0.5,
+      margin: 0,
       filename: 'resume.pdf',
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      image: { type: 'jpeg' as const, quality: 0.98 },
+      pagebreak: { 
+        mode: ['avoid-all', 'css'],
+        avoid: ['.resume-section', '.resume-entry', 'header', 'h2', 'h3']
+      },
+      html2canvas: { 
+        scale: 2, 
+        useCORS: true,
+        onclone: (clonedDoc: Document) => {
+          // Remove all stylesheets from cloned document to prevent oklch() parsing errors
+          // The resume preview uses inline hex colors only, so external styles aren't needed
+          Array.from(clonedDoc.styleSheets).forEach((sheet) => {
+            if (sheet.ownerNode) {
+              sheet.ownerNode.remove()
+            }
+          })
+        }
+      },
+      jsPDF: { unit: 'in' as const, format: 'letter' as const, orientation: 'portrait' as const }
     }
     
     // Generate and download PDF
@@ -364,7 +430,7 @@ async function exportPDF() {
                         <p class="font-medium">{{ exp.jobTitle }}</p>
                         <p class="text-sm text-muted">{{ exp.employer }}</p>
                         <p class="text-xs text-muted mt-1">
-                          {{ exp.employmentType }} • {{ exp.locationType }} • {{ formatDateRange(exp.startDate, exp.endDate) }}
+                          {{ exp.employmentType }} • {{ exp.locationType }} • {{ formatDateRange(exp.startDate, exp.endDate, exp.currentPosition) }}
                         </p>
                       </div>
                     </div>
@@ -515,8 +581,8 @@ async function exportPDF() {
         <div class="w-full lg:w-1/2 lg:sticky lg:top-0 lg:h-[calc(100vh-8rem)] overflow-y-auto bg-elevated/50 p-4 sm:p-6">
           <ResumePreview 
             :accent-color="accentColor"
-            :contact-info="careerIDStore.contactInfo || {}"
-            :job-title="careerIDStore.profile?.jobTitle || ''"
+            :contact-info="contactInfoForPreview"
+            :job-title="careerIDStore.contactInfo?.jobTitle || ''"
             :selected-content="previewData"
           />
         </div>

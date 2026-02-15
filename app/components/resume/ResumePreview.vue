@@ -2,12 +2,12 @@
 interface Props {
   accentColor?: string
   contactInfo?: {
-    firstName?: string
-    lastName?: string
-    email?: string
-    phone?: string
-    city?: string
-    state?: string
+    firstName?: string | null
+    lastName?: string | null
+    email?: string | null
+    phone?: string | null
+    city?: string | null
+    state?: string | null
   }
   jobTitle?: string
   selectedContent?: {
@@ -18,8 +18,9 @@ interface Props {
       jobTitle: string
       employmentType: string
       locationType: string
-      startDate: string
-      endDate: string | null
+      startDate: string | null | undefined
+      endDate: string | null | undefined
+      currentPosition?: boolean
       highlights: Array<{ id: string, text: string, selected: boolean }>
       selected: boolean
     }>
@@ -28,8 +29,8 @@ interface Props {
       institution: string
       degree: string
       areaOfStudy: string
-      startDate: string
-      endDate: string
+      startDate: string | null | undefined
+      endDate: string | null | undefined
       selected: boolean
     }>
     skills?: Array<{ id: string | number, name: string, selected: boolean }>
@@ -60,20 +61,31 @@ const displayContact = computed(() => ({
   jobTitle: props.jobTitle || 'Job Title'
 }))
 
-function formatDateRange(startDate: string, endDate: string | null) {
-  const start = new Date(startDate + '-01')
-  const startFormatted = start.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+/**
+ * Format date from YYYY-MM-DD to display format (e.g., "Jan 2023")
+ */
+function formatDateForDisplay(dateString: string | null | undefined): string {
+  if (!dateString) return ''
   
-  if (!endDate) return `${startFormatted} - Present`
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return dateString
   
-  const end = new Date(endDate + '-01')
-  const endFormatted = end.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
+function formatDateRange(startDate: string | null | undefined, endDate: string | null | undefined, currentPosition?: boolean) {
+  const startFormatted = formatDateForDisplay(startDate) || 'Unknown'
+  
+  if (currentPosition || !endDate) {
+    return `${startFormatted} - Present`
+  }
+  
+  const endFormatted = formatDateForDisplay(endDate)
   return `${startFormatted} - ${endFormatted}`
 }
 
-function formatMonthYear(dateStr: string) {
-  const date = new Date(dateStr + '-01')
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+function formatMonthYear(dateStr: string | null | undefined) {
+  return formatDateForDisplay(dateStr)
 }
 
 // Filter selected items
@@ -97,140 +109,153 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
 </script>
 
 <template>
-  <div id="resume-preview" class="max-w-3xl mx-auto bg-white shadow-lg">
-    <!-- Resume Document -->
-    <div class="p-8 sm:p-12 text-gray-900 space-y-6">
-      <!-- Header: Name and Contact -->
-      <header class="border-b-2 pb-4" :style="{ borderColor: accentColor }">
-        <h1 
-          class="text-3xl sm:text-4xl font-bold mb-1" 
-          :style="{ color: accentColor }"
-        >
-          {{ displayContact.firstName }} {{ displayContact.lastName }}
-        </h1>
-        <p v-if="displayContact.jobTitle" class="text-lg text-gray-600 mb-3">{{ displayContact.jobTitle }}</p>
-        <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
-          <span v-if="displayContact.email">{{ displayContact.email }}</span>
-          <span v-if="displayContact.phone">{{ displayContact.phone }}</span>
-          <span v-if="displayContact.location">{{ displayContact.location }}</span>
+  <!-- Resume preview showing full page with margins -->
+  <div 
+    id="resume-preview" 
+    :style="{
+      width: '8.5in',
+      minHeight: '11in',
+      margin: '0 auto',
+      padding: '0.5in',
+      backgroundColor: '#ffffff',
+      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+      fontFamily: 'Calibri, Carlito, sans-serif',
+      color: '#111827',
+      boxSizing: 'border-box'
+    }"
+  >
+    <!-- Header: Centered Name and Contact -->
+    <header :style="{ textAlign: 'center', paddingBottom: '0.75rem' }">
+      <h1 :style="{ fontSize: '1.75rem', fontWeight: 'bold', marginBottom: '0.25rem', color: '#111827' }">
+        {{ displayContact.firstName }} {{ displayContact.lastName }}
+      </h1>
+      <div :style="{ fontSize: '0.8125rem', color: '#4b5563' }">
+        <span v-if="displayContact.phone">Phone: {{ displayContact.phone }}</span>
+        <span v-if="displayContact.phone && displayContact.email"> | </span>
+        <span v-if="displayContact.email">Email: {{ displayContact.email }}</span>
+        <span v-if="(displayContact.phone || displayContact.email) && displayContact.location"> | </span>
+        <span v-if="displayContact.location">{{ displayContact.location }}</span>
+      </div>
+    </header>
+
+    <!-- Professional Summary -->
+    <section v-if="hasSummary && selectedContent.summary" class="resume-section" :style="{ marginBottom: '1rem' }">
+      <div :style="{ textAlign: 'center', marginBottom: '0.5rem' }">
+        <h2 :style="{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
+          Summary
+        </h2>
+        <div :style="{ width: '100%', height: '1px', backgroundColor: accentColor }"></div>
+      </div>
+      <p :style="{ fontSize: '0.8125rem', lineHeight: '1.5', color: '#374151', textAlign: 'justify' }">
+        {{ selectedContent.summary.text }}
+      </p>
+    </section>
+
+    <!-- Work Experience -->
+    <section v-if="selectedExperiences.length > 0" class="resume-section" :style="{ marginBottom: '1rem' }">
+      <div :style="{ textAlign: 'center', marginBottom: '0.5rem' }">
+        <h2 :style="{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
+          Professional Experience
+        </h2>
+        <div :style="{ width: '100%', height: '1px', backgroundColor: accentColor }"></div>
+      </div>
+      <div
+        v-for="(exp, index) in selectedExperiences"
+        :key="exp.id"
+        class="resume-entry"
+        :style="{ marginBottom: index < selectedExperiences.length - 1 ? '0.75rem' : '0' }"
+      >
+        <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }">
+          <h3 :style="{ fontWeight: 'bold', fontSize: '0.875rem', color: '#111827' }">{{ exp.jobTitle }}</h3>
+          <span :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ formatDateRange(exp.startDate, exp.endDate, exp.currentPosition) }}</span>
         </div>
-      </header>
-
-      <!-- Professional Summary -->
-      <section v-if="hasSummary && selectedContent.summary">
-        <h2 
-          class="text-lg font-bold uppercase tracking-wide mb-2"
-          :style="{ color: accentColor }"
+        <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.25rem' }">
+          <p :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ exp.employer }}</p>
+          <span :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ exp.locationType }}</span>
+        </div>
+        <ul 
+          v-if="exp.highlights.some(h => h.selected)" 
+          :style="{ listStyleType: 'disc', listStylePosition: 'outside', marginLeft: '1.25rem', fontSize: '0.8125rem', color: '#374151' }"
         >
-          Professional Summary
-        </h2>
-        <p class="text-sm leading-relaxed text-gray-700">
-          {{ selectedContent.summary.text }}
-        </p>
-      </section>
-
-      <!-- Work Experience -->
-      <section v-if="selectedExperiences.length > 0">
-        <h2 
-          class="text-lg font-bold uppercase tracking-wide mb-3"
-          :style="{ color: accentColor }"
-        >
-          Work Experience
-        </h2>
-        <div class="space-y-4">
-          <div
-            v-for="exp in selectedExperiences"
-            :key="exp.id"
+          <li
+            v-for="highlight in exp.highlights.filter(h => h.selected)"
+            :key="highlight.id"
+            :style="{ marginBottom: '0.125rem', lineHeight: '1.4' }"
           >
-            <div class="flex justify-between items-baseline mb-1">
-              <h3 class="font-semibold text-base">{{ exp.jobTitle }}</h3>
-              <span class="text-sm text-gray-600">{{ formatDateRange(exp.startDate, exp.endDate) }}</span>
-            </div>
-            <p class="text-sm text-gray-600 mb-2">
-              {{ exp.employer }} • {{ exp.employmentType }} • {{ exp.locationType }}
-            </p>
-            <ul 
-              v-if="exp.highlights.some(h => h.selected)" 
-              class="list-disc list-outside ml-5 space-y-1 text-sm text-gray-700"
-            >
-              <li
-                v-for="highlight in exp.highlights.filter(h => h.selected)"
-                :key="highlight.id"
-              >
-                {{ highlight.text }}
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
+            {{ highlight.text }}
+          </li>
+        </ul>
+      </div>
+    </section>
 
-      <!-- Education -->
-      <section v-if="selectedEducation.length > 0">
-        <h2 
-          class="text-lg font-bold uppercase tracking-wide mb-3"
-          :style="{ color: accentColor }"
-        >
+    <!-- Education -->
+    <section v-if="selectedEducation.length > 0" class="resume-section" :style="{ marginBottom: '1rem' }">
+      <div :style="{ textAlign: 'center', marginBottom: '0.5rem' }">
+        <h2 :style="{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
           Education
         </h2>
-        <div class="space-y-3">
-          <div
-            v-for="edu in selectedEducation"
-            :key="edu.id"
-          >
-            <div class="flex justify-between items-baseline mb-1">
-              <h3 class="font-semibold text-base">{{ edu.institution }}</h3>
-              <span class="text-sm text-gray-600">{{ formatDateRange(edu.startDate, edu.endDate) }}</span>
-            </div>
-            <p class="text-sm text-gray-600">{{ edu.degree }} in {{ edu.areaOfStudy }}</p>
-          </div>
+        <div :style="{ width: '100%', height: '1px', backgroundColor: accentColor }"></div>
+      </div>
+      <div
+        v-for="(edu, index) in selectedEducation"
+        :key="edu.id"
+        class="resume-entry"
+        :style="{ marginBottom: index < selectedEducation.length - 1 ? '0.5rem' : '0' }"
+      >
+        <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }">
+          <h3 :style="{ fontWeight: 'bold', fontSize: '0.875rem', color: '#111827' }">{{ edu.institution }}</h3>
+          <span :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ formatDateRange(edu.startDate, edu.endDate) }}</span>
         </div>
-      </section>
+        <p :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ edu.degree }}<span v-if="edu.areaOfStudy"> in {{ edu.areaOfStudy }}</span></p>
+      </div>
+    </section>
 
-      <!-- Skills -->
-      <section v-if="selectedSkills.length > 0">
-        <h2 
-          class="text-lg font-bold uppercase tracking-wide mb-2"
-          :style="{ color: accentColor }"
-        >
+    <!-- Skills -->
+    <section v-if="selectedSkills.length > 0" class="resume-section" :style="{ marginBottom: '1rem' }">
+      <div :style="{ textAlign: 'center', marginBottom: '0.5rem' }">
+        <h2 :style="{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
           Skills
         </h2>
-        <div class="flex flex-wrap gap-2">
-          <span
-            v-for="skill in selectedSkills"
-            :key="skill.id"
-            class="text-sm text-gray-700"
-          >
-            {{ skill.name }}<span v-if="skill !== selectedSkills[selectedSkills.length - 1]" class="text-gray-400 ml-2">•</span>
-          </span>
-        </div>
-      </section>
+        <div :style="{ width: '100%', height: '1px', backgroundColor: accentColor }"></div>
+      </div>
+      <p :style="{ fontSize: '0.8125rem', color: '#374151', textAlign: 'center' }">
+        <span v-for="(skill, index) in selectedSkills" :key="skill.id">
+          {{ skill.name }}<span v-if="index < selectedSkills.length - 1"> • </span>
+        </span>
+      </p>
+    </section>
 
-      <!-- Certifications -->
-      <section v-if="selectedCertifications.length > 0">
-        <h2 
-          class="text-lg font-bold uppercase tracking-wide mb-3"
-          :style="{ color: accentColor }"
-        >
+    <!-- Certifications -->
+    <section v-if="selectedCertifications.length > 0" class="resume-section" :style="{ marginBottom: '1rem' }">
+      <div :style="{ textAlign: 'center', marginBottom: '0.5rem' }">
+        <h2 :style="{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
           Certifications
         </h2>
-        <div class="space-y-2">
-          <div
-            v-for="cert in selectedCertifications"
-            :key="cert.id"
-          >
-            <h3 class="font-semibold text-base">{{ cert.name }}</h3>
-            <p class="text-sm text-gray-600">{{ cert.issuer }} • Issued {{ formatMonthYear(cert.issueDate) }}</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Empty State -->
-      <div v-if="!hasSummary && selectedExperiences.length === 0 && selectedEducation.length === 0 && selectedSkills.length === 0 && selectedCertifications.length === 0" class="text-center py-12">
-        <div class="text-gray-400 mb-2">
-          <UIcon name="i-lucide-file-text" class="w-12 h-12 mx-auto" />
-        </div>
-        <p class="text-gray-500 text-sm">Select content from the editor to see your resume preview</p>
+        <div :style="{ width: '100%', height: '1px', backgroundColor: accentColor }"></div>
       </div>
+      <div
+        v-for="(cert, index) in selectedCertifications"
+        :key="cert.id"
+        class="resume-entry"
+        :style="{ marginBottom: index < selectedCertifications.length - 1 ? '0.375rem' : '0' }"
+      >
+        <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }">
+          <h3 :style="{ fontWeight: 'bold', fontSize: '0.875rem', color: '#111827' }">{{ cert.name }}</h3>
+          <span v-if="cert.issueDate" :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ formatMonthYear(cert.issueDate) }}</span>
+        </div>
+        <p v-if="cert.issuer" :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ cert.issuer }}</p>
+      </div>
+    </section>
+
+    <!-- Empty State -->
+    <div 
+      v-if="!hasSummary && selectedExperiences.length === 0 && selectedEducation.length === 0 && selectedSkills.length === 0 && selectedCertifications.length === 0" 
+      :style="{ textAlign: 'center', padding: '3rem 0' }"
+    >
+      <div :style="{ color: '#9ca3af', marginBottom: '0.5rem', fontSize: '3rem', lineHeight: '1' }">
+        📄
+      </div>
+      <p :style="{ color: '#6b7280', fontSize: '0.875rem' }">Select content from the editor to see your resume preview</p>
     </div>
   </div>
 </template>
@@ -238,12 +263,29 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
 <style scoped>
 /* PDF-ready styles - html2pdf.js will capture these */
 #resume-preview {
-  /* Ensure consistent rendering for PDF export */
   box-sizing: border-box;
 }
 
-section {
-  /* Hint to avoid awkward page breaks */
+/* Sections should avoid page breaks inside when possible */
+.resume-section {
   page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* Individual entries (jobs, education items, etc.) should stay together */
+.resume-entry {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* Don't break right after headers */
+header {
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+h2, h3 {
+  page-break-after: avoid;
+  break-after: avoid;
 }
 </style>
