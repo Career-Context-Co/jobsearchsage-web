@@ -95,7 +95,8 @@ const profileData = computed(() => ({
   })),
   skills: careerIDStore.profileSkills.map(skill => ({
     id: skill.id,
-    name: skill.name // ProfileSkill uses 'name' not 'skillName'
+    name: skill.name,
+    group: skill.group || 'Skills' // Default group name if none specified
   })),
   certifications: careerIDStore.certifications.map(cert => ({
     id: cert.id,
@@ -267,6 +268,59 @@ const previewData = computed(() => ({
     selected: selectedCertifications.value.has(String(cert.id))
   }))
 }))
+
+// Group skills by category for the editor
+const groupedProfileSkills = computed(() => {
+  const groups: Record<string, Array<{ id: string | number, name: string }>> = {}
+  
+  profileData.value.skills.forEach(skill => {
+    const groupName = skill.group || 'Skills'
+    if (!groups[groupName]) {
+      groups[groupName] = []
+    }
+    groups[groupName].push({ id: skill.id, name: skill.name })
+  })
+  
+  return Object.entries(groups).map(([group, skills]) => ({
+    group,
+    skills
+  }))
+})
+
+// Check if all skills in a category are selected
+function isCategoryFullySelected(groupName: string): boolean {
+  const category = groupedProfileSkills.value.find(g => g.group === groupName)
+  if (!category) return false
+  return category.skills.every(skill => selectedSkills.value.has(String(skill.id)))
+}
+
+// Check if some (but not all) skills in a category are selected
+function isCategoryPartiallySelected(groupName: string): boolean {
+  const category = groupedProfileSkills.value.find(g => g.group === groupName)
+  if (!category) return false
+  const selectedCount = category.skills.filter(skill => selectedSkills.value.has(String(skill.id))).length
+  return selectedCount > 0 && selectedCount < category.skills.length
+}
+
+// Toggle all skills in a category
+function toggleSkillCategory(groupName: string) {
+  const category = groupedProfileSkills.value.find(g => g.group === groupName)
+  if (!category) return
+  
+  const allSelected = isCategoryFullySelected(groupName)
+  
+  if (allSelected) {
+    // Deselect all skills in this category
+    category.skills.forEach(skill => {
+      selectedSkills.value.delete(String(skill.id))
+    })
+  } else {
+    // Select all skills in this category
+    category.skills.forEach(skill => {
+      selectedSkills.value.add(String(skill.id))
+    })
+  }
+}
 
 // Track whether any content is selected (for Export PDF button)
 const hasSelectedContent = computed(() => {
@@ -508,21 +562,36 @@ async function exportPDF() {
                     <span class="text-sm font-medium">Include all skills</span>
                   </div>
 
-                  <div class="pl-6 grid grid-cols-2 gap-2">
-                    <div
-                      v-for="skill in profileData.skills"
-                      :key="skill.id"
-                      class="flex items-center gap-2"
-                    >
+                  <!-- Skills grouped by category -->
+                  <div v-for="skillGroup in groupedProfileSkills" :key="skillGroup.group" class="pl-3 space-y-2">
+                    <!-- Category header with checkbox -->
+                    <div class="flex items-center gap-2">
                       <UCheckbox
-                        :model-value="selectedSkills.has(String(skill.id))"
-                        @update:model-value="(val) => {
-                          if (val) selectedSkills.add(String(skill.id))
-                          else selectedSkills.delete(String(skill.id))
-                        }"
+                        :model-value="isCategoryFullySelected(skillGroup.group)"
+                        :indeterminate="isCategoryPartiallySelected(skillGroup.group)"
                         @click.stop
+                        @change="toggleSkillCategory(skillGroup.group)"
                       />
-                      <span class="text-sm">{{ skill.name }}</span>
+                      <span class="text-sm font-medium text-muted">{{ skillGroup.group }}</span>
+                    </div>
+                    
+                    <!-- Individual skills in this category -->
+                    <div class="pl-6 grid grid-cols-2 gap-2">
+                      <div
+                        v-for="skill in skillGroup.skills"
+                        :key="skill.id"
+                        class="flex items-center gap-2"
+                      >
+                        <UCheckbox
+                          :model-value="selectedSkills.has(String(skill.id))"
+                          @update:model-value="(val) => {
+                            if (val) selectedSkills.add(String(skill.id))
+                            else selectedSkills.delete(String(skill.id))
+                          }"
+                          @click.stop
+                        />
+                        <span class="text-sm">{{ skill.name }}</span>
+                      </div>
                     </div>
                   </div>
                 </div>

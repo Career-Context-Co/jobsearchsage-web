@@ -33,7 +33,7 @@ interface Props {
       endDate: string | null | undefined
       selected: boolean
     }>
-    skills?: Array<{ id: string | number, name: string, selected: boolean }>
+    skills?: Array<{ id: string | number, name: string, group?: string, selected: boolean }>
     certifications?: Array<{
       id: string | number
       name: string
@@ -101,6 +101,25 @@ const selectedSkills = computed(() =>
   props.selectedContent.skills?.filter(skill => skill.selected) || []
 )
 
+// Group selected skills by their category/group
+const groupedSkills = computed(() => {
+  const groups: Record<string, string[]> = {}
+  
+  selectedSkills.value.forEach(skill => {
+    const groupName = skill.group || 'Skills'
+    if (!groups[groupName]) {
+      groups[groupName] = []
+    }
+    groups[groupName].push(skill.name)
+  })
+  
+  // Convert to array of { group, skills } for template iteration
+  return Object.entries(groups).map(([group, skills]) => ({
+    group,
+    skills
+  }))
+})
+
 const selectedCertifications = computed(() => 
   props.selectedContent.certifications?.filter(cert => cert.selected) || []
 )
@@ -140,12 +159,10 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
 
     <!-- Professional Summary -->
     <section v-if="hasSummary && selectedContent.summary" class="resume-section" :style="{ marginBottom: '1rem' }">
-      <div :style="{ textAlign: 'center', marginBottom: '0.5rem' }">
-        <h2 :style="{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
-          Summary
-        </h2>
-        <div :style="{ width: '100%', height: '1px', backgroundColor: accentColor }"></div>
-      </div>
+      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
+        Summary
+      </h2>
+      <hr :style="{ border: 'none', borderTop: '1px solid #d1d5db', marginBottom: '0.5rem' }" />
       <p :style="{ fontSize: '0.8125rem', lineHeight: '1.5', color: '#374151', textAlign: 'justify' }">
         {{ selectedContent.summary.text }}
       </p>
@@ -153,12 +170,10 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
 
     <!-- Work Experience -->
     <section v-if="selectedExperiences.length > 0" class="resume-section" :style="{ marginBottom: '1rem' }">
-      <div :style="{ textAlign: 'center', marginBottom: '0.5rem' }">
-        <h2 :style="{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
-          Professional Experience
-        </h2>
-        <div :style="{ width: '100%', height: '1px', backgroundColor: accentColor }"></div>
-      </div>
+      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
+        Professional Experience
+      </h2>
+      <hr :style="{ border: 'none', borderTop: '1px solid #d1d5db', marginBottom: '0.5rem' }" />
       <div
         v-for="(exp, index) in selectedExperiences"
         :key="exp.id"
@@ -190,12 +205,10 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
 
     <!-- Education -->
     <section v-if="selectedEducation.length > 0" class="resume-section" :style="{ marginBottom: '1rem' }">
-      <div :style="{ textAlign: 'center', marginBottom: '0.5rem' }">
-        <h2 :style="{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
-          Education
-        </h2>
-        <div :style="{ width: '100%', height: '1px', backgroundColor: accentColor }"></div>
-      </div>
+      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
+        Education
+      </h2>
+      <hr :style="{ border: 'none', borderTop: '1px solid #d1d5db', marginBottom: '0.5rem' }" />
       <div
         v-for="(edu, index) in selectedEducation"
         :key="edu.id"
@@ -212,27 +225,25 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
 
     <!-- Skills -->
     <section v-if="selectedSkills.length > 0" class="resume-section" :style="{ marginBottom: '1rem' }">
-      <div :style="{ textAlign: 'center', marginBottom: '0.5rem' }">
-        <h2 :style="{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
-          Skills
-        </h2>
-        <div :style="{ width: '100%', height: '1px', backgroundColor: accentColor }"></div>
+      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
+        Skills
+      </h2>
+      <hr :style="{ border: 'none', borderTop: '1px solid #d1d5db', marginBottom: '0.5rem' }" />
+      <!-- Display skills grouped by category -->
+      <div v-for="(skillGroup, groupIndex) in groupedSkills" :key="skillGroup.group" :style="{ marginBottom: groupIndex < groupedSkills.length - 1 ? '0.5rem' : '0' }">
+        <p :style="{ fontSize: '0.8125rem', color: '#374151', lineHeight: '1.5' }">
+          <span :style="{ fontWeight: 'bold' }">{{ skillGroup.group }}:</span>
+          {{ skillGroup.skills.join(', ') }}
+        </p>
       </div>
-      <p :style="{ fontSize: '0.8125rem', color: '#374151', textAlign: 'center' }">
-        <span v-for="(skill, index) in selectedSkills" :key="skill.id">
-          {{ skill.name }}<span v-if="index < selectedSkills.length - 1"> • </span>
-        </span>
-      </p>
     </section>
 
     <!-- Certifications -->
     <section v-if="selectedCertifications.length > 0" class="resume-section" :style="{ marginBottom: '1rem' }">
-      <div :style="{ textAlign: 'center', marginBottom: '0.5rem' }">
-        <h2 :style="{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
-          Certifications
-        </h2>
-        <div :style="{ width: '100%', height: '1px', backgroundColor: accentColor }"></div>
-      </div>
+      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
+        Certifications
+      </h2>
+      <hr :style="{ border: 'none', borderTop: '1px solid #d1d5db', marginBottom: '0.5rem' }" />
       <div
         v-for="(cert, index) in selectedCertifications"
         :key="cert.id"
