@@ -6,7 +6,7 @@ context: |
   State: Pinia stores, auto-imported composables/components/utils
   DB conventions: snake_case columns, camelCase API responses, CUID2 IDs, soft deletes
   API style: RESTful, structured responses { success, data/error }, file-based routing
-  Package manager: pnpm 10.21.0
+  Package manager: npm 
 
 rules:
   proposal:

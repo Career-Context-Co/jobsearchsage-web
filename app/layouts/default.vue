@@ -70,6 +70,14 @@ const links = computed(() => [[
   type: 'trigger',
   defaultOpen: true,
   children: profileChildren.value
+},
+{
+  label: 'Resume',
+  icon: 'i-lucide-file-text',
+  to: '/resumes/generate',
+  onSelect: () => {
+    open.value = false
+  }
 }],
 [{
   label: 'Feedback',

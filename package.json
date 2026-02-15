@@ -23,6 +23,7 @@
     "@vueuse/nuxt": "^13.9.0",
     "ai": "^6.0.0-beta.157",
     "date-fns": "^4.1.0",
+    "html2pdf.js": "^0.14.0",
     "maska": "^3.2.0",
     "nuxt": "^4.2.1",
     "pdf-parse": "^2.4.5",
