@@ -30,9 +30,9 @@ The application SHALL provide a split-pane resume generation interface at `/resu
 - **WHEN** the user navigates to `/resumes/generate`
 - **THEN** the system SHALL display a page using the default layout (sidebar visible)
 - **AND** the page SHALL have a title area with "Resume" and an "Export PDF" button to the far right
-- **AND** the page SHALL display two tabs: "Content Editor" and "Designer"
-- **AND** the page SHALL display a split-pane layout with editor controls on the left and a live resume preview on the right
-- **AND** the "Content Editor" tab SHALL be active by default
+- **AND** the page SHALL display three tabs: "Content" (select what to include), "Editor" (edit selected content text), and "Designer" (styling)
+- **AND** the page SHALL display a split-pane layout with tab controls on the left and a live resume preview on the right
+- **AND** the "Content" tab SHALL be active by default
 
 #### Scenario: Load profile data into resume builder
 - **WHEN** the resume generation page loads
@@ -76,6 +76,66 @@ The application SHALL provide a Content Editor tab with collapsible sections and
 #### Scenario: Toggle Professional Summary
 - **WHEN** the user expands the Professional Summary section
 - **THEN** the system SHALL display the summary text with a single checkbox to include/exclude it
+
+### Requirement: Editor Tab
+The application SHALL provide an Editor tab that displays all selected content in editable form fields, allowing users to make session-only text edits before export.
+
+#### Scenario: Display selected work experiences in editable format
+- **GIVEN** the user has selected work experiences in the Content tab
+- **WHEN** the user switches to the Editor tab
+- **THEN** the system SHALL display each selected work experience in an editable form
+- **AND** each experience SHALL show editable fields for job title, company name, start date, end date, and achievement bullets
+- **AND** all fields SHALL contain the current content from the user's profile
+- **AND** experiences that were not selected in the Content tab SHALL NOT appear
+
+#### Scenario: Display selected education entries in editable format
+- **GIVEN** the user has selected education entries in the Content tab
+- **WHEN** the user views the Editor tab
+- **THEN** the system SHALL display each selected education entry with editable fields for degree name, institution name, field of study, and dates
+
+#### Scenario: Display selected skills in editable format
+- **GIVEN** the user has selected skills in the Content tab
+- **WHEN** the user views the Editor tab
+- **THEN** the system SHALL display each selected skill in an editable text field
+
+#### Scenario: Display selected certifications in editable format
+- **GIVEN** the user has selected certifications in the Content tab
+- **WHEN** the user views the Editor tab
+- **THEN** the system SHALL display each selected certification with editable fields for name, issuer, and date
+
+#### Scenario: Display professional summary in editable format
+- **GIVEN** the user has enabled the professional summary in the Content tab
+- **WHEN** the user views the Editor tab
+- **THEN** the system SHALL display the summary in an editable textarea
+
+#### Scenario: Update live preview in real-time during editing
+- **GIVEN** the user is editing content in the Editor tab
+- **WHEN** the user types or modifies any field
+- **THEN** the live preview SHALL update immediately to reflect the change
+- **AND** the preview SHALL show exactly how the edited content will appear in the final export
+
+#### Scenario: Apply edits only to resume generation session
+- **GIVEN** the user has edited content in the Editor tab and downloaded their resume
+- **WHEN** the user exits the resume generation flow and views their profile
+- **THEN** the profile SHALL display the original, unedited content
+- **AND** the system SHALL NOT have modified the user's saved profile data
+
+#### Scenario: Handle removed selections when navigating back to Content tab
+- **GIVEN** the user has edited items in the Editor tab, switches to the Content tab, and unchecks one of the edited items
+- **WHEN** the user returns to the Editor tab
+- **THEN** the system SHALL no longer display the unchecked item
+- **AND** the system SHALL discard any edits made to the removed item
+- **AND** the system SHALL preserve edits to items that remain selected
+
+#### Scenario: Preserve edits during tab switching
+- **GIVEN** the user has made edits in the Editor tab
+- **WHEN** the user switches to the Content or Designer tab and back to the Editor tab
+- **THEN** all edits SHALL be preserved
+
+#### Scenario: Display clear visual indication of editable fields
+- **WHEN** the user views the Editor tab
+- **THEN** the system SHALL visually distinguish editable fields with borders, background colors, or input styling
+- **AND** field labels SHALL guide the user on what each field contains
 
 ### Requirement: Live Resume Preview
 The application SHALL display a live HTML preview of the resume that updates in real-time.

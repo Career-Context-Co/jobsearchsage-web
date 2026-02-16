@@ -17,12 +17,16 @@ const isExporting = computed(() => isPdfExporting.value || isDocxExporting.value
 const activeTab = ref('content')
 
 const tabs = [
-  { label: 'Content Editor', value: 'content', icon: 'i-lucide-file-text' },
+  { label: 'Content', value: 'content', icon: 'i-lucide-file-text' },
+  { label: 'Editor', value: 'editor', icon: 'i-lucide-pencil' },
   { label: 'Designer', value: 'designer', icon: 'i-lucide-palette' }
 ]
 
 // Accent color state (shared between Designer tab and Preview)
 const accentColor = ref('#0d9488')
+
+// Track which item is being edited (for preview highlighting)
+const editingItem = ref<{ type: string, id: string | number | null }>({ type: '', id: null })
 
 // Load profile data on mount
 onMounted(async () => {
@@ -152,6 +156,204 @@ const selectedEducation = ref<Set<string>>(new Set())
 const selectedSkills = ref<Set<string>>(new Set())
 const selectedCertifications = ref<Set<string>>(new Set())
 
+// Editable data layer - a session-only snapshot that can be modified without affecting careerIDStore
+// This is the source of truth for the preview and exports
+interface EditableHighlight {
+  id: string
+  text: string
+  selected: boolean
+}
+
+interface EditableExperience {
+  id: string | number
+  employer: string
+  jobTitle: string
+  employmentType: string
+  locationType: string
+  startDate: string | null | undefined
+  endDate: string | null | undefined
+  currentPosition?: boolean
+  highlights: EditableHighlight[]
+  selected: boolean
+}
+
+interface EditableEducation {
+  id: string | number
+  institution: string
+  degree: string
+  areaOfStudy: string
+  startDate: string | null | undefined
+  endDate: string | null | undefined
+  selected: boolean
+}
+
+interface EditableSkill {
+  id: string | number
+  name: string
+  group?: string
+  selected: boolean
+}
+
+interface EditableCertification {
+  id: string | number
+  name: string
+  issuer: string
+  issueDate: string
+  selected: boolean
+}
+
+interface EditableData {
+  summary: {
+    text: string
+    enabled: boolean
+  }
+  workExperience: EditableExperience[]
+  education: EditableEducation[]
+  skills: EditableSkill[]
+  certifications: EditableCertification[]
+}
+
+const editableData = ref<EditableData>({
+  summary: { text: '', enabled: false },
+  workExperience: [],
+  education: [],
+  skills: [],
+  certifications: []
+})
+
+// Initialize editableData as a deep copy of profileData with selection state
+function initializeEditableData() {
+  editableData.value = {
+    summary: {
+      text: profileData.value.professionalSummary,
+      enabled: summaryEnabled.value
+    },
+    workExperience: profileData.value.workExperience.map(exp => ({
+      ...exp,
+      selected: selectedExperiences.value.has(String(exp.id)),
+      highlights: exp.highlights.map(h => ({
+        ...h,
+        selected: selectedHighlights.value.has(h.id)
+      }))
+    })),
+    education: profileData.value.education.map(edu => ({
+      ...edu,
+      selected: selectedEducation.value.has(String(edu.id))
+    })),
+    skills: profileData.value.skills.map(skill => ({
+      ...skill,
+      selected: selectedSkills.value.has(String(skill.id))
+    })),
+    certifications: profileData.value.certifications.map(cert => ({
+      ...cert,
+      selected: selectedCertifications.value.has(String(cert.id))
+    }))
+  }
+}
+
+// Sync selections from Content tab into editableData
+// - Newly selected items: copy fresh from profileData
+// - Deselected items: remove (discard edits)
+// - Items that remain selected: preserve edits
+function syncSelectionsToEditableData() {
+  // Sync summary
+  editableData.value.summary.enabled = summaryEnabled.value
+  
+  // Sync work experience
+  const newWorkExperience: EditableExperience[] = []
+  for (const exp of profileData.value.workExperience) {
+    const isSelected = selectedExperiences.value.has(String(exp.id))
+    if (!isSelected) continue
+    
+    // Check if we already have this experience in editableData (preserve edits)
+    const existing = editableData.value.workExperience.find(e => e.id === exp.id)
+    if (existing) {
+      // Sync highlight selections while preserving text edits
+      const newHighlights: EditableHighlight[] = []
+      for (const h of exp.highlights) {
+        const isHighlightSelected = selectedHighlights.value.has(h.id)
+        if (!isHighlightSelected) continue
+        
+        const existingHighlight = existing.highlights.find(eh => eh.id === h.id)
+        if (existingHighlight) {
+          newHighlights.push({ ...existingHighlight, selected: true })
+        } else {
+          newHighlights.push({ ...h, selected: true })
+        }
+      }
+      newWorkExperience.push({
+        ...existing,
+        selected: true,
+        highlights: newHighlights
+      })
+    } else {
+      // New selection - copy fresh from profileData
+      newWorkExperience.push({
+        ...exp,
+        selected: true,
+        highlights: exp.highlights
+          .filter(h => selectedHighlights.value.has(h.id))
+          .map(h => ({ ...h, selected: true }))
+      })
+    }
+  }
+  editableData.value.workExperience = newWorkExperience
+  
+  // Sync education
+  const newEducation: EditableEducation[] = []
+  for (const edu of profileData.value.education) {
+    const isSelected = selectedEducation.value.has(String(edu.id))
+    if (!isSelected) continue
+    
+    const existing = editableData.value.education.find(e => e.id === edu.id)
+    if (existing) {
+      newEducation.push({ ...existing, selected: true })
+    } else {
+      newEducation.push({ ...edu, selected: true })
+    }
+  }
+  editableData.value.education = newEducation
+  
+  // Sync skills
+  const newSkills: EditableSkill[] = []
+  for (const skill of profileData.value.skills) {
+    const isSelected = selectedSkills.value.has(String(skill.id))
+    if (!isSelected) continue
+    
+    const existing = editableData.value.skills.find(s => s.id === skill.id)
+    if (existing) {
+      newSkills.push({ ...existing, selected: true })
+    } else {
+      newSkills.push({ ...skill, selected: true })
+    }
+  }
+  editableData.value.skills = newSkills
+  
+  // Sync certifications
+  const newCertifications: EditableCertification[] = []
+  for (const cert of profileData.value.certifications) {
+    const isSelected = selectedCertifications.value.has(String(cert.id))
+    if (!isSelected) continue
+    
+    const existing = editableData.value.certifications.find(c => c.id === cert.id)
+    if (existing) {
+      newCertifications.push({ ...existing, selected: true })
+    } else {
+      newCertifications.push({ ...cert, selected: true })
+    }
+  }
+  editableData.value.certifications = newCertifications
+}
+
+// Watch selections and sync to editableData
+watch(
+  [summaryEnabled, selectedExperiences, selectedHighlights, selectedEducation, selectedSkills, selectedCertifications],
+  () => {
+    syncSelectionsToEditableData()
+  },
+  { deep: true }
+)
+
 // Initialize all content as selected (called after data is loaded)
 function initializeSelections() {
   // Enable sections that have data
@@ -177,6 +379,9 @@ function initializeSelections() {
     certificationsEnabled.value = true
     profileData.value.certifications.forEach(cert => selectedCertifications.value.add(String(cert.id)))
   }
+  
+  // Initialize editableData after selections are set
+  initializeEditableData()
 }
 
 // Section toggle handlers
@@ -273,33 +478,8 @@ const accordionItems = [
   }
 ]
 
-// Prepare data for preview component
-const previewData = computed(() => ({
-  summary: {
-    text: profileData.value.professionalSummary,
-    enabled: summaryEnabled.value
-  },
-  workExperience: profileData.value.workExperience.map(exp => ({
-    ...exp,
-    selected: selectedExperiences.value.has(String(exp.id)),
-    highlights: exp.highlights.map(h => ({
-      ...h,
-      selected: selectedHighlights.value.has(h.id)
-    }))
-  })),
-  education: profileData.value.education.map(edu => ({
-    ...edu,
-    selected: selectedEducation.value.has(String(edu.id))
-  })),
-  skills: profileData.value.skills.map(skill => ({
-    ...skill,
-    selected: selectedSkills.value.has(String(skill.id))
-  })),
-  certifications: profileData.value.certifications.map(cert => ({
-    ...cert,
-    selected: selectedCertifications.value.has(String(cert.id))
-  }))
-}))
+// Prepare data for preview component - reads from editableData so edits flow to preview
+const previewData = computed(() => editableData.value)
 
 // Group skills by category for the editor
 const groupedProfileSkills = computed(() => {
@@ -650,6 +830,14 @@ async function downloadResume() {
             </UAccordion>
           </div>
 
+          <!-- Editor Tab -->
+          <ResumeContentEditorForm
+            v-if="activeTab === 'editor'"
+            :editable-data="editableData"
+            @update:editable-data="editableData = $event"
+            @update:editing-item="editingItem = $event"
+          />
+
           <!-- Designer Tab -->
           <ResumeDesigner 
             v-if="activeTab === 'designer'"
@@ -665,6 +853,7 @@ async function downloadResume() {
             :linked-in-username="linkedInUsername"
             :job-title="careerIDStore.contactInfo?.jobTitle || ''"
             :selected-content="previewData"
+            :editing-item="editingItem"
           />
         </div>
       </div>

@@ -5,10 +5,11 @@ Users have built rich career profiles with experiences, education, skills, certi
 
 ## What Changes
 - Add a "Generate Resume" button on the profile dashboard that navigates to the resume generation page
-- Create a new `/resumes/generate` page using the default layout (sidebar visible) with a split-pane interface: content editor on the left, live HTML resume preview on the right
-- Implement a tabbed interface with two tabs: **Content Editor** (select/deselect profile content at granular level) and **Designer** (accent color picker for v1)
-- Content Editor provides collapsible accordion sections (Professional Summary, Work Experience, Education, Skills, Certifications) with nested checkboxes — users can toggle entire sections, individual entries, or specific bullets within an experience
-- Live HTML preview updates in real-time as users check/uncheck content
+- Create a new `/resumes/generate` page using the default layout (sidebar visible) with a split-pane interface: controls on the left, live HTML resume preview on the right
+- Implement a tabbed interface with three tabs: **Content** (select/deselect profile content at granular level), **Editor** (edit selected content text before export), and **Designer** (accent color picker for v1)
+- Content tab provides collapsible accordion sections (Professional Summary, Work Experience, Education, Skills, Certifications) with nested checkboxes — users can toggle entire sections, individual entries, or specific bullets within an experience
+- Editor tab displays all selected content in editable form fields (inputs, textareas, date pickers) organized by section — edits are session-only and never written back to the profile
+- Live HTML preview updates in real-time as users check/uncheck content or edit text
 - "Export PDF" button in the page header generates and downloads a PDF from the current preview
 - Add "Resume" as a top-level item in the sidebar navigation
 - All state is component-local (refs/reactive in the page and its child components) — no Pinia store needed since this is a single-session flow
@@ -19,7 +20,9 @@ Users have built rich career profiles with experiences, education, skills, certi
 - No DOCX export (PDF only for v1)
 - No multiple templates (single clean template with configurable accent color)
 - No job-matching, analyzer, or cover letter features
-- Profile data is read-only during resume generation — edits happen back on the profile pages
+- Profile data in careerIDStore is never modified — the Editor tab works on a session-only deep copy
+
+> **Implementation Note (Editor Tab):** The `editableData` reactive object is a *snapshot* of `profileData` created on page load. All edits in the Editor tab modify this snapshot only. The preview and exports read from `editableData`, ensuring users can customize resume text without affecting their canonical profile. When selections change in the Content tab, newly selected items are copied fresh from `profileData` (not edited versions), and deselected items are discarded along with any edits.
 
 ## Impact
 - Affected specs: NEW `resume-generation` capability

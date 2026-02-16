@@ -118,3 +118,68 @@
 
 **Dependencies:** FE-001
 **Success criteria:** "Generate Resume" button appears on the profile dashboard when the user has experience or education data. Clicking it navigates to `/resumes/generate`. Button is hidden when no relevant profile data exists.
+
+---
+
+## Phase 3: Editor Tab (Content Editing Before Export)
+
+> **Context:** The existing "Content Editor" tab is being renamed to "Content" (selection only). A new "Editor" tab is added between Content and Designer for editing selected content text before export. Edits are session-only and never written back to careerIDStore.
+
+### FE-010: Rename Content Editor Tab & Add Editor Tab to Page Shell
+- [x] Rename the existing "Content Editor" tab to "Content" (label and icon update in `generate.vue`)
+- [x] Add a new "Editor" tab between Content and Designer (icon: `i-lucide-pencil`, value: `editor`)
+- [x] Create `app/components/resume/ContentEditorForm.vue` as the Editor tab content component
+- [x] Wire the new tab to display `ContentEditorForm` in the left panel when active
+
+**Dependencies:** FE-001 (complete)
+**Success criteria:** Three tabs render: Content, Editor, Designer. Switching between tabs works. Editor tab shows placeholder content.
+
+---
+
+### FE-011: Editable Data Layer (Session-Only Deep Copy)
+- [x] In `generate.vue`, create an `editableData` reactive object that deep-copies `profileData` on initialization
+- [x] The `editableData` object mirrors the structure of `profileData` but with mutable fields
+- [x] Update `previewData` computed to read from `editableData` instead of `profileData` (so edits flow to preview)
+- [x] Ensure the preview and PDF/DOCX export use `editableData` as the source of truth
+- [x] When selections change in the Content tab, sync new selections into `editableData` (add newly selected items from profileData, remove deselected items, preserve edits on items that remain selected)
+
+**Dependencies:** FE-010
+**Success criteria:** `editableData` is initialized from profile data. Preview renders from `editableData`. Editing a field in `editableData` updates the preview in real-time. Deselecting an item in Content tab removes it from `editableData`. Re-selecting an item restores it from `profileData` (original, not edited).
+
+---
+
+### FE-012: Editor Tab — Work Experience Editable Forms
+- [x] In `ContentEditorForm.vue`, display each selected work experience in an editable card/section
+- [x] Each experience shows editable `UInput` fields for: job title, company/employer name
+- [x] Each experience shows editable date fields for: start date, end date (using masked input or date picker, MM/YYYY format)
+- [x] Each experience shows editable `UTextarea` fields for each selected achievement/highlight bullet
+- [x] Display employment type and location type as read-only metadata (not editable)
+- [x] Only show experiences that are currently selected in the Content tab
+- [x] All fields use v-model bound to `editableData` so changes flow to preview in real-time
+
+**Dependencies:** FE-011
+**Success criteria:** Selected work experiences appear with editable fields. Typing in any field updates the preview immediately. Unselected experiences do not appear. Fields are visually styled as editable inputs with labels.
+
+---
+
+### FE-013: Editor Tab — Education, Skills, Certifications, Summary Editable Forms
+- [x] Professional Summary: editable `UTextarea` for the summary text (only shown if summary is enabled in Content tab)
+- [x] Education: each selected entry shows editable `UInput` fields for degree, institution, field of study, and date fields for start/end dates
+- [x] Skills: each selected skill shows an editable `UInput` for the skill name
+- [x] Certifications: each selected certification shows editable `UInput` fields for name, issuer, and issue date
+- [x] All fields use v-model bound to `editableData`
+- [x] Sections with no selected items are hidden
+
+**Dependencies:** FE-011
+**Success criteria:** All selected content types appear with appropriate editable fields. Editing any field updates the preview in real-time. Empty sections are hidden.
+
+---
+
+### FE-014: Editor Tab — Selection Sync & Edit Preservation
+- [x] When user switches from Editor to Content tab, deselects an item, then returns to Editor: the deselected item is removed and its edits are discarded
+- [x] When user switches from Editor to Content tab, selects a NEW item, then returns to Editor: the new item appears with original profile data (not edited)
+- [x] Edits to items that remain selected are preserved across all tab switches (Content ↔ Editor ↔ Designer)
+- [x] Verify that edits never propagate back to `careerIDStore` — profile data remains unchanged
+
+**Dependencies:** FE-012, FE-013
+**Success criteria:** Deselecting items removes them from Editor and discards edits. Newly selected items appear with original data. Edits persist across tab switches. Profile store is never modified.

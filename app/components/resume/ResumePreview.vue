@@ -41,6 +41,7 @@ interface Props {
       selected: boolean
     }>
   }
+  editingItem?: { type: string, id: string | number | null }
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -48,8 +49,27 @@ const props = withDefaults(defineProps<Props>(), {
   contactInfo: () => ({}),
   linkedInUsername: null,
   jobTitle: '',
-  selectedContent: () => ({})
+  selectedContent: () => ({}),
+  editingItem: () => ({ type: '', id: null })
 })
+
+// Helper to check if an item is being edited
+function isEditing(type: string, id?: string | number | null): boolean {
+  if (props.editingItem?.type !== type) return false
+  // For items with IDs, check exact match; for single items (summary, skills), just check type
+  if (id !== undefined) {
+    return props.editingItem?.id === id
+  }
+  return props.editingItem?.id !== null
+}
+
+// Highlight style for editing items
+const editingHighlightStyle = {
+  outline: '2px solid #0d9488',
+  outlineOffset: '4px',
+  borderRadius: '4px',
+  transition: 'outline 0.2s ease-in-out'
+}
 
 // Use provided contact info or fallback to placeholders
 const displayContact = computed(() => ({
@@ -160,7 +180,11 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
     </header>
 
     <!-- Professional Summary -->
-    <section v-if="hasSummary && selectedContent.summary" class="resume-section" :style="{ marginBottom: '1rem' }">
+    <section 
+      v-if="hasSummary && selectedContent.summary" 
+      class="resume-section" 
+      :style="[{ marginBottom: '1rem' }, isEditing('summary') ? editingHighlightStyle : {}]"
+    >
       <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
         Summary
       </h2>
@@ -180,7 +204,7 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
         v-for="(exp, index) in selectedExperiences"
         :key="exp.id"
         class="resume-entry"
-        :style="{ marginBottom: index < selectedExperiences.length - 1 ? '0.75rem' : '0' }"
+        :style="[{ marginBottom: index < selectedExperiences.length - 1 ? '0.75rem' : '0' }, isEditing('experience', exp.id) ? editingHighlightStyle : {}]"
       >
         <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }">
           <h3 :style="{ fontWeight: 'bold', fontSize: '0.875rem', color: '#111827' }">{{ exp.jobTitle }}</h3>
@@ -215,7 +239,7 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
         v-for="(edu, index) in selectedEducation"
         :key="edu.id"
         class="resume-entry"
-        :style="{ marginBottom: index < selectedEducation.length - 1 ? '0.5rem' : '0' }"
+        :style="[{ marginBottom: index < selectedEducation.length - 1 ? '0.5rem' : '0' }, isEditing('education', edu.id) ? editingHighlightStyle : {}]"
       >
         <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }">
           <h3 :style="{ fontWeight: 'bold', fontSize: '0.875rem', color: '#111827' }">{{ edu.degree }}<span v-if="edu.areaOfStudy"> in {{ edu.areaOfStudy }}</span></h3>
@@ -226,7 +250,11 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
     </section>
 
     <!-- Skills -->
-    <section v-if="selectedSkills.length > 0" class="resume-section" :style="{ marginBottom: '1rem' }">
+    <section 
+      v-if="selectedSkills.length > 0" 
+      class="resume-section" 
+      :style="[{ marginBottom: '1rem' }, isEditing('skills') ? editingHighlightStyle : {}]"
+    >
       <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
         Skills
       </h2>
@@ -250,7 +278,7 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
         v-for="(cert, index) in selectedCertifications"
         :key="cert.id"
         class="resume-entry"
-        :style="{ marginBottom: index < selectedCertifications.length - 1 ? '0.375rem' : '0' }"
+        :style="[{ marginBottom: index < selectedCertifications.length - 1 ? '0.375rem' : '0' }, isEditing('certification', cert.id) ? editingHighlightStyle : {}]"
       >
         <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }">
           <h3 :style="{ fontWeight: 'bold', fontSize: '0.875rem', color: '#111827' }">{{ cert.name }}</h3>
