@@ -110,13 +110,26 @@ function formatMonthYear(dateStr: string | null | undefined) {
   return formatDateForDisplay(dateStr)
 }
 
-// Filter selected items
+// Filter selected items and sort by date (most recent first)
 const selectedExperiences = computed(() => 
-  props.selectedContent.workExperience?.filter(exp => exp.selected) || []
+  (props.selectedContent.workExperience?.filter(exp => exp.selected) || [])
+    .sort((a, b) => {
+      // Sort by end date descending (most recent first)
+      // Current positions (no end date) are treated as most recent
+      const dateA = a.currentPosition || !a.endDate ? Infinity : new Date(a.endDate).getTime()
+      const dateB = b.currentPosition || !b.endDate ? Infinity : new Date(b.endDate).getTime()
+      return dateB - dateA
+    })
 )
 
 const selectedEducation = computed(() => 
-  props.selectedContent.education?.filter(edu => edu.selected) || []
+  (props.selectedContent.education?.filter(edu => edu.selected) || [])
+    .sort((a, b) => {
+      // Sort by end date descending (most recent first)
+      const dateA = a.endDate ? new Date(a.endDate).getTime() : 0
+      const dateB = b.endDate ? new Date(b.endDate).getTime() : 0
+      return dateB - dateA
+    })
 )
 
 const selectedSkills = computed(() => 
@@ -143,7 +156,13 @@ const groupedSkills = computed(() => {
 })
 
 const selectedCertifications = computed(() => 
-  props.selectedContent.certifications?.filter(cert => cert.selected) || []
+  (props.selectedContent.certifications?.filter(cert => cert.selected) || [])
+    .sort((a, b) => {
+      // Sort by issue date descending (most recent first)
+      const dateA = a.issueDate ? new Date(a.issueDate).getTime() : 0
+      const dateB = b.issueDate ? new Date(b.issueDate).getTime() : 0
+      return dateB - dateA
+    })
 )
 
 const hasSummary = computed(() => props.selectedContent.summary?.enabled)

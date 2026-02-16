@@ -87,9 +87,64 @@ const selectedCertifications = computed(() =>
   props.editableData.certifications.filter(cert => cert.selected)
 )
 
-// Group selected skills by category
+// Sorted lists: selected first, then by date (most recent first)
+const sortedExperiences = computed(() =>
+  [...props.editableData.workExperience].sort((a, b) => {
+    // First: selected items before unselected
+    if (a.selected !== b.selected) {
+      return Number(b.selected) - Number(a.selected)
+    }
+    // Second: sort by end date descending (most recent first)
+    // Current positions (no end date) are treated as most recent
+    const dateA = a.currentPosition || !a.endDate ? Infinity : new Date(a.endDate).getTime()
+    const dateB = b.currentPosition || !b.endDate ? Infinity : new Date(b.endDate).getTime()
+    return dateB - dateA
+  })
+)
+
+const sortedEducation = computed(() =>
+  [...props.editableData.education].sort((a, b) => {
+    if (a.selected !== b.selected) {
+      return Number(b.selected) - Number(a.selected)
+    }
+    const dateA = a.endDate ? new Date(a.endDate).getTime() : 0
+    const dateB = b.endDate ? new Date(b.endDate).getTime() : 0
+    return dateB - dateA
+  })
+)
+
+const sortedCertifications = computed(() =>
+  [...props.editableData.certifications].sort((a, b) => {
+    if (a.selected !== b.selected) {
+      return Number(b.selected) - Number(a.selected)
+    }
+    const dateA = a.issueDate ? new Date(a.issueDate).getTime() : 0
+    const dateB = b.issueDate ? new Date(b.issueDate).getTime() : 0
+    return dateB - dateA
+  })
+)
+
+// Group ALL skills by category (not just selected)
+const groupedSkills = computed(() => {
+  const groups: Record<string, Array<{ id: string | number, name: string, group?: string, selected: boolean }>> = {}
+  
+  props.editableData.skills.forEach(skill => {
+    const groupName = skill.group || 'Skills'
+    if (!groups[groupName]) {
+      groups[groupName] = []
+    }
+    groups[groupName].push(skill)
+  })
+  
+  return Object.entries(groups).map(([group, skills]) => ({
+    group,
+    skills
+  }))
+})
+
+// Group selected skills by category (for counts)
 const groupedSelectedSkills = computed(() => {
-  const groups: Record<string, Array<{ id: string | number, name: string, group: string, selected: boolean }>> = {}
+  const groups: Record<string, Array<{ id: string | number, name: string, group?: string, selected: boolean }>> = {}
   
   selectedSkills.value.forEach(skill => {
     const groupName = skill.group || 'Skills'
@@ -105,58 +160,58 @@ const groupedSelectedSkills = computed(() => {
   }))
 })
 
-// Check if we have any selected content
-const hasSelectedContent = computed(() => 
-  props.editableData.summary.enabled ||
-  selectedExperiences.value.length > 0 ||
-  selectedEducation.value.length > 0 ||
-  selectedSkills.value.length > 0 ||
-  selectedCertifications.value.length > 0
+// Check if we have any content (not just selected)
+const hasContent = computed(() => 
+  props.editableData.summary.text ||
+  props.editableData.workExperience.length > 0 ||
+  props.editableData.education.length > 0 ||
+  props.editableData.skills.length > 0 ||
+  props.editableData.certifications.length > 0
 )
 
-// Build accordion items dynamically based on what's selected
+// Build accordion items dynamically based on available content
 const accordionItems = computed(() => {
   const items = []
   
-  if (props.editableData.summary.enabled) {
+  if (props.editableData.summary.text) {
     items.push({
-      label: 'Professional Summary',
+      label: `Professional Summary ${props.editableData.summary.enabled ? '✓' : ''}`,
       icon: 'i-lucide-text-cursor-input',
       defaultOpen: false,
       slot: 'summary'
     })
   }
   
-  if (selectedExperiences.value.length > 0) {
+  if (props.editableData.workExperience.length > 0) {
     items.push({
-      label: `Work Experience (${selectedExperiences.value.length})`,
+      label: `Work Experience (${selectedExperiences.value.length}/${props.editableData.workExperience.length})`,
       icon: 'i-lucide-briefcase',
       defaultOpen: false,
       slot: 'workExperience'
     })
   }
   
-  if (selectedEducation.value.length > 0) {
+  if (props.editableData.education.length > 0) {
     items.push({
-      label: `Education (${selectedEducation.value.length})`,
+      label: `Education (${selectedEducation.value.length}/${props.editableData.education.length})`,
       icon: 'i-lucide-graduation-cap',
       defaultOpen: false,
       slot: 'education'
     })
   }
   
-  if (selectedSkills.value.length > 0) {
+  if (props.editableData.skills.length > 0) {
     items.push({
-      label: `Skills (${selectedSkills.value.length})`,
+      label: `Skills (${selectedSkills.value.length}/${props.editableData.skills.length})`,
       icon: 'i-lucide-lightbulb',
       defaultOpen: false,
       slot: 'skills'
     })
   }
   
-  if (selectedCertifications.value.length > 0) {
+  if (props.editableData.certifications.length > 0) {
     items.push({
-      label: `Certifications (${selectedCertifications.value.length})`,
+      label: `Certifications (${selectedCertifications.value.length}/${props.editableData.certifications.length})`,
       icon: 'i-lucide-award',
       defaultOpen: false,
       slot: 'certifications'
@@ -180,16 +235,56 @@ function updateField<T extends keyof EditableData>(
   emit('update:editableData', newData)
 }
 
+// Toggle selection state for an item
+function toggleItemSelection(
+  type: 'workExperience' | 'education' | 'skills' | 'certifications',
+  id: string | number,
+  selected: boolean | string
+) {
+  const isSelected = typeof selected === 'boolean' ? selected : selected === 'true'
+  const newData = { ...props.editableData }
+  
+  if (type === 'workExperience') {
+    newData.workExperience = newData.workExperience.map(item =>
+      item.id === id ? { ...item, selected: isSelected } : item
+    )
+  } else if (type === 'education') {
+    newData.education = newData.education.map(item =>
+      item.id === id ? { ...item, selected: isSelected } : item
+    )
+  } else if (type === 'skills') {
+    newData.skills = newData.skills.map(item =>
+      item.id === id ? { ...item, selected: isSelected } : item
+    )
+  } else if (type === 'certifications') {
+    newData.certifications = newData.certifications.map(item =>
+      item.id === id ? { ...item, selected: isSelected } : item
+    )
+  }
+  
+  emit('update:editableData', newData)
+}
+
+// Toggle summary enabled state
+function toggleSummary(enabled: boolean | string) {
+  const isEnabled = typeof enabled === 'boolean' ? enabled : enabled === 'true'
+  const newData = { ...props.editableData }
+  newData.summary = { ...newData.summary, enabled: isEnabled }
+  emit('update:editableData', newData)
+}
+
 // Helper to update a highlight bullet
 function updateHighlight(expIndex: number, highlightIndex: number, value: string) {
   const newData = { ...props.editableData }
-  const experiences = [...newData.workExperience]
-  const exp = { ...experiences[expIndex] }
-  const highlights = [...exp.highlights]
-  highlights[highlightIndex] = { ...highlights[highlightIndex], text: value }
-  exp.highlights = highlights
-  experiences[expIndex] = exp
-  newData.workExperience = experiences
+  newData.workExperience = newData.workExperience.map((exp, eIdx) => {
+    if (eIdx !== expIndex) return exp
+    return {
+      ...exp,
+      highlights: (exp.highlights || []).map((h, hIdx) =>
+        hIdx === highlightIndex ? { ...h, text: value } : h
+      )
+    }
+  })
   emit('update:editableData', newData)
 }
 
@@ -318,8 +413,9 @@ function updateSkillTags(groupName: string, newTags: string[]) {
     }
     // Update existing skill name if it was renamed (same position)
     const skillIndex = existingSkillsInGroup.findIndex(s => s.id === skill.id)
-    if (skillIndex !== -1 && skillIndex < newTags.length && !removedNames.includes(skill.name)) {
-      return { ...skill, name: newTags[skillIndex] }
+    const newName = newTags[skillIndex]
+    if (skillIndex !== -1 && newName && !removedNames.includes(skill.name)) {
+      return { ...skill, name: newName }
     }
     return skill
   })
@@ -356,45 +452,55 @@ function stopEditingCertification() {
     </div>
 
     <!-- Collapsible sections using UAccordion -->
-    <UAccordion v-if="hasSelectedContent" :items="accordionItems" multiple>
+    <UAccordion v-if="hasContent" :items="accordionItems" multiple>
       <!-- Professional Summary Section -->
       <template #summary>
-        <div class="py-2">
-          <UPageCard variant="subtle">
-            <!-- View Mode -->
-            <div v-if="!editingSummary" class="flex justify-between items-start gap-4">
-              <div class="flex-1">
-                <p class="text-sm whitespace-pre-wrap">{{ editableData.summary.text || 'No summary provided' }}</p>
-              </div>
-              <UButton
-                icon="i-lucide-pencil"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                class="cursor-pointer shrink-0"
-                @click="startEditingSummary"
-              />
-            </div>
-
-            <!-- Edit Mode -->
-            <div v-else class="space-y-4">
-              <UTextarea
-                :model-value="editableData.summary.text"
-                @update:model-value="updateSummary($event)"
-                :rows="4"
-                placeholder="Your professional summary..."
-                class="w-full"
-              />
-              <div class="flex justify-end">
+        <div class="flex items-start gap-3 py-2">
+          <UCheckbox
+            :model-value="editableData.summary.enabled"
+            @update:model-value="toggleSummary($event)"
+            class="mt-3"
+          />
+          <div 
+            class="flex-1 border border-default rounded-lg"
+            :class="{ 'opacity-50': !editableData.summary.enabled }"
+          >
+            <UPageCard variant="subtle">
+              <!-- View Mode -->
+              <div v-if="!editingSummary" class="flex justify-between items-start gap-4">
+                <div class="flex-1">
+                  <p class="text-sm whitespace-pre-wrap">{{ editableData.summary.text || 'No summary provided' }}</p>
+                </div>
                 <UButton
-                  label="Done"
-                  color="primary"
+                  icon="i-lucide-pencil"
+                  color="neutral"
+                  variant="ghost"
                   size="sm"
+                  class="cursor-pointer shrink-0"
+                  @click="startEditingSummary"
+                />
+              </div>
+
+              <!-- Edit Mode -->
+              <div v-else class="space-y-4">
+                <UTextarea
+                  :model-value="editableData.summary.text"
+                  @update:model-value="updateSummary($event)"
+                  :rows="4"
+                  placeholder="Your professional summary..."
+                  class="w-full"
+                />
+                <div class="flex justify-end">
+                  <UButton
+                    label="Done"
+                    color="primary"
+                    size="sm"
                   @click="stopEditingSummary"
                 />
               </div>
             </div>
-          </UPageCard>
+            </UPageCard>
+          </div>
         </div>
       </template>
 
@@ -402,22 +508,28 @@ function stopEditingCertification() {
       <template #workExperience>
         <div class="space-y-3 py-2">
           <div
-            v-for="exp in selectedExperiences"
+            v-for="exp in sortedExperiences"
             :key="exp.id"
-            class="border border-default rounded-lg"
+            class="flex items-start gap-3"
           >
-            <UPageCard variant="subtle">
-              <!-- View Mode -->
-              <div v-if="editingExperienceId !== exp.id">
-                <div class="flex justify-between items-start gap-4">
+            <UCheckbox
+              :model-value="exp.selected"
+              @update:model-value="toggleItemSelection('workExperience', exp.id, $event)"
+              class="mt-3"
+            />
+            <div 
+              class="flex-1 border border-default rounded-lg"
+              :class="{ 'opacity-50': !exp.selected }"
+            >
+              <UPageCard variant="subtle">
+                <!-- View Mode (condensed - no bullets) -->
+                <div v-if="editingExperienceId !== exp.id" class="flex justify-between items-start gap-4">
                   <div class="flex-1">
                     <h4 class="text-lg font-semibold">{{ exp.jobTitle }}</h4>
                     <p class="text-base font-medium text-muted">{{ exp.employer }}</p>
-                    <div class="flex flex-wrap gap-2 mt-2 text-sm text-muted">
-                      <span>{{ formatDate(exp.startDate) }} - {{ exp.currentPosition ? 'Present' : formatDate(exp.endDate) }}</span>
-                      <span>• {{ exp.locationType }}</span>
-                      <span>• {{ exp.employmentType }}</span>
-                    </div>
+                    <p class="text-sm text-muted mt-1">
+                      {{ formatDate(exp.startDate) }} - {{ exp.currentPosition ? 'Present' : formatDate(exp.endDate) }}
+                    </p>
                   </div>
                   <UButton
                     icon="i-lucide-pencil"
@@ -428,14 +540,6 @@ function stopEditingCertification() {
                     @click="startEditingExperience(exp.id)"
                   />
                 </div>
-                
-                <!-- Show highlights in view mode -->
-                <ul v-if="exp.highlights.filter(h => h.selected).length > 0" class="mt-3 space-y-1 list-disc list-inside text-sm">
-                  <li v-for="h in exp.highlights.filter(h => h.selected)" :key="h.id">
-                    {{ h.text }}
-                  </li>
-                </ul>
-              </div>
 
               <!-- Edit Mode -->
               <div v-else class="space-y-4">
@@ -514,6 +618,7 @@ function stopEditingCertification() {
                 </div>
               </div>
             </UPageCard>
+            </div>
           </div>
         </div>
       </template>
@@ -522,23 +627,30 @@ function stopEditingCertification() {
       <template #education>
         <div class="space-y-3 py-2">
           <div
-            v-for="edu in selectedEducation"
+            v-for="edu in sortedEducation"
             :key="edu.id"
-            class="border border-default rounded-lg"
+            class="flex items-start gap-3"
           >
-            <UPageCard variant="subtle">
-              <!-- View Mode -->
-              <div v-if="editingEducationId !== edu.id" class="flex justify-between items-start gap-4">
-                <div class="flex-1">
-                  <h4 class="text-lg font-semibold">{{ edu.degree }}<span v-if="edu.areaOfStudy"> in {{ edu.areaOfStudy }}</span></h4>
-                  <p class="text-base font-medium text-muted">{{ edu.institution }}</p>
-                  <div class="flex flex-wrap gap-2 mt-2 text-sm text-muted">
-                    <span>{{ formatDate(edu.startDate) }} - {{ formatDate(edu.endDate) }}</span>
+            <UCheckbox
+              :model-value="edu.selected"
+              @update:model-value="toggleItemSelection('education', edu.id, $event)"
+              class="mt-3"
+            />
+            <div 
+              class="flex-1 border border-default rounded-lg"
+              :class="{ 'opacity-50': !edu.selected }"
+            >
+              <UPageCard variant="subtle">
+                <!-- View Mode (condensed) -->
+                <div v-if="editingEducationId !== edu.id" class="flex justify-between items-start gap-4">
+                  <div class="flex-1">
+                    <h4 class="text-lg font-semibold">{{ edu.degree }}<span v-if="edu.areaOfStudy"> in {{ edu.areaOfStudy }}</span></h4>
+                    <p class="text-base font-medium text-muted">{{ edu.institution }}</p>
+                    <p class="text-sm text-muted mt-1">{{ formatDate(edu.endDate) }}</p>
                   </div>
-                </div>
-                <UButton
-                  icon="i-lucide-pencil"
-                  color="neutral"
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
                   variant="ghost"
                   size="sm"
                   class="cursor-pointer shrink-0"
@@ -605,6 +717,7 @@ function stopEditingCertification() {
                 </div>
               </div>
             </UPageCard>
+            </div>
           </div>
         </div>
       </template>
@@ -616,14 +729,17 @@ function stopEditingCertification() {
             <!-- View Mode -->
             <div v-if="!editingSkills" class="flex justify-between items-start gap-4">
               <div class="flex-1">
-                <div v-for="skillGroup in groupedSelectedSkills" :key="skillGroup.group" class="mb-3 last:mb-0">
+                <div v-for="skillGroup in groupedSkills" :key="skillGroup.group" class="mb-3 last:mb-0">
                   <p class="text-sm font-medium text-muted mb-1">{{ skillGroup.group }}</p>
                   <div class="flex flex-wrap gap-2">
                     <UBadge
                       v-for="skill in skillGroup.skills"
                       :key="skill.id"
-                      color="neutral"
-                      variant="subtle"
+                      :color="skill.selected ? 'neutral' : 'neutral'"
+                      :variant="skill.selected ? 'subtle' : 'outline'"
+                      :class="{ 'opacity-50': !skill.selected }"
+                      class="cursor-pointer"
+                      @click="toggleItemSelection('skills', skill.id, !skill.selected)"
                     >
                       {{ skill.name }}
                     </UBadge>
@@ -642,7 +758,7 @@ function stopEditingCertification() {
 
             <!-- Edit Mode with Tag Input -->
             <div v-else class="space-y-4">
-              <div v-for="skillGroup in groupedSelectedSkills" :key="skillGroup.group" class="space-y-2">
+              <div v-for="skillGroup in groupedSkills" :key="skillGroup.group" class="space-y-2">
                 <p class="text-sm font-medium text-muted">{{ skillGroup.group }}</p>
                 <UInputTags
                   :model-value="getSkillTagsForGroup(skillGroup.group)"
@@ -670,70 +786,78 @@ function stopEditingCertification() {
       <template #certifications>
         <div class="space-y-3 py-2">
           <div
-            v-for="cert in selectedCertifications"
+            v-for="cert in sortedCertifications"
             :key="cert.id"
-            class="border border-default rounded-lg"
+            class="flex items-start gap-3"
           >
-            <UPageCard variant="subtle">
-              <!-- View Mode -->
-              <div v-if="editingCertificationId !== cert.id" class="flex justify-between items-start gap-4">
-                <div class="flex-1">
-                  <h4 class="text-lg font-semibold">{{ cert.name }}</h4>
-                  <p v-if="cert.issuer" class="text-base font-medium text-muted">{{ cert.issuer }}</p>
-                  <div v-if="cert.issueDate" class="flex flex-wrap gap-2 mt-2 text-sm text-muted">
-                    <span>Issued {{ formatDate(cert.issueDate) }}</span>
+            <UCheckbox
+              :model-value="cert.selected"
+              @update:model-value="toggleItemSelection('certifications', cert.id, $event)"
+              class="mt-3"
+            />
+            <div 
+              class="flex-1 border border-default rounded-lg"
+              :class="{ 'opacity-50': !cert.selected }"
+            >
+              <UPageCard variant="subtle">
+                <!-- View Mode (condensed) -->
+                <div v-if="editingCertificationId !== cert.id" class="flex justify-between items-start gap-4">
+                  <div class="flex-1">
+                    <h4 class="text-lg font-semibold">{{ cert.name }}</h4>
+                    <p v-if="cert.issuer" class="text-base font-medium text-muted">{{ cert.issuer }}</p>
+                    <p v-if="cert.issueDate" class="text-sm text-muted mt-1">Issued {{ formatDate(cert.issueDate) }}</p>
                   </div>
-                </div>
-                <UButton
-                  icon="i-lucide-pencil"
-                  color="neutral"
-                  variant="ghost"
-                  size="sm"
-                  class="cursor-pointer shrink-0"
-                  @click="startEditingCertification(cert.id)"
-                />
-              </div>
-
-              <!-- Edit Mode -->
-              <div v-else class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label class="block text-sm font-medium mb-1">Certification Name</label>
-                    <UInput
-                      :model-value="cert.name"
-                      @update:model-value="updateField('certifications', getOriginalIndex('certifications', cert.id), 'name', $event)"
-                      placeholder="Certification Name"
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium mb-1">Issuer</label>
-                    <UInput
-                      :model-value="cert.issuer"
-                      @update:model-value="updateField('certifications', getOriginalIndex('certifications', cert.id), 'issuer', $event)"
-                      placeholder="Issuing Organization"
-                    />
-                  </div>
-                </div>
-
-                <div class="md:w-1/2">
-                  <label class="block text-sm font-medium mb-1">Issue Date</label>
-                  <UInput
-                    :model-value="formatDateForInput(cert.issueDate)"
-                    @update:model-value="updateDateField('certifications', cert.id, 'issueDate', $event)"
-                    placeholder="MM/YYYY"
-                  />
-                </div>
-
-                <div class="flex justify-end pt-2">
                   <UButton
-                    label="Done"
-                    color="primary"
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="ghost"
                     size="sm"
-                    @click="stopEditingCertification"
+                    class="cursor-pointer shrink-0"
+                    @click="startEditingCertification(cert.id)"
                   />
                 </div>
-              </div>
-            </UPageCard>
+
+                <!-- Edit Mode -->
+                <div v-else class="space-y-4">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-sm font-medium mb-1">Certification Name</label>
+                      <UInput
+                        :model-value="cert.name"
+                        @update:model-value="updateField('certifications', getOriginalIndex('certifications', cert.id), 'name', $event)"
+                        placeholder="Certification Name"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium mb-1">Issuer</label>
+                      <UInput
+                        :model-value="cert.issuer"
+                        @update:model-value="updateField('certifications', getOriginalIndex('certifications', cert.id), 'issuer', $event)"
+                        placeholder="Issuing Organization"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="md:w-1/2">
+                    <label class="block text-sm font-medium mb-1">Issue Date</label>
+                    <UInput
+                      :model-value="formatDateForInput(cert.issueDate)"
+                      @update:model-value="updateDateField('certifications', cert.id, 'issueDate', $event)"
+                      placeholder="MM/YYYY"
+                    />
+                  </div>
+
+                  <div class="flex justify-end pt-2">
+                    <UButton
+                      label="Done"
+                      color="primary"
+                      size="sm"
+                      @click="stopEditingCertification"
+                    />
+                  </div>
+                </div>
+              </UPageCard>
+            </div>
           </div>
         </div>
       </template>
@@ -741,7 +865,7 @@ function stopEditingCertification() {
 
     <!-- Empty state -->
     <div 
-      v-if="!hasSelectedContent"
+      v-if="!hasContent"
       class="text-center py-12 text-muted"
     >
       <UIcon name="i-lucide-file-x" class="w-12 h-12 mx-auto mb-4 opacity-50" />

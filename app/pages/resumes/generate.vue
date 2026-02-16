@@ -18,8 +18,7 @@ const activeTab = ref('content')
 
 const tabs = [
   { label: 'Content', value: 'content', icon: 'i-lucide-file-text' },
-  { label: 'Editor', value: 'editor', icon: 'i-lucide-pencil' },
-  { label: 'Designer', value: 'designer', icon: 'i-lucide-palette' }
+  { label: 'Design', value: 'design', icon: 'i-lucide-palette' }
 ]
 
 // Accent color state (shared between Designer tab and Preview)
@@ -615,232 +614,17 @@ async function downloadResume() {
       <div class="flex flex-col lg:flex-row h-full min-h-[calc(100vh-8rem)]">
         <!-- Left Panel: Editor Controls (scrollable) -->
         <div class="w-full lg:w-1/2 overflow-y-auto p-4 sm:p-6 lg:border-r lg:border-default">
-          <!-- Content Editor Tab -->
-          <div v-if="activeTab === 'content'" class="space-y-4">
-            <div>
-              <h2 class="text-lg font-semibold mb-1">Content Selection</h2>
-              <p class="text-sm text-muted">Choose what to include in your resume</p>
-            </div>
-
-            <UAccordion :items="accordionItems" multiple>
-              <!-- Professional Summary Section -->
-              <template #summary>
-                <div v-if="profileData.professionalSummary" class="flex items-start gap-3 py-2">
-                  <UCheckbox
-                    v-model="summaryEnabled"
-                    @click.stop
-                    @change="toggleSection('summary')"
-                  />
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm text-muted whitespace-pre-wrap">{{ profileData.professionalSummary }}</p>
-                  </div>
-                </div>
-                <div v-else class="text-sm text-muted py-2">
-                  No professional summary added yet.
-                </div>
-              </template>
-
-              <!-- Work Experience Section -->
-              <template #workExperience>
-                <div v-if="profileData.workExperience.length > 0" class="space-y-4">
-                  <div class="flex items-center gap-2 mb-3">
-                    <UCheckbox
-                      v-model="workExperienceEnabled"
-                      @click.stop
-                      @change="toggleSection('workExperience')"
-                    />
-                    <span class="text-sm font-medium">Include all work experience</span>
-                  </div>
-
-                  <div
-                    v-for="exp in profileData.workExperience"
-                    :key="exp.id"
-                    class="pl-6 border-l-2 border-default space-y-2"
-                  >
-                    <div class="flex items-start gap-3">
-                      <UCheckbox
-                        :model-value="selectedExperiences.has(String(exp.id))"
-                        @update:model-value="(val) => {
-                          if (val) {
-                            selectedExperiences.add(String(exp.id))
-                            exp.highlights.forEach(h => selectedHighlights.add(h.id))
-                          } else {
-                            selectedExperiences.delete(String(exp.id))
-                            exp.highlights.forEach(h => selectedHighlights.delete(h.id))
-                          }
-                        }"
-                        @click.stop
-                      />
-                      <div class="flex-1 min-w-0">
-                        <p class="font-medium">{{ exp.jobTitle }}</p>
-                        <p class="text-sm text-muted">{{ exp.employer }}</p>
-                        <p class="text-xs text-muted mt-1">
-                          {{ exp.employmentType }} • {{ exp.locationType }} • {{ formatDateRange(exp.startDate, exp.endDate, exp.currentPosition) }}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div v-if="exp.highlights.length > 0" class="pl-6 space-y-2">
-                      <div
-                        v-for="highlight in exp.highlights"
-                        :key="highlight.id"
-                        class="flex items-start gap-3"
-                      >
-                        <UCheckbox
-                          :model-value="selectedHighlights.has(highlight.id)"
-                          @update:model-value="(val) => {
-                            if (val) selectedHighlights.add(highlight.id)
-                            else selectedHighlights.delete(highlight.id)
-                          }"
-                          @click.stop
-                        />
-                        <p class="text-sm flex-1">{{ highlight.text }}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div v-else class="text-sm text-muted py-2">
-                  No work experience added yet.
-                </div>
-              </template>
-
-              <!-- Education Section -->
-              <template #education>
-                <div v-if="profileData.education.length > 0" class="space-y-3">
-                  <div class="flex items-center gap-2 mb-3">
-                    <UCheckbox
-                      v-model="educationEnabled"
-                      @click.stop
-                      @change="toggleSection('education')"
-                    />
-                    <span class="text-sm font-medium">Include all education</span>
-                  </div>
-
-                  <div
-                    v-for="edu in profileData.education"
-                    :key="edu.id"
-                    class="pl-6 flex items-start gap-3"
-                  >
-                    <UCheckbox
-                      :model-value="selectedEducation.has(String(edu.id))"
-                      @update:model-value="(val) => {
-                        if (val) selectedEducation.add(String(edu.id))
-                        else selectedEducation.delete(String(edu.id))
-                      }"
-                      @click.stop
-                    />
-                    <div class="flex-1 min-w-0">
-                      <p class="font-medium">{{ edu.institution }}</p>
-                      <p class="text-sm text-muted">{{ edu.degree }}<span v-if="edu.areaOfStudy"> in {{ edu.areaOfStudy }}</span></p>
-                      <p class="text-xs text-muted mt-1">{{ formatDateRange(edu.startDate, edu.endDate) }}</p>
-                    </div>
-                  </div>
-                </div>
-                <div v-else class="text-sm text-muted py-2">
-                  No education added yet.
-                </div>
-              </template>
-
-              <!-- Skills Section -->
-              <template #skills>
-                <div v-if="profileData.skills.length > 0" class="space-y-3">
-                  <div class="flex items-center gap-2 mb-3">
-                    <UCheckbox
-                      v-model="skillsEnabled"
-                      @click.stop
-                      @change="toggleSection('skills')"
-                    />
-                    <span class="text-sm font-medium">Include all skills</span>
-                  </div>
-
-                  <!-- Skills grouped by category -->
-                  <div v-for="skillGroup in groupedProfileSkills" :key="skillGroup.group" class="pl-3 space-y-2">
-                    <!-- Category header with checkbox -->
-                    <div class="flex items-center gap-2">
-                      <UCheckbox
-                        :model-value="isCategoryFullySelected(skillGroup.group)"
-                        :indeterminate="isCategoryPartiallySelected(skillGroup.group)"
-                        @click.stop
-                        @change="toggleSkillCategory(skillGroup.group)"
-                      />
-                      <span class="text-sm font-medium text-muted">{{ skillGroup.group }}</span>
-                    </div>
-                    
-                    <!-- Individual skills in this category -->
-                    <div class="pl-6 grid grid-cols-2 gap-2">
-                      <div
-                        v-for="skill in skillGroup.skills"
-                        :key="skill.id"
-                        class="flex items-center gap-2"
-                      >
-                        <UCheckbox
-                          :model-value="selectedSkills.has(String(skill.id))"
-                          @update:model-value="(val) => {
-                            if (val) selectedSkills.add(String(skill.id))
-                            else selectedSkills.delete(String(skill.id))
-                          }"
-                          @click.stop
-                        />
-                        <span class="text-sm">{{ skill.name }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div v-else class="text-sm text-muted py-2">
-                  No skills added yet.
-                </div>
-              </template>
-
-              <!-- Certifications Section -->
-              <template #certifications>
-                <div v-if="profileData.certifications.length > 0" class="space-y-3">
-                  <div class="flex items-center gap-2 mb-3">
-                    <UCheckbox
-                      v-model="certificationsEnabled"
-                      @click.stop
-                      @change="toggleSection('certifications')"
-                    />
-                    <span class="text-sm font-medium">Include all certifications</span>
-                  </div>
-
-                  <div
-                    v-for="cert in profileData.certifications"
-                    :key="cert.id"
-                    class="pl-6 flex items-start gap-3"
-                  >
-                    <UCheckbox
-                      :model-value="selectedCertifications.has(String(cert.id))"
-                      @update:model-value="(val) => {
-                        if (val) selectedCertifications.add(String(cert.id))
-                        else selectedCertifications.delete(String(cert.id))
-                      }"
-                      @click.stop
-                    />
-                    <div class="flex-1 min-w-0">
-                      <p class="font-medium">{{ cert.name }}</p>
-                      <p v-if="cert.issuer" class="text-sm text-muted">{{ cert.issuer }}</p>
-                      <p v-if="cert.issueDate" class="text-xs text-muted mt-1">Issued {{ formatMonthYear(cert.issueDate) }}</p>
-                    </div>
-                  </div>
-                </div>
-                <div v-else class="text-sm text-muted py-2">
-                  No certifications added yet.
-                </div>
-              </template>
-            </UAccordion>
-          </div>
-
-          <!-- Editor Tab -->
+          <!-- Content Tab -->
           <ResumeContentEditorForm
-            v-if="activeTab === 'editor'"
+            v-if="activeTab === 'content'"
             :editable-data="editableData"
             @update:editable-data="editableData = $event"
             @update:editing-item="editingItem = $event"
           />
 
-          <!-- Designer Tab -->
+          <!-- Design Tab -->
           <ResumeDesigner 
-            v-if="activeTab === 'designer'"
+            v-if="activeTab === 'design'"
             v-model="accentColor"
           />
         </div>
