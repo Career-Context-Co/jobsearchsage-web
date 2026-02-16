@@ -98,6 +98,7 @@ const FONT_SIZES = {
 const COLORS = {
   dark: '111827',
   gray: '374151',
+  employer: '4D4D4D', // lighter grey for hierarchy
   lightGray: '4b5563',
   ruleGray: 'd1d5db'
 }
@@ -119,7 +120,7 @@ function hexToDocxColor(hex: string): string {
 }
 
 /**
- * Format date from YYYY-MM-DD to display format (e.g., "Jan 2023")
+ * Format date from YYYY-MM-DD to display format (e.g., "01/2023")
  */
 function formatDateForDisplay(dateString: string | null | undefined): string {
   if (!dateString) return ''
@@ -127,7 +128,9 @@ function formatDateForDisplay(dateString: string | null | undefined): string {
   const date = new Date(dateString)
   if (isNaN(date.getTime())) return dateString
   
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${month}/${year}`
 }
 
 function formatDateRange(startDate: string | null | undefined, endDate: string | null | undefined, currentPosition?: boolean): string {
@@ -163,13 +166,14 @@ function groupSkills(skills: Skill[]): Array<{ group: string, skills: string[] }
 
 /**
  * Create a section header paragraph with accent color and bottom border
+ * Using medium weight (not bold) to match preview
  */
 function createSectionHeader(title: string, accentColor: string): Paragraph {
   return new Paragraph({
     children: [
       new TextRun({
         text: title.toUpperCase(),
-        bold: true,
+        bold: false,
         size: FONT_SIZES.sectionHeader,
         color: hexToDocxColor(accentColor)
       })
@@ -417,12 +421,12 @@ export function useDocxResume() {
             )
           )
 
-          // Employer and location type
+          // Employer and location type (employer is bold with lighter grey for hierarchy)
           children.push(
             createTwoColumnRow(
               exp?.employer || '',
               exp?.locationType || '',
-              { leftColor: COLORS.gray }
+              { leftBold: true, leftColor: COLORS.employer }
             )
           )
 
@@ -451,26 +455,28 @@ export function useDocxResume() {
         for (let i = 0; i < selectedEducation.length; i++) {
           const edu = selectedEducation[i]
 
-          // Institution and date range
-          children.push(
-            createTwoColumnRow(
-              edu?.institution || '',
-              formatDateRange(edu?.startDate, edu?.endDate),
-              { leftBold: true, leftSize: FONT_SIZES.jobTitle }
-            )
-          )
-
-          // Degree
+          // Degree (with area of study) and graduation date (endDate only)
           let degreeText = edu?.degree || ''
           if (edu?.areaOfStudy) {
             degreeText += ` in ${edu.areaOfStudy}`
           }
+          
+          const graduationDate = edu?.endDate ? formatDateForDisplay(edu.endDate) : ''
+          
+          children.push(
+            createTwoColumnRow(
+              degreeText,
+              graduationDate,
+              { leftBold: true, leftSize: FONT_SIZES.jobTitle }
+            )
+          )
 
+          // Institution
           children.push(
             new Paragraph({
               children: [
                 new TextRun({
-                  text: degreeText,
+                  text: edu?.institution || '',
                   size: FONT_SIZES.body,
                   color: COLORS.gray
                 })
@@ -552,8 +558,21 @@ export function useDocxResume() {
         }
       }
 
+      // Calculate filename/title
+      const firstName = contactInfo.firstName || ''
+      const lastName = contactInfo.lastName || ''
+      const titleName = firstName && lastName 
+        ? `${firstName}_${lastName}_Resume`
+        : firstName 
+          ? `${firstName}_Resume`
+          : 'JobSearchSage_Resume'
+
       // Create document
       const doc = new Document({
+        creator: 'JobSearchSage',
+        title: titleName,
+        subject: 'Professional Resume',
+        description: titleName,
         sections: [
           {
             properties: {
@@ -577,7 +596,7 @@ export function useDocxResume() {
 
       const link = document.createElement('a')
       link.href = url
-      link.download = 'resume.docx'
+      link.download = `${titleName}.docx`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)

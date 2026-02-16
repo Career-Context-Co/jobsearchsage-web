@@ -33,7 +33,7 @@ onMounted(async () => {
 })
 
 /**
- * Format date from YYYY-MM-DD to display format (e.g., "Jan 2023")
+ * Format date from YYYY-MM-DD to display format (e.g., "01/2023")
  */
 function formatDateForDisplay(dateString: string | null | undefined): string {
   if (!dateString) return ''
@@ -41,7 +41,9 @@ function formatDateForDisplay(dateString: string | null | undefined): string {
   const date = new Date(dateString)
   if (isNaN(date.getTime())) return dateString
   
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${month}/${year}`
 }
 
 /**
@@ -90,20 +92,31 @@ const linkedInUsername = computed(() => {
 const profileData = computed(() => ({
   // Professional summary is in contactInfo.summary
   professionalSummary: careerIDStore.contactInfo?.summary || '',
-  workExperience: careerIDStore.experience.map(exp => ({
-    id: exp.id,
-    employer: exp.employer,
-    jobTitle: exp.title, // Experience uses 'title' not 'jobTitle'
-    employmentType: formatEmploymentType(exp.employmentType),
-    locationType: formatLocationType(exp.locationType),
-    startDate: exp.startDate,
-    endDate: exp.endDate,
-    currentPosition: exp.currentPosition,
-    highlights: (exp.highlights || []).map((h, index) => ({
-      id: `${exp.id}-h${index}`,
-      text: h
-    }))
-  })),
+  workExperience: careerIDStore.experience.map(exp => {
+    // For location display: show actual location for on-site/hybrid, "Remote" for remote
+    let locationDisplay = ''
+    if (exp.locationType === 'remote') {
+      locationDisplay = 'Remote'
+    } else {
+      // For on-site or hybrid, show actual location if available, otherwise show locationType
+      locationDisplay = exp.location || formatLocationType(exp.locationType)
+    }
+    
+    return {
+      id: exp.id,
+      employer: exp.employer,
+      jobTitle: exp.title, // Experience uses 'title' not 'jobTitle'
+      employmentType: formatEmploymentType(exp.employmentType),
+      locationType: locationDisplay,
+      startDate: exp.startDate,
+      endDate: exp.endDate,
+      currentPosition: exp.currentPosition,
+      highlights: (exp.highlights || []).map((h, index) => ({
+        id: `${exp.id}-h${index}`,
+        text: h
+      }))
+    }
+  }),
   education: careerIDStore.education.map(edu => ({
     id: edu.id,
     institution: edu.institution,

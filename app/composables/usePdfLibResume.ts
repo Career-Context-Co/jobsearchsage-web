@@ -122,7 +122,7 @@ function hexToRgb(hex: string): { r: number, g: number, b: number } {
 }
 
 /**
- * Format date from YYYY-MM-DD to display format (e.g., "Jan 2023")
+ * Format date from YYYY-MM-DD to display format (e.g., "01/2023")
  */
 function formatDateForDisplay(dateString: string | null | undefined): string {
   if (!dateString) return ''
@@ -130,7 +130,9 @@ function formatDateForDisplay(dateString: string | null | undefined): string {
   const date = new Date(dateString)
   if (isNaN(date.getTime())) return dateString
   
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${month}/${year}`
 }
 
 function formatDateRange(startDate: string | null | undefined, endDate: string | null | undefined, currentPosition?: boolean): string {
@@ -230,6 +232,7 @@ export function usePdfLibResume() {
       const accentRgb = hexToRgb(accentColor)
       const darkColor = rgb(0.067, 0.094, 0.153) // #111827
       const grayColor = rgb(0.216, 0.255, 0.318) // #374151
+      const employerColor = rgb(0.302, 0.302, 0.302) // #4D4D4D - lighter grey for hierarchy
       const lightGrayColor = rgb(0.294, 0.333, 0.388) // #4b5563
       const ruleColor = rgb(0.82, 0.835, 0.855) // #d1d5db
 
@@ -255,20 +258,20 @@ export function usePdfLibResume() {
         y -= 20 // Extra margin below rule before section content
       }
 
-      // Helper to draw section header
+      // Helper to draw section header (medium weight, not bold)
       const drawSectionHeader = (title: string) => {
         checkNewPage(40)
         y -= 12
         
         const headerText = title.toUpperCase()
-        const headerWidth = helveticaBold.widthOfTextAtSize(headerText, FONT_SIZES.sectionHeader)
+        const headerWidth = helvetica.widthOfTextAtSize(headerText, FONT_SIZES.sectionHeader)
         const centerX = PAGE.marginLeft + (CONTENT_WIDTH - headerWidth) / 2
         
         page.drawText(headerText, {
           x: centerX,
           y,
           size: FONT_SIZES.sectionHeader,
-          font: helveticaBold,
+          font: helvetica,
           color: rgb(accentRgb.r, accentRgb.g, accentRgb.b)
         })
         
@@ -439,13 +442,13 @@ export function usePdfLibResume() {
           
           y -= FONT_SIZES.jobTitle + 2
           
-          // Employer on left
+          // Employer on left (bold, lighter grey for hierarchy)
           page.drawText(exp.employer, {
             x: PAGE.marginLeft,
             y,
             size: FONT_SIZES.body,
-            font: helvetica,
-            color: grayColor
+            font: helveticaBold,
+            color: employerColor
           })
           
           // Location type on right
@@ -511,8 +514,13 @@ export function usePdfLibResume() {
           
           checkNewPage(40)
           
-          // Institution on left
-          page.drawText(edu.institution, {
+          // Degree (with area of study) on left
+          let degreeText = edu.degree
+          if (edu.areaOfStudy) {
+            degreeText += ` in ${edu.areaOfStudy}`
+          }
+          
+          page.drawText(degreeText, {
             x: PAGE.marginLeft,
             y,
             size: FONT_SIZES.jobTitle,
@@ -520,27 +528,24 @@ export function usePdfLibResume() {
             color: darkColor
           })
           
-          // Date range on right
-          const dateRange = formatDateRange(edu.startDate, edu.endDate)
-          const dateWidth = helvetica.widthOfTextAtSize(dateRange, FONT_SIZES.body)
-          
-          page.drawText(dateRange, {
-            x: PAGE.width - PAGE.marginRight - dateWidth,
-            y,
-            size: FONT_SIZES.body,
-            font: helvetica,
-            color: grayColor
-          })
+          // Graduation date (endDate only) on right
+          if (edu.endDate) {
+            const graduationDate = formatDateForDisplay(edu.endDate)
+            const dateWidth = helvetica.widthOfTextAtSize(graduationDate, FONT_SIZES.body)
+            
+            page.drawText(graduationDate, {
+              x: PAGE.width - PAGE.marginRight - dateWidth,
+              y,
+              size: FONT_SIZES.body,
+              font: helvetica,
+              color: grayColor
+            })
+          }
           
           y -= FONT_SIZES.jobTitle + 2
           
-          // Degree
-          let degreeText = edu.degree
-          if (edu.areaOfStudy) {
-            degreeText += ` in ${edu.areaOfStudy}`
-          }
-          
-          page.drawText(degreeText, {
+          // Institution
+          page.drawText(edu.institution, {
             x: PAGE.marginLeft,
             y,
             size: FONT_SIZES.body,
@@ -671,6 +676,23 @@ export function usePdfLibResume() {
         }
       }
 
+      // Set PDF metadata
+      const firstName = contactInfo.firstName || ''
+      const lastName = contactInfo.lastName || ''
+      const titleName = firstName && lastName 
+        ? `${firstName}_${lastName}_Resume`
+        : firstName 
+          ? `${firstName}_Resume`
+          : 'JobSearchSage_Resume'
+
+      pdfDoc.setTitle(titleName)
+      pdfDoc.setAuthor(`${contactInfo.firstName || ''} ${contactInfo.lastName || ''}`.trim() || 'JobSearchSage User')
+      pdfDoc.setProducer('JobSearchSage')
+      pdfDoc.setCreator('JobSearchSage')
+      const now = new Date()
+      pdfDoc.setCreationDate(now)
+      pdfDoc.setModificationDate(now)
+
       // Save and download PDF
       const pdfBytes = await pdfDoc.save()
       const blob = new Blob([pdfBytes], { type: 'application/pdf' })
@@ -678,7 +700,7 @@ export function usePdfLibResume() {
       
       const link = document.createElement('a')
       link.href = url
-      link.download = 'resume.pdf'
+      link.download = `${titleName}.pdf`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)

@@ -62,7 +62,7 @@ const displayContact = computed(() => ({
 }))
 
 /**
- * Format date from YYYY-MM-DD to display format (e.g., "Jan 2023")
+ * Format date from YYYY-MM-DD to display format (e.g., "01/2023")
  */
 function formatDateForDisplay(dateString: string | null | undefined): string {
   if (!dateString) return ''
@@ -70,7 +70,9 @@ function formatDateForDisplay(dateString: string | null | undefined): string {
   const date = new Date(dateString)
   if (isNaN(date.getTime())) return dateString
   
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${month}/${year}`
 }
 
 function formatDateRange(startDate: string | null | undefined, endDate: string | null | undefined, currentPosition?: boolean) {
@@ -144,8 +146,8 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
     }"
   >
     <!-- Header: Centered Name and Contact -->
-    <header :style="{ textAlign: 'center', paddingBottom: '0.75rem' }">
-      <h1 :style="{ fontSize: '1.75rem', fontWeight: 'bold', marginBottom: '0.25rem', color: '#111827' }">
+    <header :style="{ textAlign: 'center', paddingBottom: '1rem' }">
+      <h1 :style="{ fontSize: '1.75rem', fontWeight: 'bold', marginBottom: '0.15rem', color: '#111827' }">
         {{ displayContact.firstName }} {{ displayContact.lastName }}
       </h1>
       <div :style="{ fontSize: '0.8125rem', color: '#4b5563' }">
@@ -159,7 +161,7 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
 
     <!-- Professional Summary -->
     <section v-if="hasSummary && selectedContent.summary" class="resume-section" :style="{ marginBottom: '1rem' }">
-      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
+      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
         Summary
       </h2>
       <hr :style="{ border: 'none', borderTop: '1px solid #d1d5db', marginBottom: '0.5rem' }" />
@@ -170,7 +172,7 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
 
     <!-- Work Experience -->
     <section v-if="selectedExperiences.length > 0" class="resume-section" :style="{ marginBottom: '1rem' }">
-      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
+      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
         Professional Experience
       </h2>
       <hr :style="{ border: 'none', borderTop: '1px solid #d1d5db', marginBottom: '0.5rem' }" />
@@ -185,7 +187,7 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
           <span :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ formatDateRange(exp.startDate, exp.endDate, exp.currentPosition) }}</span>
         </div>
         <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.25rem' }">
-          <p :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ exp.employer }}</p>
+          <p :style="{ fontWeight: 'bold', fontSize: '0.8125rem', color: '#4D4D4D' }">{{ exp.employer }}</p>
           <span :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ exp.locationType }}</span>
         </div>
         <ul 
@@ -205,7 +207,7 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
 
     <!-- Education -->
     <section v-if="selectedEducation.length > 0" class="resume-section" :style="{ marginBottom: '1rem' }">
-      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
+      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
         Education
       </h2>
       <hr :style="{ border: 'none', borderTop: '1px solid #d1d5db', marginBottom: '0.5rem' }" />
@@ -216,16 +218,16 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
         :style="{ marginBottom: index < selectedEducation.length - 1 ? '0.5rem' : '0' }"
       >
         <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }">
-          <h3 :style="{ fontWeight: 'bold', fontSize: '0.875rem', color: '#111827' }">{{ edu.institution }}</h3>
-          <span :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ formatDateRange(edu.startDate, edu.endDate) }}</span>
+          <h3 :style="{ fontWeight: 'bold', fontSize: '0.875rem', color: '#111827' }">{{ edu.degree }}<span v-if="edu.areaOfStudy"> in {{ edu.areaOfStudy }}</span></h3>
+          <span v-if="edu.endDate" :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ formatDateForDisplay(edu.endDate) }}</span>
         </div>
-        <p :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ edu.degree }}<span v-if="edu.areaOfStudy"> in {{ edu.areaOfStudy }}</span></p>
+        <p :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ edu.institution }}</p>
       </div>
     </section>
 
     <!-- Skills -->
     <section v-if="selectedSkills.length > 0" class="resume-section" :style="{ marginBottom: '1rem' }">
-      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
+      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
         Skills
       </h2>
       <hr :style="{ border: 'none', borderTop: '1px solid #d1d5db', marginBottom: '0.5rem' }" />
@@ -240,7 +242,7 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
 
     <!-- Certifications -->
     <section v-if="selectedCertifications.length > 0" class="resume-section" :style="{ marginBottom: '1rem' }">
-      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
+      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
         Certifications
       </h2>
       <hr :style="{ border: 'none', borderTop: '1px solid #d1d5db', marginBottom: '0.5rem' }" />
