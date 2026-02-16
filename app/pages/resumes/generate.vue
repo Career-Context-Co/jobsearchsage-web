@@ -1,6 +1,18 @@
 <script setup lang="ts">
 const careerIDStore = useCareerIDStore()
-const { generatePdf, isGenerating: isExporting } = usePdfLibResume()
+const { generatePdf, isGenerating: isPdfExporting } = usePdfLibResume()
+const { generateDocx, isGenerating: isDocxExporting } = useDocxResume()
+
+// Download format selection
+type DownloadFormat = 'pdf' | 'docx'
+const downloadFormat = ref<DownloadFormat>('pdf')
+const formatOptions = [
+  { label: 'PDF', value: 'pdf' },
+  { label: 'Word (DOCX)', value: 'docx' }
+]
+
+// Combined loading state
+const isExporting = computed(() => isPdfExporting.value || isDocxExporting.value)
 
 const activeTab = ref('content')
 
@@ -338,17 +350,23 @@ const hasSelectedContent = computed(() => {
     selectedCertifications.value.size > 0
 })
 
-async function exportPDF() {
+async function downloadResume() {
+  const options = {
+    accentColor: accentColor.value,
+    contactInfo: contactInfoForPreview.value,
+    jobTitle: careerIDStore.contactInfo?.jobTitle || '',
+    selectedContent: previewData.value,
+    socialLinks: careerIDStore.profileSocialLinks
+  }
+
   try {
-    await generatePdf({
-      accentColor: accentColor.value,
-      contactInfo: contactInfoForPreview.value,
-      jobTitle: careerIDStore.contactInfo?.jobTitle || '',
-      selectedContent: previewData.value,
-      socialLinks: careerIDStore.profileSocialLinks
-    })
+    if (downloadFormat.value === 'docx') {
+      await generateDocx(options)
+    } else {
+      await generatePdf(options)
+    }
   } catch (error) {
-    console.error('PDF generation failed:', error)
+    console.error('Download failed:', error)
   }
 }
 </script>
@@ -377,15 +395,24 @@ async function exportPDF() {
                 @click="activeTab = tab.value"
               />
             </div>
-            <UButton
-              label="Export PDF"
-              icon="i-lucide-download"
-              color="primary"
-              size="sm"
-              :disabled="!hasSelectedContent"
-              :loading="isExporting"
-              @click="exportPDF"
-            />
+            <div class="flex items-center gap-2">
+              <USelectMenu
+                v-model="downloadFormat"
+                :items="formatOptions"
+                value-key="value"
+                size="sm"
+                class="w-32"
+              />
+              <UButton
+                label="Download"
+                icon="i-lucide-download"
+                color="primary"
+                size="sm"
+                :disabled="!hasSelectedContent"
+                :loading="isExporting"
+                @click="downloadResume"
+              />
+            </div>
           </div>
         </template>
       </UDashboardToolbar>
