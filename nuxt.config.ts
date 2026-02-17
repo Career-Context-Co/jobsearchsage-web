@@ -35,6 +35,11 @@ export default defineNuxtConfig({
 
   supabase: {
     redirect: false,
+    redirectOptions: {
+      login: '/signin',
+      callback: '/confirm',
+      exclude: ['/signin', '/confirm']
+    }
   },
 
   eslint: {
