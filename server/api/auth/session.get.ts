@@ -36,15 +36,15 @@ export default eventHandler(async (event) => {
     })
   }
   
-  // Look up user's profileId
-  const { data: profiles, error: profileError } = await supabase
+  // Look up user's profileId using the auth_user_id foreign key
+  const { data: profile, error: profileError } = await supabase
     .schema('career_id')
     .from('profiles')
     .select('id')
-    .eq('user_id', user.id)
-    .limit(1)
+    .eq('auth_user_id', user.id)
+    .maybeSingle()
   
-  if (profileError || !profiles || profiles.length === 0) {
+  if (profileError || !profile) {
     logError('GET', ROUTE_PATH, profileError || new Error('No profile found'))
     throw createError({
       statusCode: 404,
@@ -62,13 +62,13 @@ export default eventHandler(async (event) => {
   const duration = getElapsed()
   logSuccess('GET', ROUTE_PATH, duration, { 
     userId: user.id,
-    profileId: profiles[0].id
+    profileId: profile.id
   })
   
   return {
     success: true,
     data: {
-      profileId: profiles[0].id
+      profileId: profile.id
     }
   }
 })

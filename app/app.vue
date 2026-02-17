@@ -1,11 +1,12 @@
 <script setup lang="ts">
 const careerIDStore = useCareerIDStore()
+const accountStore = useAccountStore()
 
-// Attempt to fetch profile if profileId exists, but don't crash the app if it fails
-// Individual pages (like /profile) will handle empty states and guide users to onboarding
-if (!careerIDStore.isProfileLoaded && careerIDStore.profileId) {
+// Attempt to fetch profile if user is authenticated and has a profileId
+// Don't crash the app if it fails - individual pages will handle empty states
+if (accountStore.isAuthenticated && accountStore.profileId && !careerIDStore.isProfileLoaded) {
   try {
-    await careerIDStore.fetchProfile(careerIDStore.profileId)
+    await careerIDStore.fetchProfile(accountStore.profileId)
     console.log('Profile loaded successfully')
   } catch (error: any) {
     // Silently handle 404 - user doesn't have a profile yet
@@ -23,7 +24,9 @@ if (!careerIDStore.isProfileLoaded && careerIDStore.profileId) {
       careerIDStore.error = null // Clear error to allow app to function
     }
   }
-} else if (!careerIDStore.profileId) {
+} else if (!accountStore.isAuthenticated) {
+  console.log('User not authenticated - will be redirected to sign in')
+} else if (!accountStore.profileId) {
   console.log('No profileId set - new user flow')
 }
 

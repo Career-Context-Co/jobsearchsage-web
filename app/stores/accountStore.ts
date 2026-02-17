@@ -63,18 +63,18 @@ export const useAccountStore = defineStore('account', {
       if (supabaseUser.value) {
         // User is authenticated, fetch their profile ID
         try {
-          const { data } = await $fetch('/api/auth/session', {
+          const response: any = await $fetch('/api/auth/session', {
             method: 'GET'
           })
           
-          if (data) {
+          if (response?.data?.profileId) {
             this.user = {
               id: supabaseUser.value.id,
               email: supabaseUser.value.email || '',
               name: supabaseUser.value.user_metadata?.name,
               avatar: supabaseUser.value.user_metadata?.avatar_url
             }
-            this.profileId = data.profileId
+            this.profileId = response.data.profileId
           }
         } catch (error) {
           console.warn('Failed to hydrate session:', error)
@@ -85,6 +85,7 @@ export const useAccountStore = defineStore('account', {
             name: supabaseUser.value.user_metadata?.name,
             avatar: supabaseUser.value.user_metadata?.avatar_url
           }
+          this.profileId = null
         }
       }
     },
@@ -94,12 +95,17 @@ export const useAccountStore = defineStore('account', {
      */
     async signIn(email: string, password: string) {
       try {
-        const response = await $fetch('/api/auth/sign-in', {
+        const response: any = await $fetch('/api/auth/sign-in', {
           method: 'POST',
           body: { email, password }
         })
         
-        if (response.success && response.data) {
+        // Check if response indicates an error (shouldn't happen with non-throwing responses)
+        if (!response.success || response.error) {
+          throw new Error(response.error?.message || 'Sign in failed')
+        }
+        
+        if (response.data) {
           // Establish client session
           const supabaseClient = useSupabaseClient()
           await supabaseClient.auth.setSession({
@@ -110,14 +116,18 @@ export const useAccountStore = defineStore('account', {
           // Store user data
           this.user = response.data.user
           this.profileId = response.data.profileId
-          
-          return response
         }
         
-        throw new Error('Sign in failed')
+        return response
       } catch (error: any) {
-        // Re-throw to let the component handle it
-        throw error
+        // Extract error message from various possible structures
+        const errorMessage = error?.data?.error?.message || 
+                           error?.data?.message || 
+                           error?.message || 
+                           'Sign in failed'
+        
+        // Re-throw with clean error message
+        throw new Error(errorMessage)
       }
     },
 
@@ -126,15 +136,26 @@ export const useAccountStore = defineStore('account', {
      */
     async signUp(email: string, password: string) {
       try {
-        const response = await $fetch('/api/auth/sign-up', {
+        const response: any = await $fetch('/api/auth/sign-up', {
           method: 'POST',
           body: { email, password }
         })
         
+        // Check if response indicates an error
+        if (!response.success || response.error) {
+          throw new Error(response.error?.message || 'Sign up failed')
+        }
+        
         return response
       } catch (error: any) {
-        // Re-throw to let the component handle it
-        throw error
+        // Extract error message from various possible structures
+        const errorMessage = error?.data?.error?.message || 
+                           error?.data?.message || 
+                           error?.message || 
+                           'Sign up failed'
+        
+        // Re-throw with clean error message
+        throw new Error(errorMessage)
       }
     },
 

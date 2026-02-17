@@ -70,8 +70,8 @@ const sortStories = (stories: HeroStory[]) => {
 
 export const useCareerIDStore = defineStore('careerID', {
   state: () => ({
-    profileId: 'prof_myf2i85se9xri4e4wgsxxim7',
-    userId: 'nswk',
+    profileId: null as string | null,
+    userId: null as string | null,
     // Core profile data (flat structure for ease of use)
     profile: null as Profile | null,
     experience: [] as Experience[],
@@ -229,13 +229,19 @@ export const useCareerIDStore = defineStore('careerID', {
       this.error = null
 
       try {
+        const accountStore = useAccountStore()
+        
+        if (!accountStore.user?.id) {
+          throw new Error('User must be authenticated to create a profile')
+        }
+
         const response = await $fetch<{
           success: boolean
           message: string
           data: { profile: Profile }
         }>('/api/career-id/profile', {
           method: 'POST',
-          body: { userId: this.userId }
+          body: { userId: accountStore.user.id }
         })
 
         if (!response.success || !response.data?.profile) {
