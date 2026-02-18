@@ -2,12 +2,10 @@
  * POST /api/auth/sign-in
  * 
  * Authenticates a user with email and password.
- * Returns session tokens and user data with profileId.
- * Defensively creates a profile if one doesn't exist.
+ * Returns session tokens, user data, and profileId (null if no profile yet).
  */
 
 import { serverSupabaseClient } from '#supabase/server'
-import { generatePrefixedId } from '@@/server/utils/id-generator'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { ErrorCodes } from '@@/server/utils/error-handler'
 import { mapAuthError } from '@@/server/utils/auth-error-mapper'
@@ -86,47 +84,15 @@ export default eventHandler(async (event) => {
     }
   
     // Look up user's profileId using the auth_user_id foreign key
-    const { data: profile, error: profileError } = await supabase
+    // profileId will be null if the user hasn't created a profile yet — that's fine
+    const { data: profile } = await supabase
       .schema('career_id')
       .from('profiles')
       .select('id')
       .eq('auth_user_id', authData.user.id)
       .maybeSingle()
     
-    let profileId: string
-    
-    if (profileError || !profile) {
-      // Defensively create profile if it doesn't exist
-      profileId = generatePrefixedId('prof')
-      
-      const { error: createProfileError } = await supabase
-        .schema('career_id')
-        .from('profiles')
-        .insert({
-          id: profileId,
-          auth_user_id: authData.user.id,
-          completion_status: 'incomplete'
-        })
-      
-      if (createProfileError) {
-        logError('POST', ROUTE_PATH, createProfileError, { 
-          userId: authData.user.id, 
-          profileId 
-        })
-        setResponseStatus(event, 500)
-        return {
-          success: false,
-          error: {
-            code: ErrorCodes.INTERNAL_ERROR,
-            message: 'Failed to create user profile'
-          }
-        }
-      }
-      
-      console.log('Defensively created profile for user:', authData.user.id)
-    } else {
-      profileId = profile.id
-    }
+    const profileId = profile?.id ?? null
     
     const duration = getElapsed()
     logSuccess('POST', ROUTE_PATH, duration, { 

@@ -148,12 +148,7 @@ async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
   try {
     if (isSignIn.value) {
       await accountStore.signIn(event.data.email, event.data.password)
-      
-      // Wait a tick for the session to propagate to useSupabaseUser()
-      await nextTick()
-      
-      // Force a full page navigation to ensure middleware runs with updated session
-      window.location.href = '/'
+      await navigateTo('/')
     } else {
       const response = await accountStore.signUp(event.data.email, event.data.password)
       // On success, show confirmation message (don't redirect)

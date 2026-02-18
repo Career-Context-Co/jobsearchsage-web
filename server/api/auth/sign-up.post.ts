@@ -2,11 +2,10 @@
  * POST /api/auth/sign-up
  * 
  * Creates a new user account with email and password.
- * Auto-creates a profile shell for the new user.
+ * Profile is created separately by the user after signup.
  */
 
 import { serverSupabaseClient } from '#supabase/server'
-import { generatePrefixedId } from '@@/server/utils/id-generator'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { ErrorCodes } from '@@/server/utils/error-handler'
 import { mapAuthError } from '@@/server/utils/auth-error-mapper'
@@ -60,8 +59,39 @@ export default eventHandler(async (event) => {
     
     const supabase = await serverSupabaseClient(event)
     
+    // Check for duplicate email by looking up existing auth user via profile
+    // We do this before calling signUp so we can return a clear error
+    const { data: authCheckData, error: authCheckError } = await supabase.auth.signInWithPassword({
+      email: body.email,
+      password: 'check-only-do-not-use'
+    })
+
+    // If we get "Email not confirmed" error, the user exists
+    if (authCheckError?.message?.includes('Email not confirmed')) {
+      setResponseStatus(event, 409)
+      return {
+        success: false,
+        error: {
+          code: ErrorCodes.ALREADY_EXISTS,
+          message: 'An account with this email already exists. Please sign in instead.'
+        }
+      }
+    }
+
+    // If sign-in somehow succeeds (extremely unlikely), user definitely exists
+    if (authCheckData?.user) {
+      setResponseStatus(event, 409)
+      return {
+        success: false,
+        error: {
+          code: ErrorCodes.ALREADY_EXISTS,
+          message: 'An account with this email already exists. Please sign in instead.'
+        }
+      }
+    }
+    
     // Attempt sign-up
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const { data: signUpData, error: authError } = await supabase.auth.signUp({
       email: body.email,
       password: body.password
     })
@@ -78,125 +108,22 @@ export default eventHandler(async (event) => {
         }
       }
     }
-    
-    // Check if profile already exists for this auth user (duplicate signup detection)
-    if (authData.user) {
-      const { data: existingProfile } = await supabase
-        .schema('career_id')
-        .from('profiles')
-        .select('id, created_at')
-        .eq('auth_user_id', authData.user.id)
-        .maybeSingle()
-      
-      // If profile exists and was created more than 10 seconds ago, this is a duplicate signup attempt
-      if (existingProfile) {
-        const profileAge = Date.now() - new Date(existingProfile.created_at).getTime()
-        if (profileAge > 10000) { // More than 10 seconds old
-          logError('POST', ROUTE_PATH, new Error('Duplicate signup attempt'), { 
-            email: body.email,
-            authUserId: authData.user.id,
-            profileCreated: existingProfile.created_at
-          })
-          setResponseStatus(event, 409)
-          return {
-            success: false,
-            error: {
-              code: ErrorCodes.ALREADY_EXISTS,
-              message: 'An account with this email already exists. Please sign in instead.'
-            }
-          }
-        }
-      }
-    }
-    
-    // Auto-create profile shell - this must succeed for signup to be considered successful
-    if (authData.user) {
-      const profileId = generatePrefixedId('prof')
-      
-      const { error: profileError } = await supabase
-        .schema('career_id')
-        .from('profiles')
-        .insert({
-          id: profileId,
-          auth_user_id: authData.user.id,
-          completion_status: 'incomplete'
-        })
-      
-      if (profileError) {
-        logError('POST', ROUTE_PATH, profileError, { 
-          authUserId: authData.user.id, 
-          profileId,
-          dbCode: profileError.code,
-          dbMessage: profileError.message,
-          dbDetails: profileError.details,
-          dbHint: profileError.hint
-        })
-        
-        // Check if it's a duplicate key error (unique constraint violation)
-        // This could be on auth_user_id, email, or other unique fields
-        if (profileError.code === '23505') {
-          setResponseStatus(event, 409)
-          return {
-            success: false,
-            error: {
-              code: ErrorCodes.ALREADY_EXISTS,
-              message: 'An account with this email already exists. Please sign in instead.'
-            }
-          }
-        }
-        
-        // Check if it's a foreign key violation (auth_user_id doesn't exist in auth.users)
-        if (profileError.code === '23503') {
-          setResponseStatus(event, 409)
-          return {
-            success: false,
-            error: {
-              code: ErrorCodes.ALREADY_EXISTS,
-              message: 'An account with this email already exists. Please sign in instead.'
-            }
-          }
-        }
-        
-        // Check if it's a NOT NULL constraint violation on user_id
-        if (profileError.code === '23502' && profileError.message?.includes('user_id')) {
-          setResponseStatus(event, 500)
-          return {
-            success: false,
-            error: {
-              code: ErrorCodes.INTERNAL_ERROR,
-              message: 'Database configuration error. Please contact support. (Missing user_id)'
-            }
-          }
-        }
-        
-        // Check if error message contains duplicate/already exists indicators
-        const errorMsg = (profileError.message || '').toLowerCase()
-        if (errorMsg.includes('duplicate') || errorMsg.includes('already exists') || errorMsg.includes('unique')) {
-          setResponseStatus(event, 409)
-          return {
-            success: false,
-            error: {
-              code: ErrorCodes.ALREADY_EXISTS,
-              message: 'An account with this email already exists. Please sign in instead.'
-            }
-          }
-        }
-        
-        // For other errors, return internal error
-        setResponseStatus(event, 500)
+
+    // Supabase silently re-sends confirmation email for existing unconfirmed users
+    // Detect this by checking if the user's created_at is older than a few seconds
+    if (signUpData.user) {
+      const createdAt = new Date(signUpData.user.created_at).getTime()
+      const ageMs = Date.now() - createdAt
+      if (ageMs > 5000) {
+        setResponseStatus(event, 409)
         return {
           success: false,
           error: {
-            code: ErrorCodes.INTERNAL_ERROR,
-            message: 'Failed to create user account. Please try again or contact support.'
+            code: ErrorCodes.ALREADY_EXISTS,
+            message: 'An account with this email already exists. Please sign in instead.'
           }
         }
       }
-      
-      logSuccess('POST', ROUTE_PATH, getElapsed(), { 
-        authUserId: authData.user.id,
-        profileId
-      })
     }
     
     const duration = getElapsed()
@@ -207,7 +134,6 @@ export default eventHandler(async (event) => {
       message: 'Please check your email to confirm your account'
     }
   } catch (error: any) {
-    // Catch any unexpected errors
     logError('POST', ROUTE_PATH, error)
     setResponseStatus(event, 500)
     return {

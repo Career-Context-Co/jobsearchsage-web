@@ -2,32 +2,20 @@
 const careerIDStore = useCareerIDStore()
 const accountStore = useAccountStore()
 
-// Attempt to fetch profile if user is authenticated and has a profileId
-// Don't crash the app if it fails - individual pages will handle empty states
-if (accountStore.isAuthenticated && accountStore.profileId && !careerIDStore.isProfileLoaded) {
+// Only fetch profile when authenticated AND profileId is a real value (not null/undefined/"null")
+const hasProfile = accountStore.isAuthenticated && 
+                   accountStore.profileId != null && 
+                   accountStore.profileId !== 'null' &&
+                   accountStore.profileId !== ''
+
+if (hasProfile && !careerIDStore.isProfileLoaded) {
   try {
-    await careerIDStore.fetchProfile(accountStore.profileId)
+    await careerIDStore.fetchProfile(accountStore.profileId!)
     console.log('Profile loaded successfully')
   } catch (error: any) {
-    // Silently handle 404 - user doesn't have a profile yet
-    const is404 = error?.status === 404 || error?.statusCode === 404 || 
-                  error?.message?.includes('not found') ||
-                  error?.message?.includes('No profile')
-    
-    if (is404) {
-      console.log('No profile found - user can create one via onboarding')
-      // Clear error from store so it doesn't show in UI
-      careerIDStore.error = null
-    } else {
-      // Log other errors but don't crash the app
-      console.error('Failed to load profile:', error)
-      careerIDStore.error = null // Clear error to allow app to function
-    }
+    console.error('Failed to load profile:', error)
+    careerIDStore.error = null // Clear error to allow app to function
   }
-} else if (!accountStore.isAuthenticated) {
-  console.log('User not authenticated - will be redirected to sign in')
-} else if (!accountStore.profileId) {
-  console.log('No profileId set - new user flow')
 }
 
 const colorMode = useColorMode()

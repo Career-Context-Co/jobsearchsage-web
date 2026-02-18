@@ -59,6 +59,15 @@ const links = computed(() => {
 })
 </script>
 
+<style scoped>
+.nav-scroll-container {
+  scrollbar-width: none;
+}
+.nav-scroll-container::-webkit-scrollbar {
+  display: none;
+}
+</style>
+
 <template>
   <!-- Render onboarding without wrapper -->
   <NuxtPage v-if="isOnboarding" />

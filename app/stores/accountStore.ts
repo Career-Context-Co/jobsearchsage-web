@@ -61,30 +61,22 @@ export const useAccountStore = defineStore('account', {
       const supabaseUser = useSupabaseUser()
       
       if (supabaseUser.value) {
-        // User is authenticated, fetch their profile ID
+        // Always set the user from the Supabase session
+        this.user = {
+          id: supabaseUser.value.id,
+          email: supabaseUser.value.email || '',
+          name: supabaseUser.value.user_metadata?.name,
+          avatar: supabaseUser.value.user_metadata?.avatar_url
+        }
+        
+        // Try to fetch their profileId — will be null if they haven't created one yet
         try {
           const response: any = await $fetch('/api/auth/session', {
             method: 'GET'
           })
-          
-          if (response?.data?.profileId) {
-            this.user = {
-              id: supabaseUser.value.id,
-              email: supabaseUser.value.email || '',
-              name: supabaseUser.value.user_metadata?.name,
-              avatar: supabaseUser.value.user_metadata?.avatar_url
-            }
-            this.profileId = response.data.profileId
-          }
-        } catch (error) {
-          console.warn('Failed to hydrate session:', error)
-          // If session fetch fails, just use the Supabase user data
-          this.user = {
-            id: supabaseUser.value.id,
-            email: supabaseUser.value.email || '',
-            name: supabaseUser.value.user_metadata?.name,
-            avatar: supabaseUser.value.user_metadata?.avatar_url
-          }
+          this.profileId = response?.data?.profileId ?? null
+        } catch {
+          // 404 = no profile yet, that's fine — pages handle the empty state
           this.profileId = null
         }
       }
