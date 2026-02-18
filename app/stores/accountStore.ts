@@ -5,8 +5,9 @@ const STORAGE_KEY = 'jobsearchsage-account'
 interface User {
   id: string
   email: string
-  name?: string
-  avatar?: string
+  firstName?: string | null
+  lastName?: string | null
+  preferredName?: string | null
 }
 
 interface AccountState {
@@ -16,7 +17,6 @@ interface AccountState {
     hero: boolean
     bulletEnhancement: boolean
   }
-  // Future: theme, locale, notifications, etc.
 }
 
 export const useAccountStore = defineStore('account', {
@@ -24,8 +24,8 @@ export const useAccountStore = defineStore('account', {
     user: null,
     profileId: null,
     features: {
-      hero: false, // HERO framework features - disabled by default
-      bulletEnhancement: false // AI bullet enhancement - disabled by default
+      hero: false,
+      bulletEnhancement: false
     }
   }),
 
@@ -37,7 +37,6 @@ export const useAccountStore = defineStore('account', {
 
   actions: {
     initializeAccount() {
-      // Load saved preferences from localStorage
       if (import.meta.client) {
         try {
           const saved = localStorage.getItem(STORAGE_KEY)
@@ -54,36 +53,41 @@ export const useAccountStore = defineStore('account', {
     },
 
     /**
-     * Hydrate user state from existing Supabase session
-     * Called on app init to restore authenticated state
+     * Hydrate user state from existing Supabase session.
+     * Called on app init to restore authenticated state.
+     * Session endpoint now returns name fields and profileId from public.users.
      */
     async hydrateFromSession() {
       const supabaseUser = useSupabaseUser()
-      
+
       if (supabaseUser.value) {
-        // Always set the user from the Supabase session
-        this.user = {
-          id: supabaseUser.value.id,
-          email: supabaseUser.value.email || '',
-          name: supabaseUser.value.user_metadata?.name,
-          avatar: supabaseUser.value.user_metadata?.avatar_url
-        }
-        
-        // Try to fetch their profileId — will be null if they haven't created one yet
         try {
-          const response: any = await $fetch('/api/auth/session', {
-            method: 'GET'
-          })
+          // Fetch full user data (name fields + profileId) from public.users in one request,
+          // then set the complete user object in a single assignment so components that
+          // initialize from the store see all fields at once — no watchers needed.
+          const response: any = await $fetch('/api/auth/session', { method: 'GET' })
+          this.user = {
+            id: supabaseUser.value.id,
+            email: supabaseUser.value.email || '',
+            firstName: response?.data?.firstName ?? null,
+            lastName: response?.data?.lastName ?? null,
+            preferredName: response?.data?.preferredName ?? null
+          }
           this.profileId = response?.data?.profileId ?? null
         } catch {
-          // 404 = no profile yet, that's fine — pages handle the empty state
+          // Session endpoint throws 401 only if not authenticated — shouldn't happen here.
+          // Still set minimal user so isAuthenticated stays true.
+          this.user = {
+            id: supabaseUser.value.id,
+            email: supabaseUser.value.email || ''
+          }
           this.profileId = null
         }
       }
     },
 
     /**
-     * Sign in with email and password
+     * Sign in with email and password.
      */
     async signIn(email: string, password: string) {
       try {
@@ -91,85 +95,94 @@ export const useAccountStore = defineStore('account', {
           method: 'POST',
           body: { email, password }
         })
-        
-        // Check if response indicates an error (shouldn't happen with non-throwing responses)
+
         if (!response.success || response.error) {
           throw new Error(response.error?.message || 'Sign in failed')
         }
-        
+
         if (response.data) {
-          // Establish client session
           const supabaseClient = useSupabaseClient()
           await supabaseClient.auth.setSession({
             access_token: response.data.session.accessToken,
             refresh_token: response.data.session.refreshToken
           })
-          
-          // Store user data
+
+          // Store full user data returned from sign-in (includes name fields from public.users)
           this.user = response.data.user
           this.profileId = response.data.profileId
         }
-        
+
         return response
       } catch (error: any) {
-        // Extract error message from various possible structures
-        const errorMessage = error?.data?.error?.message || 
-                           error?.data?.message || 
-                           error?.message || 
+        const errorMessage = error?.data?.error?.message ||
+                           error?.data?.message ||
+                           error?.message ||
                            'Sign in failed'
-        
-        // Re-throw with clean error message
         throw new Error(errorMessage)
       }
     },
 
     /**
-     * Sign up with email and password
+     * Sign up with email, password, and optional name fields.
      */
-    async signUp(email: string, password: string) {
+    async signUp(
+      email: string,
+      password: string,
+      firstName?: string,
+      lastName?: string,
+      preferredName?: string
+    ) {
       try {
         const response: any = await $fetch('/api/auth/sign-up', {
           method: 'POST',
-          body: { email, password }
+          body: { email, password, firstName, lastName, preferredName }
         })
-        
-        // Check if response indicates an error
+
         if (!response.success || response.error) {
           throw new Error(response.error?.message || 'Sign up failed')
         }
-        
+
         return response
       } catch (error: any) {
-        // Extract error message from various possible structures
-        const errorMessage = error?.data?.error?.message || 
-                           error?.data?.message || 
-                           error?.message || 
+        const errorMessage = error?.data?.error?.message ||
+                           error?.data?.message ||
+                           error?.message ||
                            'Sign up failed'
-        
-        // Re-throw with clean error message
         throw new Error(errorMessage)
       }
     },
 
     /**
-     * Sign out the current user
+     * Update the current user's name fields in public.users.
+     */
+    async updateUser(data: { firstName?: string; lastName?: string; preferredName?: string }) {
+      const response: any = await $fetch('/api/auth/user', {
+        method: 'PATCH',
+        body: data
+      })
+
+      if (this.user && response?.data) {
+        this.user.firstName = response.data.firstName ?? this.user.firstName
+        this.user.lastName = response.data.lastName ?? this.user.lastName
+        this.user.preferredName = response.data.preferredName ?? this.user.preferredName
+      }
+
+      return response
+    },
+
+    /**
+     * Sign out the current user.
      */
     async signOut() {
       try {
-        // Call server sign-out endpoint
-        await $fetch('/api/auth/sign-out', {
-          method: 'POST'
-        })
-        
-        // Sign out client-side
+        await $fetch('/api/auth/sign-out', { method: 'POST' })
+
         const supabaseClient = useSupabaseClient()
         await supabaseClient.auth.signOut()
-        
-        // Clear user state
+
         this.user = null
         this.profileId = null
-        
-        // Reset profile data
+
         const careerIDStore = useCareerIDStore()
         careerIDStore.resetProfile()
       } catch (error) {
@@ -178,33 +191,21 @@ export const useAccountStore = defineStore('account', {
       }
     },
 
-    /**
-     * Enable or disable hero features (beta)
-     */
     setHeroEnabled(enabled: boolean) {
       this.features.hero = enabled
       this._persist()
     },
 
-    /**
-     * Toggle hero features on/off
-     */
     toggleHeroFeatures() {
       this.features.hero = !this.features.hero
       this._persist()
     },
 
-    /**
-     * Enable or disable AI bullet enhancement
-     */
     setBulletEnhancementEnabled(enabled: boolean) {
       this.features.bulletEnhancement = enabled
       this._persist()
     },
 
-    /**
-     * Persist account preferences to localStorage
-     */
     _persist() {
       if (import.meta.client) {
         try {

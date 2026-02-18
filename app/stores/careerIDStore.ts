@@ -240,8 +240,7 @@ export const useCareerIDStore = defineStore('careerID', {
           message: string
           data: { profile: Profile }
         }>('/api/career-id/profile', {
-          method: 'POST',
-          body: { userId: accountStore.user.id }
+          method: 'POST'
         })
 
         if (!response.success || !response.data?.profile) {
@@ -256,6 +255,9 @@ export const useCareerIDStore = defineStore('careerID', {
         // Store the profileId for future use
         this.profileId = profile.id
         this.lastSaved = new Date().toISOString()
+
+        // Sync profileId to accountStore so menu/settings stay consistent
+        accountStore.profileId = profile.id
 
         return profile
       } catch (error: any) {

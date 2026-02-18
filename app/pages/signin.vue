@@ -47,20 +47,31 @@ const fields = computed<AuthFormField[]>(() => {
   if (isSignUp.value) {
     baseFields.push(
       {
+        name: 'preferredName',
+        type: 'text',
+        label: 'Preferred first name',
+        placeholder: 'e.g. Alex',
+        required: false,
+        size: 'md',
+        help: "What you'd like to be called — we'll use this throughout the app"
+      },
+      {
         name: 'firstName',
         type: 'text',
-        label: 'First Name',
-        placeholder: 'John',
+        label: 'Legal first name',
+        placeholder: 'e.g. Alexandra',
         required: true,
-        size: 'md'
+        size: 'md',
+        help: 'Your legal name as it appears on official documents, used for background checks when applying for jobs'
       },
       {
         name: 'lastName',
         type: 'text',
-        label: 'Last Name',
-        placeholder: 'Doe',
+        label: 'Legal last name',
+        placeholder: 'e.g. Smith',
         required: true,
-        size: 'md'
+        size: 'md',
+        help: 'Your legal last name as it appears on official documents'
       }
     )
   }
@@ -90,8 +101,9 @@ const fields = computed<AuthFormField[]>(() => {
 const schema = computed(() => {
   if (isSignUp.value) {
     return z.object({
-      firstName: z.string().min(1, 'First name is required'),
-      lastName: z.string().min(1, 'Last name is required'),
+      preferredName: z.string().optional(),
+      firstName: z.string().min(1, 'Legal first name is required'),
+      lastName: z.string().min(1, 'Legal last name is required'),
       email: z.string().email('Invalid email'),
       password: z.string().min(6, 'Password must be at least 6 characters')
     })
@@ -150,7 +162,13 @@ async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
       await accountStore.signIn(event.data.email, event.data.password)
       await navigateTo('/')
     } else {
-      const response = await accountStore.signUp(event.data.email, event.data.password)
+      const response = await accountStore.signUp(
+        event.data.email,
+        event.data.password,
+        (event.data as any).firstName,
+        (event.data as any).lastName,
+        (event.data as any).preferredName
+      )
       // On success, show confirmation message (don't redirect)
       if (response.success) {
         successMessage.value = response.message

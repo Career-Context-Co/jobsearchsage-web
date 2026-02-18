@@ -1,8 +1,9 @@
 /**
  * GET /api/auth/session
- * 
- * Returns the current user's session data including profileId.
+ *
+ * Returns the current user's session data including name fields and profileId.
  * Used for hydrating auth state on app init.
+ * Always returns 200 — profileId is null if user has no career profile yet.
  */
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -13,14 +14,14 @@ const ROUTE_PATH = '/api/auth/session'
 
 export default eventHandler(async (event) => {
   const getElapsed = createTimer()
-  
+
   logRequest('GET', ROUTE_PATH)
-  
+
   const supabase = await serverSupabaseClient(event)
-  
+
   // Get current user
   const { data: { user }, error: userError } = await supabase.auth.getUser()
-  
+
   if (userError || !user) {
     logError('GET', ROUTE_PATH, userError || new Error('No user'))
     throw createError({
@@ -35,40 +36,31 @@ export default eventHandler(async (event) => {
       }
     })
   }
-  
-  // Look up user's profileId using the auth_user_id foreign key
-  const { data: profile, error: profileError } = await supabase
-    .schema('career_id')
-    .from('profiles')
-    .select('id')
-    .eq('auth_user_id', user.id)
+
+  // Look up user record in public.users for name fields and profileId
+  const { data: publicUser, error: publicUserError } = await supabase
+    .from('users')
+    .select('first_name, last_name, preferred_name, career_id_profile_id')
+    .eq('id', user.id)
     .maybeSingle()
-  
-  if (profileError || !profile) {
-    logError('GET', ROUTE_PATH, profileError || new Error('No profile found'))
-    throw createError({
-      statusCode: 404,
-      statusMessage: 'Not Found',
-      data: {
-        success: false,
-        error: {
-          code: ErrorCodes.NOT_FOUND,
-          message: 'Profile not found for user'
-        }
-      }
-    })
+
+  if (publicUserError) {
+    logError('GET', ROUTE_PATH, publicUserError, { userId: user.id })
   }
-  
+
   const duration = getElapsed()
-  logSuccess('GET', ROUTE_PATH, duration, { 
+  logSuccess('GET', ROUTE_PATH, duration, {
     userId: user.id,
-    profileId: profile.id
+    profileId: publicUser?.career_id_profile_id ?? null
   })
-  
+
   return {
     success: true,
     data: {
-      profileId: profile.id
+      profileId: publicUser?.career_id_profile_id ?? null,
+      firstName: publicUser?.first_name ?? null,
+      lastName: publicUser?.last_name ?? null,
+      preferredName: publicUser?.preferred_name ?? null
     }
   }
 })

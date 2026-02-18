@@ -8,38 +8,17 @@ defineProps<{
 const colorMode = useColorMode()
 const appConfig = useAppConfig()
 const accountStore = useAccountStore()
-const supabaseUser = useSupabaseUser()
 
 const colors = ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose']
 const neutrals = ['slate', 'gray', 'zinc', 'neutral', 'stone']
 
-// Use real user data from accountStore or Supabase user as fallback
+// Display name: preferredName + lastName, fall back to firstName + lastName, then email
 const user = computed(() => {
-  const storeUser = accountStore.user
-  const fallbackUser = supabaseUser.value
-  
-  if (storeUser) {
-    return {
-      name: storeUser.name || storeUser.email,
-      avatar: storeUser.avatar ? {
-        src: storeUser.avatar,
-        alt: storeUser.name || storeUser.email
-      } : undefined
-    }
-  }
-  
-  if (fallbackUser) {
-    return {
-      name: fallbackUser.email || 'User',
-      avatar: fallbackUser.user_metadata?.avatar_url ? {
-        src: fallbackUser.user_metadata.avatar_url,
-        alt: fallbackUser.email || 'User'
-      } : undefined
-    }
-  }
-  
+  const { firstName, lastName, preferredName, email } = accountStore.user ?? {}
+  const first = preferredName || firstName
+  const fullName = [first, lastName].filter(Boolean).join(' ')
   return {
-    name: 'User',
+    name: fullName || email || 'User',
     avatar: undefined
   }
 })
@@ -58,12 +37,6 @@ const items = computed<DropdownMenuItem[][]>(() => ([[{
   label: user.value.name,
   avatar: user.value.avatar
 }], [{
-  label: 'Profile',
-  icon: 'i-lucide-user'
-}, {
-  label: 'Billing',
-  icon: 'i-lucide-credit-card'
-}, {
   label: 'Settings',
   icon: 'i-lucide-settings',
   to: '/settings'
