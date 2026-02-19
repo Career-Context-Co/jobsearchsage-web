@@ -38,16 +38,17 @@ export default eventHandler(async (event) => {
   }
 
   // Generate prefixed ID for the profile
-  const profileId = generatePrefixedId('prof')
+  const profileId = generatePrefixedId('cid')
 
   logRequest('POST', ROUTE_PATH, { userId: user.id, profileId })
 
-  // Insert profile into career_id schema (no user_id column — link lives in public.users)
+  // Insert profile into career_id schema - jss_user_id required for RLS
   const { data, error } = await supabase
     .schema('career_id')
     .from('profiles')
     .insert({
       id: profileId,
+      jss_user_id: user.id,
       completion_status: 'incomplete'
     })
     .select()
