@@ -33,6 +33,7 @@
     "pdf-parse": "^2.4.5",
     "pdfkit": "^0.17.2",
     "pinia": "^3.0.4",
+    "tailwindcss": "^4.1.17",
     "zod": "^4.2.1"
   },
   "devDependencies": {
