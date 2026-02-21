@@ -5,32 +5,44 @@ definePageMeta({
 
 const supabaseClient = useSupabaseClient()
 const route = useRoute()
+const accountStore = useAccountStore()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
 
 onMounted(async () => {
   try {
-    // Extract token from URL hash or query params
     const hashParams = new URLSearchParams(window.location.hash.substring(1))
-    const token = hashParams.get('access_token') || route.query.token as string
-    const type = hashParams.get('type') || route.query.type as string
-    
-    if (!token) {
-      throw new Error('No confirmation token found in URL')
+    const code = route.query.code as string
+    const accessToken = hashParams.get('access_token')
+    const refreshToken = hashParams.get('refresh_token')
+    const token = hashParams.get('access_token') || route.query.token
+
+    // OAuth callback: pass code string directly (PKCE verifier is in sessionStorage from signInWithOAuth)
+    if (code) {
+      const { error: exchangeError } = await supabaseClient.auth.exchangeCodeForSession(code)
+      if (exchangeError) throw exchangeError
+      await accountStore.hydrateFromSession()
+      return navigateTo((route.query.next as string) || '/')
     }
-    
-    // Exchange the code/token for a session
-    const { error: exchangeError } = await supabaseClient.auth.exchangeCodeForSession(
-      window.location.href
-    )
-    
-    if (exchangeError) {
-      throw exchangeError
+
+    // Hash tokens: from our OAuth callback (from=oauth) or email confirmation link
+    if (accessToken && refreshToken) {
+      const { error: sessionError } = await supabaseClient.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+      if (sessionError) throw sessionError
+      await accountStore.hydrateFromSession()
+      const nextPath = route.query.from === 'oauth' ? ((route.query.next as string) || '/') : '/signin?confirmed=true'
+      return navigateTo(nextPath)
     }
-    
-    // Success - redirect to signin with confirmation flag
-    await navigateTo('/signin?confirmed=true')
+
+    // Email confirmation with token in query
+    if (token) {
+      const { error: exchangeError } = await supabaseClient.auth.exchangeCodeForSession(window.location.href)
+      if (exchangeError) throw exchangeError
+      return navigateTo('/signin?confirmed=true')
+    }
+
+    throw new Error('No confirmation token found in URL')
   } catch (err: any) {
     console.error('Email confirmation error:', err)
     error.value = err?.message || 'Failed to confirm email'

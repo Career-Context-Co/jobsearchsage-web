@@ -1,5 +1,21 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+
 export default defineNuxtConfig({
+  hooks: {
+    ready(nuxt) {
+      const precomputedPath = join(nuxt.options.buildDir, 'dist', 'server', 'client.precomputed.mjs')
+      const dir = dirname(precomputedPath)
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true })
+      }
+      if (!existsSync(precomputedPath)) {
+        writeFileSync(precomputedPath, 'export default {}\n')
+      }
+    }
+  },
+
   runtimeConfig: {
     aiGatewayApiKey: process.env.NUXT_AI_GATEWAY_API_KEY
   },

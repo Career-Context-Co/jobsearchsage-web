@@ -16,8 +16,15 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const successMessage = ref<string | null>(null)
 
-// Check for confirmation success from email confirmation flow
+// Check for confirmation success or OAuth errors
 onMounted(() => {
+  if (route.query.error === 'oauth_failed') {
+    error.value = 'Google sign-in failed. Please try again.'
+    navigateTo('/signin', { replace: true })
+  } else if (route.query.error === 'no_code') {
+    error.value = 'No authorization code received. Please try again.'
+    navigateTo('/signin', { replace: true })
+  }
   if (route.query.confirmed === 'true') {
     successMessage.value = 'Success! Your email has been confirmed. You can now sign in.'
     
@@ -139,17 +146,12 @@ const toggleMode = () => {
 
 async function handleGoogleSignIn() {
   error.value = null
-  try {
-    await supabaseClient.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin + '/confirm'
-      }
-    })
-  } catch (err: any) {
-    console.error('Google sign in error:', err)
-    error.value = err?.message || 'Failed to sign in with Google'
-  }
+  const { data } = await supabaseClient.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: `${window.location.origin}/api/auth/callback` }
+  })
+  if (data?.url) window.location.href = data.url
+  else error.value = 'Failed to start Google sign-in'
 }
 
 async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
