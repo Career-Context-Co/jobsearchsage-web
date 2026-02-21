@@ -1,90 +1,85 @@
 /**
  * POST /api/career-id/profile
- * 
- * Creates a new profile for a user.
- * Only creates the profile shell - entities (experience, education, etc.)
- * are saved separately via their own endpoints.
+ *
+ * Creates a new career profile for the authenticated user.
+ * After creation, updates public.users.career_id_profile_id to link the profile.
  */
 
 import { serverSupabaseClient } from '#supabase/server'
 import { generatePrefixedId } from '@@/server/utils/id-generator'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
-import { 
-  handleDatabaseError, 
-  createValidationError,
-  ErrorCodes 
+import {
+  handleDatabaseError,
+  ErrorCodes
 } from '@@/server/utils/error-handler'
-import { isRequired, requiredFieldError } from '@@/server/utils/validation'
 import { transformProfile } from '@@/server/utils/career-id-transformer'
 
 const ROUTE_PATH = '/api/career-id/profile'
 
 export default eventHandler(async (event) => {
   const getElapsed = createTimer()
-  
-  logRequest('POST', ROUTE_PATH)
-  
-  // Get Supabase client
-  const supabase = await serverSupabaseClient(event)
-  
-  // Read request body
-  const body = await readBody(event)
-  
-  // Validate required fields
-  if (!isRequired(body.userId)) {
-    const error = createValidationError(requiredFieldError('userId'))
-    logError('POST', ROUTE_PATH, error, { field: 'userId' })
-    throw error
-  }
-  
-  // Generate prefixed ID for the profile
-  const profileId = generatePrefixedId('prof')
-  
-  logRequest('POST', ROUTE_PATH, { userId: body.userId, profileId })
 
-  // Insert profile into database
+  logRequest('POST', ROUTE_PATH)
+
+  const supabase = await serverSupabaseClient(event)
+
+  // Verify authentication
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+  if (userError || !user) {
+    logError('POST', ROUTE_PATH, userError || new Error('Not authenticated'))
+    throw createError({
+      statusCode: 401,
+      data: {
+        success: false,
+        error: { code: ErrorCodes.UNAUTHORIZED, message: 'Not authenticated' }
+      }
+    })
+  }
+
+  // Generate prefixed ID for the profile
+  const profileId = generatePrefixedId('cid')
+
+  logRequest('POST', ROUTE_PATH, { userId: user.id, profileId })
+
+  // Insert profile into career_id schema - jss_user_id required for RLS
   const { data, error } = await supabase
     .schema('career_id')
     .from('profiles')
     .insert({
       id: profileId,
-      user_id: body.userId,
+      jss_user_id: user.id,
       completion_status: 'incomplete'
     })
     .select()
     .single()
-  
-  // Handle database errors
+
   if (error) {
-    logError('POST', ROUTE_PATH, error, { 
-      userId: body.userId, 
-      profileId,
-      dbCode: error.code 
-    })
-    throw handleDatabaseError(error, { 
-      operation: 'create', 
-      resource: 'profile' 
-    })
+    logError('POST', ROUTE_PATH, error, { userId: user.id, profileId, dbCode: error.code })
+    throw handleDatabaseError(error, { operation: 'create', resource: 'profile' })
   }
-  
-  // Set response status to 201 Created
+
+  // Link the new profile back to public.users
+  const { error: linkError } = await supabase
+    .from('users')
+    .update({ career_id_profile_id: profileId })
+    .eq('id', user.id)
+
+  if (linkError) {
+    logError('POST', ROUTE_PATH, linkError, { userId: user.id, profileId })
+    // Profile was created but link failed — log and continue (non-fatal for the response)
+  }
+
   setResponseStatus(event, 201)
-  
+
   const duration = getElapsed()
-  logSuccess('POST', ROUTE_PATH, duration, { 
-    profileId: data.id,
-    userId: data.user_id 
-  })
-  
-  // Transform snake_case to camelCase before returning
-  const transformedProfile = transformProfile(data)
-  
-  // Return created profile with structure matching API spec
+  logSuccess('POST', ROUTE_PATH, duration, { profileId: data.id, userId: user.id })
+
   return {
     success: true,
     message: 'Profile created successfully',
     data: {
-      profile: transformedProfile
+      profile: transformProfile(data)
     }
   }
 })

@@ -2,30 +2,41 @@ import { defineStore } from 'pinia'
 
 const STORAGE_KEY = 'jobsearchsage-account'
 
+interface User {
+  id: string
+  email: string
+  firstName?: string | null
+  lastName?: string | null
+  preferredName?: string | null
+}
+
 interface AccountState {
+  user: User | null
+  profileId: string | null
   features: {
     hero: boolean
     bulletEnhancement: boolean
   }
-  // Future: theme, locale, notifications, etc.
 }
 
 export const useAccountStore = defineStore('account', {
   state: (): AccountState => ({
+    user: null,
+    profileId: null,
     features: {
-      hero: false, // HERO framework features - disabled by default
-      bulletEnhancement: false // AI bullet enhancement - disabled by default
+      hero: false,
+      bulletEnhancement: false
     }
   }),
 
   getters: {
+    isAuthenticated: (state) => state.user !== null,
     isHeroEnabled: (state) => state.features.hero,
     isBulletEnhancementEnabled: (state) => state.features.bulletEnhancement
   },
 
   actions: {
     initializeAccount() {
-      // Load saved preferences from localStorage
       if (import.meta.client) {
         try {
           const saved = localStorage.getItem(STORAGE_KEY)
@@ -42,32 +53,159 @@ export const useAccountStore = defineStore('account', {
     },
 
     /**
-     * Enable or disable hero features (beta)
+     * Hydrate user state from existing Supabase session.
+     * Called on app init to restore authenticated state.
+     * Session endpoint now returns name fields and profileId from public.users.
      */
+    async hydrateFromSession() {
+      const supabaseUser = useSupabaseUser()
+
+      if (supabaseUser.value) {
+        try {
+          // Fetch full user data (name fields + profileId) from public.users in one request,
+          // then set the complete user object in a single assignment so components that
+          // initialize from the store see all fields at once — no watchers needed.
+          const response: any = await $fetch('/api/auth/session', { method: 'GET' })
+          this.user = {
+            id: supabaseUser.value.id,
+            email: supabaseUser.value.email || '',
+            firstName: response?.data?.firstName ?? null,
+            lastName: response?.data?.lastName ?? null,
+            preferredName: response?.data?.preferredName ?? null
+          }
+          this.profileId = response?.data?.profileId ?? null
+        } catch {
+          // Session endpoint throws 401 only if not authenticated — shouldn't happen here.
+          // Still set minimal user so isAuthenticated stays true.
+          this.user = {
+            id: supabaseUser.value.id,
+            email: supabaseUser.value.email || ''
+          }
+          this.profileId = null
+        }
+      }
+    },
+
+    /**
+     * Sign in with email and password.
+     */
+    async signIn(email: string, password: string) {
+      try {
+        const response: any = await $fetch('/api/auth/sign-in', {
+          method: 'POST',
+          body: { email, password }
+        })
+
+        if (!response.success || response.error) {
+          throw new Error(response.error?.message || 'Sign in failed')
+        }
+
+        if (response.data) {
+          const supabaseClient = useSupabaseClient()
+          await supabaseClient.auth.setSession({
+            access_token: response.data.session.accessToken,
+            refresh_token: response.data.session.refreshToken
+          })
+
+          // Store full user data returned from sign-in (includes name fields from public.users)
+          this.user = response.data.user
+          this.profileId = response.data.profileId
+        }
+
+        return response
+      } catch (error: any) {
+        const errorMessage = error?.data?.error?.message ||
+                           error?.data?.message ||
+                           error?.message ||
+                           'Sign in failed'
+        throw new Error(errorMessage)
+      }
+    },
+
+    /**
+     * Sign up with email, password, and optional name fields.
+     */
+    async signUp(
+      email: string,
+      password: string,
+      firstName?: string,
+      lastName?: string,
+      preferredName?: string
+    ) {
+      try {
+        const response: any = await $fetch('/api/auth/sign-up', {
+          method: 'POST',
+          body: { email, password, firstName, lastName, preferredName }
+        })
+
+        if (!response.success || response.error) {
+          throw new Error(response.error?.message || 'Sign up failed')
+        }
+
+        return response
+      } catch (error: any) {
+        const errorMessage = error?.data?.error?.message ||
+                           error?.data?.message ||
+                           error?.message ||
+                           'Sign up failed'
+        throw new Error(errorMessage)
+      }
+    },
+
+    /**
+     * Update the current user's name fields in public.users.
+     */
+    async updateUser(data: { firstName?: string; lastName?: string; preferredName?: string }) {
+      const response: any = await $fetch('/api/auth/user', {
+        method: 'PATCH',
+        body: data
+      })
+
+      if (this.user && response?.data) {
+        this.user.firstName = response.data.firstName ?? this.user.firstName
+        this.user.lastName = response.data.lastName ?? this.user.lastName
+        this.user.preferredName = response.data.preferredName ?? this.user.preferredName
+      }
+
+      return response
+    },
+
+    /**
+     * Sign out the current user.
+     */
+    async signOut() {
+      try {
+        await $fetch('/api/auth/sign-out', { method: 'POST' })
+
+        const supabaseClient = useSupabaseClient()
+        await supabaseClient.auth.signOut()
+
+        this.user = null
+        this.profileId = null
+
+        const careerIDStore = useCareerIDStore()
+        careerIDStore.resetProfile()
+      } catch (error) {
+        console.error('Sign out failed:', error)
+        throw error
+      }
+    },
+
     setHeroEnabled(enabled: boolean) {
       this.features.hero = enabled
       this._persist()
     },
 
-    /**
-     * Toggle hero features on/off
-     */
     toggleHeroFeatures() {
       this.features.hero = !this.features.hero
       this._persist()
     },
 
-    /**
-     * Enable or disable AI bullet enhancement
-     */
     setBulletEnhancementEnabled(enabled: boolean) {
       this.features.bulletEnhancement = enabled
       this._persist()
     },
 
-    /**
-     * Persist account preferences to localStorage
-     */
     _persist() {
       if (import.meta.client) {
         try {

@@ -27,11 +27,40 @@ const accentColor = ref('#0d9488')
 // Track which item is being edited (for preview highlighting)
 const editingItem = ref<{ type: string, id: string | number | null }>({ type: '', id: null })
 
+// Preview zoom
+const previewZoom = ref(85)
+const ZOOM_STEP = 10
+const ZOOM_MIN = 40
+const ZOOM_MAX = 100
+function zoomIn() { previewZoom.value = Math.min(ZOOM_MAX, previewZoom.value + ZOOM_STEP) }
+function zoomOut() { previewZoom.value = Math.max(ZOOM_MIN, previewZoom.value - ZOOM_STEP) }
+
+const router = useRouter()
+const showEmptyState = ref(false)
+
 // Load profile data on mount
 onMounted(async () => {
-  if (!careerIDStore.isProfileLoaded) {
-    await careerIDStore.fetchProfile(careerIDStore.profileId)
+  const profileId = careerIDStore.profileId
+
+  if (!profileId) {
+    showEmptyState.value = true
+    return
   }
+
+  if (!careerIDStore.isProfileLoaded) {
+    try {
+      await careerIDStore.fetchProfile(profileId)
+    } catch (err: any) {
+      showEmptyState.value = true
+      return
+    }
+  }
+
+  if (!careerIDStore.profile) {
+    showEmptyState.value = true
+    return
+  }
+
   initializeSelections()
 })
 
@@ -572,20 +601,42 @@ async function downloadResume() {
         </template>
       </UDashboardNavbar>
 
-      <UDashboardToolbar>
+      <UDashboardToolbar v-if="!showEmptyState">
         <template #default>
           <div class="flex items-center justify-between w-full">
             <div class="flex gap-1 -mx-1">
-              <UButton
-                v-for="tab in tabs"
-                :key="tab.value"
-                :label="tab.label"
-                :icon="tab.icon"
-                :color="activeTab === tab.value ? 'primary' : 'neutral'"
-                :variant="activeTab === tab.value ? 'subtle' : 'ghost'"
-                size="sm"
-                @click="activeTab = tab.value"
-              />
+              <!-- Mobile: Edit / Preview toggle (hidden on lg+) -->
+              <div class="flex lg:hidden gap-1">
+                <UButton
+                  label="Edit"
+                  icon="i-lucide-pencil"
+                  :color="mobilePanel === 'edit' ? 'primary' : 'neutral'"
+                  :variant="mobilePanel === 'edit' ? 'subtle' : 'ghost'"
+                  size="sm"
+                  @click="mobilePanel = 'edit'"
+                />
+                <UButton
+                  label="Preview"
+                  icon="i-lucide-eye"
+                  :color="mobilePanel === 'preview' ? 'primary' : 'neutral'"
+                  :variant="mobilePanel === 'preview' ? 'subtle' : 'ghost'"
+                  size="sm"
+                  @click="mobilePanel = 'preview'"
+                />
+              </div>
+              <!-- Desktop: Content / Design tabs (hidden below lg) -->
+              <div class="hidden lg:flex gap-1">
+                <UButton
+                  v-for="tab in tabs"
+                  :key="tab.value"
+                  :label="tab.label"
+                  :icon="tab.icon"
+                  :color="activeTab === tab.value ? 'primary' : 'neutral'"
+                  :variant="activeTab === tab.value ? 'subtle' : 'ghost'"
+                  size="sm"
+                  @click="activeTab = tab.value"
+                />
+              </div>
             </div>
             <div class="flex items-center gap-2">
               <USelectMenu
@@ -611,9 +662,61 @@ async function downloadResume() {
     </template>
 
     <template #body>
-      <div class="flex flex-col lg:flex-row h-full min-h-[calc(100vh-8rem)]">
+      <!-- Empty State - No Profile Found -->
+      <div v-if="showEmptyState" class="flex items-center justify-center p-8 min-h-[calc(100vh-8rem)]">
+        <UPageCard variant="subtle" class="max-w-md w-full">
+          <div class="flex flex-col items-center justify-center py-12 gap-4 text-center">
+            <UIcon name="i-lucide-file-text" class="w-12 h-12 text-muted" />
+            <div class="space-y-2">
+              <h3 class="text-xl font-semibold">No Profile Yet</h3>
+              <p class="text-muted text-base">
+                You need to complete your profile before generating a resume. Let's get started!
+              </p>
+            </div>
+            <div class="space-y-3 w-full pt-2">
+              <UButton
+                label="Start Onboarding"
+                icon="i-lucide-rocket"
+                size="lg"
+                color="primary"
+                block
+                @click="router.push('/profile/onboarding')"
+              />
+              <UButton
+                label="Go to Profile"
+                icon="i-lucide-user"
+                size="lg"
+                color="neutral"
+                variant="outline"
+                block
+                @click="router.push('/profile')"
+              />
+            </div>
+          </div>
+        </UPageCard>
+      </div>
+
+      <!-- Resume Builder -->
+      <div v-else class="flex flex-col lg:flex-row h-full min-h-[calc(100vh-8rem)]">
         <!-- Left Panel: Editor Controls (scrollable) -->
-        <div class="w-full lg:w-1/2 overflow-y-auto p-4 sm:p-6 lg:border-r lg:border-default">
+        <div
+          class="w-full lg:w-2/5 xl:w-[35%] 2xl:w-[30%] overflow-y-auto p-4 sm:p-6 lg:border-r lg:border-default"
+          :class="{ 'hidden lg:block': mobilePanel !== 'edit' }"
+        >
+          <!-- Mobile Content/Design sub-tabs (only visible below lg) -->
+          <div class="flex lg:hidden gap-1 mb-4 -mx-1">
+            <UButton
+              v-for="tab in tabs"
+              :key="tab.value"
+              :label="tab.label"
+              :icon="tab.icon"
+              :color="activeTab === tab.value ? 'primary' : 'neutral'"
+              :variant="activeTab === tab.value ? 'subtle' : 'ghost'"
+              size="sm"
+              @click="activeTab = tab.value"
+            />
+          </div>
+
           <!-- Content Tab -->
           <ResumeContentEditorForm
             v-if="activeTab === 'content'"
@@ -630,15 +733,50 @@ async function downloadResume() {
         </div>
 
         <!-- Right Panel: Live Preview (sticky) -->
-        <div class="w-full lg:w-1/2 lg:sticky lg:top-0 lg:h-[calc(100vh-8rem)] overflow-y-auto bg-elevated/50 p-4 sm:p-6">
-          <ResumePreview 
-            :accent-color="accentColor"
-            :contact-info="contactInfoForPreview"
-            :linked-in-username="linkedInUsername"
-            :job-title="careerIDStore.contactInfo?.jobTitle || ''"
-            :selected-content="previewData"
-            :editing-item="editingItem"
-          />
+        <div
+          class="w-full lg:w-3/5 xl:w-[65%] 2xl:w-[70%] lg:sticky lg:top-0 lg:h-[calc(100vh-8rem)] flex flex-col bg-elevated/50"
+          :class="{ 'hidden lg:flex': mobilePanel !== 'preview' }"
+        >
+          <!-- Zoom Controls -->
+          <div class="flex items-center justify-end gap-1 px-4 py-2 border-b border-default shrink-0">
+            <UButton
+              icon="i-lucide-zoom-out"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              :disabled="previewZoom <= ZOOM_MIN"
+              @click="zoomOut"
+            />
+            <span class="text-xs text-muted tabular-nums w-8 text-center">{{ previewZoom }}%</span>
+            <UButton
+              icon="i-lucide-zoom-in"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              :disabled="previewZoom >= ZOOM_MAX"
+              @click="zoomIn"
+            />
+          </div>
+          <!-- Preview Area -->
+          <div class="flex-1 overflow-auto p-4 sm:p-6">
+            <div
+              :style="{
+                transformOrigin: 'top center',
+                transform: `scale(${previewZoom / 100})`,
+                width: `${(100 / previewZoom) * 100}%`,
+                marginLeft: `${-((100 / previewZoom) - 1) * 50}%`
+              }"
+            >
+              <ResumePreview 
+                :accent-color="accentColor"
+                :contact-info="contactInfoForPreview"
+                :linked-in-username="linkedInUsername"
+                :job-title="careerIDStore.contactInfo?.jobTitle || ''"
+                :selected-content="previewData"
+                :editing-item="editingItem"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </template>
