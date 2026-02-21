@@ -1,4 +1,3 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
@@ -20,8 +19,8 @@ export default defineNuxtConfig({
     aiGatewayApiKey: process.env.NUXT_AI_GATEWAY_API_KEY,
     public: {
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || '',
-      appUrl: process.env.NUXT_PUBLIC_APP_URL || 'http://localhost:3000',
-      appRedirectUrl: process.env.NUXT_PUBLIC_APP_REDIRECT_URL || 'http://localhost:3000/api/auth/callback'
+      appUrl: process.env.NUXT_PUBLIC_APP_URL,
+      appRedirectUrl: process.env.NUXT_PUBLIC_APP_REDIRECT_URL 
     }
   },
   ssr: false,
