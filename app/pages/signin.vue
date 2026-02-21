@@ -146,9 +146,10 @@ const toggleMode = () => {
 
 async function handleGoogleSignIn() {
   error.value = null
+  const config = useRuntimeConfig()
   const { data } = await supabaseClient.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: `${window.location.origin}/api/auth/callback` }
+    options: { redirectTo: config.public.appRedirectUrl }
   })
   if (data?.url) window.location.href = data.url
   else error.value = 'Failed to start Google sign-in'

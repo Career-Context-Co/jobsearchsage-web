@@ -11,41 +11,58 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 
 onMounted(async () => {
+  const next = (route.query.next as string) || '/'
+
   try {
     const hashParams = new URLSearchParams(window.location.hash.substring(1))
-    const code = route.query.code as string
     const accessToken = hashParams.get('access_token')
     const refreshToken = hashParams.get('refresh_token')
-    const token = hashParams.get('access_token') || route.query.token
+    const isOAuth = route.query.from === 'oauth'
 
-    // OAuth callback: pass code string directly (PKCE verifier is in sessionStorage from signInWithOAuth)
+    // Hash tokens from our server OAuth callback
+    if (accessToken && refreshToken) {
+      const { data, error: sessionError } = await supabaseClient.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken
+      })
+      if (sessionError) throw sessionError
+      if (data.session) {
+        // Give reactive state time to propagate before navigating
+        await new Promise(resolve => setTimeout(resolve, 500))
+        await accountStore.hydrateFromSession()
+        return navigateTo(isOAuth ? next : '/signin?confirmed=true')
+      }
+    }
+
+    // Direct OAuth code (fallback if server callback not used)
+    const code = route.query.code as string
     if (code) {
       const { error: exchangeError } = await supabaseClient.auth.exchangeCodeForSession(code)
       if (exchangeError) throw exchangeError
+      await new Promise(resolve => setTimeout(resolve, 500))
       await accountStore.hydrateFromSession()
-      return navigateTo((route.query.next as string) || '/')
+      return navigateTo(next)
     }
 
-    // Hash tokens: from our OAuth callback (from=oauth) or email confirmation link
-    if (accessToken && refreshToken) {
-      const { error: sessionError } = await supabaseClient.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
-      if (sessionError) throw sessionError
-      await accountStore.hydrateFromSession()
-      const nextPath = route.query.from === 'oauth' ? ((route.query.next as string) || '/') : '/signin?confirmed=true'
-      return navigateTo(nextPath)
-    }
-
-    // Email confirmation with token in query
-    if (token) {
+    // Email confirmation token in query
+    const emailToken = route.query.token as string
+    if (emailToken) {
       const { error: exchangeError } = await supabaseClient.auth.exchangeCodeForSession(window.location.href)
       if (exchangeError) throw exchangeError
       return navigateTo('/signin?confirmed=true')
     }
 
-    throw new Error('No confirmation token found in URL')
-  } catch (err: any) {
-    console.error('Email confirmation error:', err)
-    error.value = err?.message || 'Failed to confirm email'
+    // No URL params — check if session already exists in cookies
+    const { data: { session } } = await supabaseClient.auth.getSession()
+    if (session) {
+      await accountStore.hydrateFromSession()
+      return navigateTo(next)
+    }
+
+    return navigateTo('/signin?error=no_session')
+  } catch (err: unknown) {
+    console.error('Confirmation error:', err)
+    error.value = (err instanceof Error ? err.message : null) || 'Failed to complete sign-in'
     loading.value = false
   }
 })

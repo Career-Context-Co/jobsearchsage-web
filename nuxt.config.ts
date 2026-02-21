@@ -17,7 +17,12 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
-    aiGatewayApiKey: process.env.NUXT_AI_GATEWAY_API_KEY
+    aiGatewayApiKey: process.env.NUXT_AI_GATEWAY_API_KEY,
+    public: {
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || '',
+      appUrl: process.env.NUXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      appRedirectUrl: process.env.NUXT_PUBLIC_APP_REDIRECT_URL || 'http://localhost:3000/api/auth/callback'
+    }
   },
   ssr: false,
   
