@@ -141,15 +141,16 @@ onMounted(async () => {
       collapsible
       resizable
       class="bg-elevated/25"
-      :ui="{ footer: 'lg:border-t lg:border-default' }"
+      :ui="{ header: 'lg:border-b lg:border-default mb-1', footer: 'lg:border-t lg:border-default' }"
     >
       <template #header="{ collapsed }">
-        <TeamsMenu :collapsed="collapsed" />
+        <div class="flex items-center gap-2 px-1 min-w-0">
+          <UIcon name="i-lucide-briefcase-business" class="size-5 shrink-0 text-primary" />
+          <span v-if="!collapsed" class="font-semibold text-md truncate">JobSearchSage</span>
+        </div>
       </template>
 
       <template #default="{ collapsed }">
-        <UDashboardSearchButton :collapsed="collapsed" class="bg-transparent ring-default" />
-
         <UNavigationMenu
           :collapsed="collapsed"
           :items="links[0]"
