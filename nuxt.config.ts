@@ -18,7 +18,6 @@ export default defineNuxtConfig({
   runtimeConfig: {
     aiGatewayApiKey: process.env.NUXT_AI_GATEWAY_API_KEY,
     public: {
-      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || '',
       appUrl: process.env.NUXT_PUBLIC_APP_URL,
       appRedirectUrl: process.env.NUXT_PUBLIC_APP_REDIRECT_URL 
     }

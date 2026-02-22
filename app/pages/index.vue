@@ -38,7 +38,7 @@ const nextSteps = computed(() => {
     description: 'Turn your profile into a polished resume. Customize content and design, then export to PDF or Word for applications.',
     to: '/docs/resumes',
     icon: 'i-lucide-file-text',
-    label: 'Go to resume'
+    label: 'Go to resumes'
   })
 
   steps.push({

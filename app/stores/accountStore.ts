@@ -193,21 +193,14 @@ export const useAccountStore = defineStore('account', {
      * Sign out the current user.
      */
     async signOut() {
-      try {
-        await $fetch('/api/auth/sign-out', { method: 'POST' })
+      const supabaseClient = useSupabaseClient()
+      await supabaseClient.auth.signOut()
 
-        const supabaseClient = useSupabaseClient()
-        await supabaseClient.auth.signOut()
+      this.user = null
+      this.profileId = null
 
-        this.user = null
-        this.profileId = null
-
-        const careerIDStore = useCareerIDStore()
-        careerIDStore.resetProfile()
-      } catch (error) {
-        console.error('Sign out failed:', error)
-        throw error
-      }
+      const careerIDStore = useCareerIDStore()
+      careerIDStore.resetProfile()
     },
 
     setHeroEnabled(enabled: boolean) {

@@ -8,7 +8,7 @@ The application SHALL provide a discoverable entry point for resume generation f
 - **WHEN** the user views their profile dashboard (`/profile`)
 - **THEN** the system SHALL display a prominent "Generate Resume" button in the primary action area
 - **AND** the button SHALL use the label "Generate Resume"
-- **AND** clicking the button SHALL navigate the user to `/resumes/generate`
+- **AND** clicking the button SHALL navigate the user to `/docs/resumes`
 
 #### Scenario: Hide Generate Resume button when profile is incomplete
 - **GIVEN** a user has no work experience and no education entries
@@ -16,29 +16,30 @@ The application SHALL provide a discoverable entry point for resume generation f
 - **THEN** the system SHALL NOT display the "Generate Resume" button
 
 ### Requirement: Resume Sidebar Navigation
-The application SHALL include a "Resume" entry in the sidebar navigation.
+The application SHALL include a "Docs" collapsible group in the sidebar navigation containing a "Resumes" child item.
 
-#### Scenario: Display Resume in sidebar
+#### Scenario: Display Docs group in sidebar
 - **WHEN** the user views any page with the default layout
-- **THEN** the sidebar SHALL display a "Resume" navigation item alongside Home, Profile, and Settings
-- **AND** clicking "Resume" SHALL navigate to `/resumes/generate`
+- **THEN** the sidebar SHALL display a "Docs" navigation group
+- **AND** the "Docs" group SHALL contain a "Resumes" child item linking to `/docs/resumes`
+- **AND** the sidebar SHALL NOT display a flat "Resume" link
 
 ### Requirement: Resume Generation Page Layout
-The application SHALL provide a split-pane resume generation interface at `/resumes/generate`.
+The application SHALL provide a split-pane resume generation interface at `/docs/resumes/[id]`.
 
 #### Scenario: Display resume generation page
-- **WHEN** the user navigates to `/resumes/generate`
+- **WHEN** the user navigates to `/docs/resumes/[id]`
 - **THEN** the system SHALL display a page using the default layout (sidebar visible)
-- **AND** the page SHALL have a title area with "Resume" and an "Export PDF" button to the far right
+- **AND** the page SHALL have a title area with the resume title and an "Export" button to the far right
 - **AND** the page SHALL display three tabs: "Content" (select what to include), "Editor" (edit selected content text), and "Designer" (styling)
 - **AND** the page SHALL display a split-pane layout with tab controls on the left and a live resume preview on the right
 - **AND** the "Content" tab SHALL be active by default
 
-#### Scenario: Load profile data into resume builder
-- **WHEN** the resume generation page loads
-- **THEN** the system SHALL read all profile data from the careerIDStore
-- **AND** all content sections (summary, experiences, education, skills, certifications) SHALL be pre-selected (checked)
-- **AND** the live preview SHALL render a complete resume with all profile content
+#### Scenario: Load resume data from saved snapshot
+- **WHEN** the resume generation page loads at `/docs/resumes/[id]`
+- **THEN** the system SHALL load the `content` and `design_settings` from the `docs.resumes` record
+- **AND** the editor SHALL initialize with the saved content selections and design settings
+- **AND** the live preview SHALL render the resume from the saved snapshot
 
 ### Requirement: Content Editor Tab
 The application SHALL provide a Content Editor tab with collapsible sections and granular checkbox selection.
@@ -185,15 +186,21 @@ The application SHALL allow users to export the current resume as a PDF file.
 - **AND** the system SHALL display a message indicating content must be selected
 
 ### Requirement: Session-Only State
-The application SHALL manage resume generation state within the current session only.
+The application SHALL manage resume generation state within the current session only, with persistence to the database on save.
 
 #### Scenario: State preserved during tab switching
 - **GIVEN** the user has made content selections on the Content Editor tab
 - **WHEN** the user switches to the Designer tab and back to Content Editor
 - **THEN** all content selections SHALL be preserved
 
-#### Scenario: State cleared on navigation away
-- **GIVEN** the user has made content and style selections
-- **WHEN** the user navigates away from `/resumes/generate` (via sidebar or browser)
-- **THEN** all selections SHALL be discarded
-- **AND** returning to `/resumes/generate` SHALL start fresh with all content pre-selected
+#### Scenario: State persisted on save
+- **GIVEN** the user has made content and style selections at `/docs/resumes/[id]`
+- **WHEN** the user saves the resume
+- **THEN** the system SHALL persist the current editable state to `docs.resumes.content` and `docs.resumes.design_settings`
+- **AND** the previous snapshot SHALL be replaced
+
+#### Scenario: State cleared on navigation away without saving
+- **GIVEN** the user has made unsaved changes at `/docs/resumes/[id]`
+- **WHEN** the user navigates away without saving
+- **THEN** unsaved changes SHALL be discarded
+- **AND** returning to `/docs/resumes/[id]` SHALL load the last saved snapshot
