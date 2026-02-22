@@ -34,14 +34,7 @@ const resumeGenerationEnabled = ref(false)
     />
 
     <UPageCard variant="subtle" :ui="{ container: 'divide-y divide-default' }">
-      <UFormField
-        name="bulletEnhancement"
-        label="AI Bullet Enhancement"
-        description="Use AI to enhance your resume bullet points with more impactful, metrics-driven language that highlights your achievements."
-        class="flex items-center justify-between not-last:pb-4 gap-2"
-      >
-        <USwitch v-model="bulletEnhancementEnabled" />
-      </UFormField>
+      <p class="text-sm text-muted">No features available yet. Stay tuned for updates! 😄👍</p>
     </UPageCard>
   </div>
 
@@ -55,6 +48,15 @@ const resumeGenerationEnabled = ref(false)
     />
 
     <UPageCard variant="subtle" :ui="{ container: 'divide-y divide-default' }">
+      <UFormField
+        name="bulletEnhancement"
+        label="AI Bullet Enhancement"
+        description="Use AI to enhance your resume bullet points with more impactful, metrics-driven language that highlights your achievements."
+        class="flex items-center justify-between not-last:pb-4 gap-2"
+      >
+        <USwitch v-model="bulletEnhancementEnabled" disabled/>
+      </UFormField>
+
       <UFormField
         name="hero"
         label="HERO Framework"
