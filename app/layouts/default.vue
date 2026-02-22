@@ -72,12 +72,24 @@ const links = computed(() => [[
   children: profileChildren.value
 },
 {
-  label: 'Resume',
+  label: 'Docs',
   icon: 'i-lucide-file-text',
-  to: '/resumes/generate',
-  onSelect: () => {
-    open.value = false
-  }
+  to: '/docs/resumes',
+  type: 'trigger',
+  defaultOpen: false,
+  children: [{
+    label: 'Resumes',
+    to: '/docs/resumes',
+    onSelect: () => {
+      open.value = false
+    }
+  }, {
+    label: 'Cover Letters',
+    to: '/docs/cover-letters',
+    onSelect: () => {
+      open.value = false
+    }
+  }]
 }],
 [
 // {

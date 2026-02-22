@@ -36,7 +36,7 @@ const nextSteps = computed(() => {
   steps.push({
     title: 'Build your resume',
     description: 'Turn your profile into a polished resume. Customize content and design, then export to PDF or Word for applications.',
-    to: '/resumes/generate',
+    to: '/docs/resumes',
     icon: 'i-lucide-file-text',
     label: 'Go to resume'
   })
