@@ -1,61 +1,43 @@
 /**
  * GET /api/career-id/profile/:profileId/skills
- * 
- * Fetches all skills for a profile.
- * Returns name for display (what user typed).
- * skill_id may be null if not yet matched to reference catalog by background job.
+ *
+ * Fetches all skills for a profile from the JSONB skills column.
+ * Returns the skills array directly — items are already in camelCase.
  */
 
 import { serverSupabaseClient } from '#supabase/server'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { handleDatabaseError } from '@@/server/utils/error-handler'
-import { transformProfileSkill } from '@@/server/utils/career-id-transformer'
 
 const ROUTE_PATH = '/api/career-id/profile/:profileId/skills'
 
 export default eventHandler(async (event) => {
   const getElapsed = createTimer()
   const supabase = await serverSupabaseClient(event)
-  
-  // Get profile_id from URL path parameter
+
   const profileId = getRouterParam(event, 'profileId')
-  
+
   logRequest('GET', ROUTE_PATH, { profileId })
-  
-  // Fetch profile skills
-  // name is always populated (what user typed)
-  // skill_id may be null if not yet matched by background job
+
   const { data, error } = await supabase
     .schema('career_id')
     .from('profile_skills')
-    .select(`
-      id,
-      profile_id,
-      skill_id,
-      name,
-      group,
-      proficiency_level,
-      years_experience,
-      display_order,
-      created_at,
-      updated_at
-    `)
+    .select('skills')
     .eq('profile_id', profileId)
-    .order('display_order', { ascending: true })
-  
+    .maybeSingle()
+
   if (error) {
     logError('GET', ROUTE_PATH, error, { profileId, dbCode: error.code })
     throw handleDatabaseError(error, { operation: 'fetch', resource: 'skills' })
   }
-  
+
+  const skills = data?.skills || []
+
   const duration = getElapsed()
-  logSuccess('GET', ROUTE_PATH, duration, { profileId, count: data?.length ?? 0 })
-  
-  // Transform snake_case to camelCase before returning
-  const transformedData = (data || []).map(transformProfileSkill)
-  
+  logSuccess('GET', ROUTE_PATH, duration, { profileId, count: skills.length })
+
   return {
     success: true,
-    data: transformedData
+    data: skills
   }
 })

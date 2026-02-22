@@ -10,11 +10,9 @@ import type {
   Experience,
   Education,
   Certification,
-  ProfileSkill,
   ProfileSocialLink,
   ContactInfo,
   ProfileResponse,
-  Skill,
 } from '@@/shared/types/careerId'
 
 /**
@@ -98,36 +96,6 @@ export function transformCertification(data: any): Certification {
 }   
 
 /**
- * Transform Skill from snake_case to camelCase
- */
-export function transformSkill(data: any): Skill {
-  return {
-    id: data.id,
-    name: data.name,
-    group: data.group,
-  }
-}
-
-/**
- * Transform ProfileSkill from snake_case to camelCase
- */
-export function transformProfileSkill(data: any): ProfileSkill {
-  return {
-    id: data.id,
-    profileId: data.profile_id,
-    skillId: data.skill_id,
-    name: data.name,
-    group: data.group || null,
-    proficiencyLevel: data.proficiency_level,
-    yearsExperience: data.years_experience,
-    displayOrder: data.display_order,
-    skill: data.skill ? transformSkill(data.skill) : { id: 0, name: data.name, category: '' },
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
-  }
-}
-
-/**
  * Transform ProfileSocialLink from snake_case to camelCase
  */
 export function transformProfileSocialLink(data: any): ProfileSocialLink {
@@ -177,7 +145,7 @@ export function transformProfileResponse(data: any): ProfileResponse {
     experience: (data.experience || []).map(transformExperience),
     education: (data.education || []).map(transformEducation),
     certifications: (data.certifications || []).map(transformCertification),
-    profileSkills: (data.profile_skills || []).map(transformProfileSkill),
+    profileSkills: data.profile_skills || [],
     profileSocialLinks: (data.profile_social_links || []).map(transformProfileSocialLink),
     contactInfo: data.contact_info ? transformContactInfo(data.contact_info) : null,
   }

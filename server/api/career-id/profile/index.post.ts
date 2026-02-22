@@ -37,6 +37,30 @@ export default eventHandler(async (event) => {
     })
   }
 
+  // Guard: return existing profile if one already exists for this user
+  const { data: existing } = await (supabase as any)
+    .schema('career_id')
+    .from('profiles')
+    .select('*')
+    .eq('jss_user_id', user.id)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (existing) {
+    // Ensure public.users is linked (may be null for older accounts)
+    await supabase.from('users').update({ career_id_profile_id: existing.id }).eq('id', user.id)
+
+    const duration = getElapsed()
+    logSuccess('POST', ROUTE_PATH, duration, { profileId: existing.id, userId: user.id, reused: true })
+
+    return {
+      success: true,
+      message: 'Profile already exists',
+      data: { profile: transformProfile(existing) }
+    }
+  }
+
   // Generate prefixed ID for the profile
   const profileId = generatePrefixedId('cid')
 

@@ -4,6 +4,7 @@ import type { ContactInfo } from '#shared/types/careerId'
 import { validateEmail, validatePhone, validateRequired, validateUrls, validateLength, validateUrl } from '~/utils/validation'
 
 const careerIDStore = useCareerIDStore()
+const accountStore = useAccountStore()
 const toast = useToast()
 const router = useRouter()
 
@@ -476,7 +477,7 @@ const showEmptyState = ref(false)
 
 // Fetch profile data on mount
 onMounted(async () => {
-  const profileId = careerIDStore.profileId
+  const profileId = careerIDStore.profileId || accountStore.profileId
 
   // If no profileId is set, show empty state immediately
   if (!profileId) {

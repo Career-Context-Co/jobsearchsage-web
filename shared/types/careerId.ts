@@ -45,8 +45,8 @@ export interface Education {
   degreeType: string;
   areaOfStudy: string;
   institution: string;
-  startDate: string;
-  endDate: string;
+  startDate?: string | null;
+  endDate?: string | null;
   completed: boolean;
   url?: string | null;
   creditHours?: number | null;
@@ -79,20 +79,15 @@ export interface Skill {
   category: string;
 }
 
-// Profile Skill Interface (with metadata and nested skill)
+// Profile Skill Interface (JSONB document — one row per profile in DB)
 export interface ProfileSkill {
-  id: number;
-  profileId: string;
-  skillId: number | null;
+  skillId?: number | null;
   name: string;
   group?: string | null;
   proficiencyLevel: 'beginner' | 'intermediate' | 'advanced' | 'expert';
   yearsExperience?: number | null;
   displayOrder: number;
   isExtracted?: boolean;
-  skill: Skill;
-  createdAt: string;
-  updatedAt: string;
 }
 
 // Profile Social Link Interface

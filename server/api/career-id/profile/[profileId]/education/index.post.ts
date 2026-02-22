@@ -38,18 +38,12 @@ export default eventHandler(async (event) => {
     validationErrors.push(requiredFieldError('institution'))
   }
   
-  if (!isRequired(body.startDate)) {
-    validationErrors.push(requiredFieldError('startDate'))
-  }
-  
-  if (!isRequired(body.endDate)) {
-    validationErrors.push(requiredFieldError('endDate'))
-  }
-  
-  // Validation: Date range (end_date must be after start_date)
-  const dateRangeError = validateDateRange(body.startDate, body.endDate)
-  if (dateRangeError) {
-    validationErrors.push(dateRangeError)
+  // Validate date range only when both dates are provided
+  if (body.startDate && body.endDate) {
+    const dateRangeError = validateDateRange(body.startDate, body.endDate)
+    if (dateRangeError) {
+      validationErrors.push(dateRangeError)
+    }
   }
   
   if (validationErrors.length > 0) {

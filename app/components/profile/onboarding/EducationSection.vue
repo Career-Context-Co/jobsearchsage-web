@@ -50,7 +50,9 @@ const props = defineProps<{
 // Education data sorted by end date (most recent first)
 const educationList = computed(() => {
   return [...props.education].sort((a, b) => {
-    return new Date(b.endDate).getTime() - new Date(a.endDate).getTime()
+    const dateA = a.endDate ? new Date(a.endDate).getTime() : 0
+    const dateB = b.endDate ? new Date(b.endDate).getTime() : 0
+    return dateB - dateA
   })
 })
 
@@ -176,9 +178,6 @@ function validateForm(): boolean {
   const institutionError = validateRequired(formData.value.institution, 'Institution')
   if (institutionError) errors.institution = institutionError
   
-  // Validate start date
-  const startDateError = validateMonthYear(formData.value.startDate, true)
-  if (startDateError) errors.startDate = startDateError
   
   // Validate end date - only required if degree is completed
   if (formData.value.completed) {
@@ -241,10 +240,8 @@ async function saveEducation(): Promise<boolean> {
       degreeType: formData.value.degreeType!,
       areaOfStudy: formData.value.areaOfStudy!,
       institution: formData.value.institution!,
-      startDate: formatDateForAPI(formData.value.startDate)!,
-      endDate: formData.value.completed 
-        ? formatDateForAPI(formData.value.endDate)! 
-        : formatDateForAPI(formData.value.endDate),
+      startDate: formatDateForAPI(formData.value.startDate) || undefined,
+      endDate: formatDateForAPI(formData.value.endDate) || undefined,
       completed: formData.value.completed || false,
       url: formData.value.url || undefined,
       creditHours: formData.value.creditHours ? parseInt(formData.value.creditHours) : undefined,
@@ -467,7 +464,7 @@ defineExpose({
         <!-- Dates -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium mb-1">Start Date <span class="text-error">*</span></label>
+            <label class="block text-sm font-medium mb-1">Start Date <span class="text-muted text-xs">(optional)</span></label>
             <UInput
               v-model="formData.startDate"
               v-maska="'##/####'"
@@ -741,7 +738,7 @@ defineExpose({
             <!-- Dates -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium mb-1">Start Date <span class="text-error">*</span></label>
+                <label class="block text-sm font-medium mb-1">Start Date <span class="text-muted text-xs">(optional)</span></label>
                 <UInput
                   v-model="formData.startDate"
                   v-maska="'##/####'"

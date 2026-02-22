@@ -7,7 +7,6 @@ const toast = useToast()
 
 // Skill group interface (simplified for onboarding - just names, no proficiency/years)
 interface SkillItem {
-  id?: number
   name: string
   isExtracted?: boolean
 }
@@ -37,7 +36,6 @@ function transformSkillsToGroups(skills: ProfileSkill[]): SkillGroupFormData[] {
       grouped.set(categoryKey, [])
     }
     grouped.get(categoryKey)!.push({
-      id: skill.id,
       name: skill.name,
       isExtracted: skill.isExtracted
     })
@@ -204,7 +202,30 @@ function validateGroup(group: SkillGroupFormData): boolean {
   return Object.keys(errors).length === 0
 }
 
-// Save group
+// Build full flat skills array from all current groups (for atomic PUT)
+function buildAllSkills() {
+  let displayCounter = 0
+  return skillGroups.value.flatMap((g) => {
+    const categoryValue = g.category === 'No Group' ? null : g.category
+    return g.skills.map((skill) => {
+      // Preserve skillId if background job has already matched this skill
+      const stored = careerIDStore.profileSkills.find(
+        s => s.name.toLowerCase() === skill.name.toLowerCase() &&
+             (s.group || null) === categoryValue
+      )
+      return {
+        skillId: stored?.skillId ?? null,
+        name: skill.name,
+        group: categoryValue,
+        proficiencyLevel: 'intermediate' as const,
+        yearsExperience: null,
+        displayOrder: ++displayCounter
+      }
+    })
+  })
+}
+
+// Save group — flattens ALL groups into one atomic PUT
 async function saveGroup(): Promise<boolean> {
   const groupIndex = editingGroupIndex.value
   if (groupIndex === null) return false
@@ -219,12 +240,12 @@ async function saveGroup(): Promise<boolean> {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
-    return false // Return false to indicate validation failure
+    return false
   }
   
   // Check for duplicate skills across ALL groups
   const allExistingSkills = skillGroups.value
-    .filter((g, idx) => idx !== groupIndex) // Exclude current group
+    .filter((_, idx) => idx !== groupIndex)
     .flatMap(g => g.skills.map(s => s.name.toLowerCase()))
   
   const duplicateSkills = group.skills.filter(skill => 
@@ -234,79 +255,17 @@ async function saveGroup(): Promise<boolean> {
   if (duplicateSkills.length > 0) {
     toast.add({
       title: 'Duplicate Skills',
-      description: `The following skills already exist in other groups: ${duplicateSkills.map(s => s.name).join(', ')}. Please remove them or choose different skills.`,
+      description: `The following skills already exist in other groups: ${duplicateSkills.map(s => s.name).join(', ')}`,
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
-    return false // Validation error
+    return false
   }
   
   isSavingGroup.value = true
   
   try {
-    const categoryName = group.category === 'No Group' ? null : group.category
-    
-    // Separate skills into: to add, to update, to delete
-    const skillsToAdd: any[] = []
-    const skillsToUpdate: any[] = []
-    
-    // Find original skills in this group for comparison
-    const originalGroup = props.skillGroups.filter(s => 
-      (s.group || 'No Group') === group.originalCategory
-    )
-    
-    // Determine which skills to add or update
-    group.skills.forEach(skill => {
-      if (skill.id) {
-        // Existing skill - update it (even if just to ensure it's in correct group)
-        skillsToUpdate.push({
-          id: skill.id,
-          name: skill.name,
-          group: categoryName
-        })
-      } else {
-        // New skill - add it
-        skillsToAdd.push({
-          name: skill.name,
-          group: categoryName,
-          proficiencyLevel: 'intermediate', // Default for onboarding
-          yearsExperience: 1 // Default for onboarding
-        })
-      }
-    })
-    
-    // Find skills that were removed
-    const skillsToDelete = originalGroup
-      .filter(originalSkill => 
-        !group.skills.some(s => s.id === originalSkill.id)
-      )
-      .map(s => s.id)
-      .filter((id): id is number => id !== undefined)
-    
-    // Execute API calls
-    if (skillsToAdd.length > 0) {
-      await careerIDStore.addSkills(skillsToAdd)
-    }
-    
-    if (skillsToUpdate.length > 0) {
-      await careerIDStore.updateSkills(skillsToUpdate)
-    }
-    
-    if (skillsToDelete.length > 0) {
-      await careerIDStore.deleteSkills(skillsToDelete)
-    }
-    
-    // Remove extracted skills from this group after successful save
-    const extractedSkills = group.skills.filter(s => !s.id && s.isExtracted)
-    if (extractedSkills.length > 0) {
-      careerIDStore.profileSkills = careerIDStore.profileSkills.filter(skill => {
-        const matchesGroup = (skill.group || 'No Group') === group.originalCategory
-        const isExtractedInGroup = extractedSkills.some(es => 
-          es.name.toLowerCase() === skill.name.toLowerCase() && skill.isExtracted
-        )
-        return !(matchesGroup && isExtractedInGroup)
-      })
-    }
+    await careerIDStore.saveSkills(buildAllSkills())
     
     toast.add({
       title: 'Success',
@@ -317,7 +276,7 @@ async function saveGroup(): Promise<boolean> {
     
     editingGroupIndex.value = null
     isAddingGroup.value = false
-    return true // Success
+    return true
   } catch (err: any) {
     toast.add({
       title: 'Error',
@@ -325,13 +284,13 @@ async function saveGroup(): Promise<boolean> {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
-    return false // API error
+    return false
   } finally {
     isSavingGroup.value = false
   }
 }
 
-// Delete entire skill group
+// Delete entire skill group — removes locally then saves remaining
 async function deleteGroup(groupIndex: number) {
   const group = skillGroups.value[groupIndex]
   if (!group) return
@@ -340,27 +299,10 @@ async function deleteGroup(groupIndex: number) {
     return
   }
   
+  skillGroups.value.splice(groupIndex, 1)
+  
   try {
-    // Find all skills in this group that have IDs (saved in DB)
-    const skillsToDelete = group.skills
-      .map(s => s.id)
-      .filter((id): id is number => id !== undefined)
-    
-    if (skillsToDelete.length > 0) {
-      await careerIDStore.deleteSkills(skillsToDelete)
-    }
-    
-    // Remove extracted skills without IDs from store
-    const extractedSkills = group.skills.filter(s => !s.id && s.isExtracted)
-    if (extractedSkills.length > 0) {
-      careerIDStore.profileSkills = careerIDStore.profileSkills.filter(skill => {
-        const matchesGroup = (skill.group || 'No Group') === group.category
-        const isExtractedInGroup = extractedSkills.some(es => 
-          es.name.toLowerCase() === skill.name.toLowerCase() && skill.isExtracted
-        )
-        return !(matchesGroup && isExtractedInGroup)
-      })
-    }
+    await careerIDStore.saveSkills(buildAllSkills())
     
     toast.add({
       title: 'Success',
@@ -369,6 +311,8 @@ async function deleteGroup(groupIndex: number) {
       color: 'success'
     })
   } catch (err: any) {
+    // Restore the group on failure
+    skillGroups.value.splice(groupIndex, 0, group)
     toast.add({
       title: 'Error',
       description: err?.message || 'Failed to delete skill group',
@@ -386,32 +330,20 @@ async function triggerSave() {
   }
 }
 
-// Save all unsaved items (skill groups with skills without IDs)
+// Save all current skill data as one atomic PUT
 async function saveAllUnsaved(): Promise<boolean> {
-  // Find groups that have skills without IDs
-  const groupsWithUnsavedSkills = skillGroups.value.filter(group => 
-    group.skills.some(skill => !skill.id)
-  )
+  const allSkills = buildAllSkills()
   
-  if (groupsWithUnsavedSkills.length === 0) {
-    return true // Nothing to save
+  if (allSkills.length === 0) {
+    return true
   }
   
-  for (const group of groupsWithUnsavedSkills) {
-    // Start editing this group to trigger validation
-    const index = skillGroups.value.indexOf(group)
-    startEditingGroup(index)
-    
-    // Try to save it
-    const success = await saveGroup()
-    
-    if (!success) {
-      // Validation or save failed - keep the form open with errors visible
-      return false
-    }
+  try {
+    await careerIDStore.saveSkills(allSkills)
+    return true
+  } catch {
+    return false
   }
-  
-  return true // All saved successfully
 }
 
 function revertChanges() {

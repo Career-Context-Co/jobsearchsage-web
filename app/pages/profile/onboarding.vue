@@ -52,6 +52,7 @@ const steps: StepperItem[] = [
 ]
 
 const careerIDStore = useCareerIDStore()
+const accountStore = useAccountStore()
 const toast = useToast()
 const router = useRouter()
 
@@ -376,124 +377,6 @@ async function handleDeleteCertification(id: number) {
   }
 }
 
-// 5.15.7 Event handlers for Skills and Certifications sections
-// NOTE: These handlers will be simplified once new sections handle their own API calls directly
-async function handleSaveSkillGroup(index: number, groupData: any) {
-  try {
-    const originalGroupName = groupData.originalGroup
-    
-    // Get existing skills in the ORIGINAL group (before any name change)
-    const existingSkillsInGroup = careerIDStore.profileSkills.filter(
-      skill => skill.group === originalGroupName
-    )
-    
-    const existingIds = new Set(existingSkillsInGroup.map(s => s.id))
-    const currentIds = new Set(groupData.skills.filter((s: any) => s.id).map((s: any) => s.id))
-    
-    // 1. Handle group name change - update all existing skills in this group
-    if (groupData.group !== originalGroupName) {
-      const skillsToUpdateGroup = existingSkillsInGroup.map(skill => ({
-        id: skill.id,
-        group: groupData.group
-      }))
-      
-      if (skillsToUpdateGroup.length > 0) {
-        await careerIDStore.updateSkills(skillsToUpdateGroup)
-      }
-    }
-    
-    // 2. Find skills to add (no id)
-    const skillsToAdd = groupData.skills
-      .filter((skill: any) => !skill.id)
-      .map((skill: any) => ({
-        name: skill.name,
-        group: groupData.group,
-        proficiencyLevel: 'intermediate' as const,
-        yearsExperience: 2,
-        displayOrder: 0
-      }))
-    
-    if (skillsToAdd.length > 0) {
-      await careerIDStore.addSkills(skillsToAdd)
-    }
-    
-    // 3. Find skills to update (has id, name might have changed)
-    const skillsToUpdate = groupData.skills
-      .filter((skill: any) => skill.id)
-      .map((skill: any) => {
-        const existing = existingSkillsInGroup.find(s => s.id === skill.id)
-        if (existing && existing.name !== skill.name) {
-          return { id: skill.id, name: skill.name, group: groupData.group }
-        }
-        return null
-      })
-      .filter(Boolean)
-    
-    if (skillsToUpdate.length > 0) {
-      await careerIDStore.updateSkills(skillsToUpdate)
-    }
-    
-    // 4. Find skills to delete (in store but not in current group)
-    const skillsToDelete = existingSkillsInGroup
-      .filter(existing => !currentIds.has(existing.id))
-      .map(s => s.id)
-    
-    if (skillsToDelete.length > 0) {
-      await careerIDStore.deleteSkills(skillsToDelete)
-    }
-    
-    toast.add({
-      title: 'Saved',
-      description: 'Skill group saved successfully',
-      color: 'success'
-    })
-  } catch (error: any) {
-    console.error('Failed to save skill group:', error)
-    
-    toast.add({
-      title: 'Save Failed',
-      description: error?.data?.error?.message || 'Failed to save skill group',
-      color: 'error'
-    })
-    
-    // Note: New sections will handle their own reverts
-  }
-}
-
-async function handleDeleteSkillGroup(groupValue: string | null) {
-  try {
-    // Get all skills in this group
-    const skillsInGroup = careerIDStore.profileSkills.filter(
-      skill => skill.group === groupValue
-    )
-    
-    if (skillsInGroup.length === 0) return
-    
-    // Move all skills to null group
-    const skillsToUpdate = skillsInGroup.map(skill => ({
-      id: skill.id,
-      group: null
-    }))
-    
-    await careerIDStore.updateSkills(skillsToUpdate)
-    
-    toast.add({
-      title: 'Deleted',
-      description: 'Skill group deleted successfully',
-      color: 'success'
-    })
-  } catch (error: any) {
-    console.error('Failed to delete skill group:', error)
-    
-    toast.add({
-      title: 'Delete Failed',
-      description: error?.data?.error?.message || 'Failed to delete skill group',
-      color: 'error'
-    })
-    
-    // Note: New sections will handle their own reverts
-  }
-}
 
 // Handle skip or successful upload from ResumeUploadSection
 function handleUploadComplete(extracted: boolean) {
@@ -623,51 +506,24 @@ async function completeProfile() {
   }
 }
 
-// Fetch or create profile on mount
+// app.vue loads the profile for authenticated users before any page renders.
+// Here we only need to create a profile if none was found (new user).
 onMounted(async () => {
-  try {
-    const profileId = careerIDStore.profileId
+  if (careerIDStore.profile) return
 
-    if (profileId && !careerIDStore.profile) {
-      // Has profileId but not loaded - try to fetch it
-      try {
-        await careerIDStore.fetchProfile(profileId)
-        console.log('Profile loaded successfully')
-      } catch (error: any) {
-        const is404 = error?.status === 404 || error?.statusCode === 404 || 
-                      error?.message?.includes('not found')
-        
-        if (is404) {
-          // Profile doesn't exist - create it
-          console.log('Profile not found, creating new profile...')
-          await careerIDStore.createProfile()
-          toast.add({
-            title: 'Welcome!',
-            description: 'Your profile has been initialized',
-            icon: 'i-lucide-sparkles',
-            color: 'success'
-          })
-        } else {
-          throw error
-        }
-      }
-    } else if (!profileId && !careerIDStore.profile) {
-      // No profileId and no profile - create new profile
-      console.log('No profile found, creating new profile...')
-      await careerIDStore.createProfile()
-      toast.add({
-        title: 'Welcome!',
-        description: 'Your profile has been initialized',
-        icon: 'i-lucide-sparkles',
-        color: 'success'
-      })
-    }
-    // If profile already loaded, do nothing
+  try {
+    await careerIDStore.createProfile()
+    toast.add({
+      title: 'Welcome!',
+      description: 'Your profile has been initialized',
+      icon: 'i-lucide-sparkles',
+      color: 'success'
+    })
   } catch (error: any) {
-    console.error('Failed to initialize profile:', error)
+    console.error('Failed to create profile:', error)
     toast.add({
       title: 'Error',
-      description: 'Failed to initialize your profile. Please refresh the page.',
+      description: error?.data?.error?.message || 'Failed to create your profile. Please refresh the page.',
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })

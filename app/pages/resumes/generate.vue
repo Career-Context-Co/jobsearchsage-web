@@ -158,9 +158,9 @@ const profileData = computed(() => ({
     endDate: edu.endDate
   })),
   skills: careerIDStore.profileSkills.map(skill => ({
-    id: skill.id,
+    id: skill.name, // name is unique per profile, used as stable selection key
     name: skill.name,
-    group: skill.group || 'Skills' // Default group name if none specified
+    group: skill.group || 'Skills'
   })),
   certifications: careerIDStore.certifications.map(cert => ({
     id: cert.id,
@@ -270,7 +270,7 @@ function initializeEditableData() {
     })),
     skills: profileData.value.skills.map(skill => ({
       ...skill,
-      selected: selectedSkills.value.has(String(skill.id))
+      selected: selectedSkills.value.has(skill.id)
     })),
     certifications: profileData.value.certifications.map(cert => ({
       ...cert,
@@ -345,7 +345,7 @@ function syncSelectionsToEditableData() {
   // Sync skills
   const newSkills: EditableSkill[] = []
   for (const skill of profileData.value.skills) {
-    const isSelected = selectedSkills.value.has(String(skill.id))
+    const isSelected = selectedSkills.value.has(skill.id)
     if (!isSelected) continue
     
     const existing = editableData.value.skills.find(s => s.id === skill.id)
@@ -401,7 +401,7 @@ function initializeSelections() {
   }
   if (profileData.value.skills.length > 0) {
     skillsEnabled.value = true
-    profileData.value.skills.forEach(skill => selectedSkills.value.add(String(skill.id)))
+    profileData.value.skills.forEach(skill => selectedSkills.value.add(skill.id))
   }
   if (profileData.value.certifications.length > 0) {
     certificationsEnabled.value = true
@@ -441,7 +441,7 @@ function toggleSection(section: 'summary' | 'workExperience' | 'education' | 'sk
     case 'skills':
       skillsEnabled.value = !skillsEnabled.value
       if (skillsEnabled.value) {
-        profileData.value.skills.forEach(skill => selectedSkills.value.add(String(skill.id)))
+        profileData.value.skills.forEach(skill => selectedSkills.value.add(skill.id))
       } else {
         selectedSkills.value.clear()
       }
@@ -511,7 +511,7 @@ const previewData = computed(() => editableData.value)
 
 // Group skills by category for the editor
 const groupedProfileSkills = computed(() => {
-  const groups: Record<string, Array<{ id: string | number, name: string }>> = {}
+  const groups: Record<string, Array<{ id: string, name: string }>> = {}
   
   profileData.value.skills.forEach(skill => {
     const groupName = skill.group || 'Skills'
@@ -531,14 +531,14 @@ const groupedProfileSkills = computed(() => {
 function isCategoryFullySelected(groupName: string): boolean {
   const category = groupedProfileSkills.value.find(g => g.group === groupName)
   if (!category) return false
-  return category.skills.every(skill => selectedSkills.value.has(String(skill.id)))
+  return category.skills.every(skill => selectedSkills.value.has(skill.id))
 }
 
 // Check if some (but not all) skills in a category are selected
 function isCategoryPartiallySelected(groupName: string): boolean {
   const category = groupedProfileSkills.value.find(g => g.group === groupName)
   if (!category) return false
-  const selectedCount = category.skills.filter(skill => selectedSkills.value.has(String(skill.id))).length
+  const selectedCount = category.skills.filter(skill => selectedSkills.value.has(skill.id)).length
   return selectedCount > 0 && selectedCount < category.skills.length
 }
 
@@ -552,12 +552,12 @@ function toggleSkillCategory(groupName: string) {
   if (allSelected) {
     // Deselect all skills in this category
     category.skills.forEach(skill => {
-      selectedSkills.value.delete(String(skill.id))
+      selectedSkills.value.delete(skill.id)
     })
   } else {
     // Select all skills in this category
     category.skills.forEach(skill => {
-      selectedSkills.value.add(String(skill.id))
+      selectedSkills.value.add(skill.id)
     })
   }
 }

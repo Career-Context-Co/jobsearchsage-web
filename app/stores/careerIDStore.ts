@@ -188,6 +188,44 @@ export const useCareerIDStore = defineStore('careerID', {
       this.lastSaved = null
     },
 
+    // Fetch profile for the currently authenticated user via /me endpoint.
+    // Uses jss_user_id server-side — no client-supplied profileId needed.
+    // Throws on error; throws with status 404 if no profile exists yet.
+    async fetchProfileByUser() {
+      this.isLoading = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{ success: boolean, data: ProfileResponse }>(
+          '/api/career-id/profile/me'
+        )
+
+        if (!response.success || !response.data) {
+          throw new Error('Failed to fetch profile')
+        }
+
+        const data = response.data
+        this.profile = data.profile
+        this.profileId = data.profile.id
+        this.experience = data.experience || []
+        this.education = data.education || []
+        this.certifications = data.certifications || []
+        this.profileSkills = data.profileSkills || []
+        this.profileSocialLinks = data.profileSocialLinks || []
+        this.contactInfo = data.contactInfo || null
+        this.lastSaved = new Date().toISOString()
+
+        // Sync profileId back to accountStore so sub-pages and session stay consistent
+        useAccountStore().profileId = data.profile.id
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to fetch profile'
+        this.error = errorMessage
+        throw error
+      } finally {
+        this.isLoading = false
+      }
+    },
+
     // 5.4.1 Fetch complete profile with all sections
     async fetchProfile(profileId: string) {
       this.isLoading = true
@@ -207,6 +245,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         // Populate all state sections
         this.profile = data.profile
+        this.profileId = data.profile.id
         this.experience = data.experience || []
         this.education = data.education || []
         this.certifications = data.certifications || []
@@ -229,12 +268,6 @@ export const useCareerIDStore = defineStore('careerID', {
       this.error = null
 
       try {
-        const accountStore = useAccountStore()
-        
-        if (!accountStore.user?.id) {
-          throw new Error('User must be authenticated to create a profile')
-        }
-
         const response = await $fetch<{
           success: boolean
           message: string
@@ -252,12 +285,11 @@ export const useCareerIDStore = defineStore('careerID', {
 
         // Set the new profile in state
         this.profile = profile
-        // Store the profileId for future use
         this.profileId = profile.id
         this.lastSaved = new Date().toISOString()
 
         // Sync profileId to accountStore so menu/settings stay consistent
-        accountStore.profileId = profile.id
+        useAccountStore().profileId = profile.id
 
         return profile
       } catch (error: any) {
@@ -661,8 +693,8 @@ export const useCareerIDStore = defineStore('careerID', {
       }
     },
 
-    // 5.8.1 Add skills (bulk operation)
-    async addSkills(skills: Array<Omit<ProfileSkill, 'id' | 'profileId' | 'skillId' | 'skill' | 'createdAt' | 'updatedAt'>>) {
+    // 5.8.1 Save skills — atomically replaces the full skills array (one PUT)
+    async saveSkills(skills: ProfileSkill[]) {
       if (!this.profile?.id) {
         throw new Error('No profile loaded')
       }
@@ -671,29 +703,28 @@ export const useCareerIDStore = defineStore('careerID', {
       this.error = null
 
       try {
+        // Strip transient UI flags before persisting
+        const skillsToSave = skills.map(({ isExtracted: _, ...skill }) => skill)
+
         const response = await $fetch<{
           success: boolean
           message: string
           data: ProfileSkill[]
         }>(`/api/career-id/profile/${this.profile.id}/skills`, {
-          method: 'POST',
-          body: skills
+          method: 'PUT',
+          body: skillsToSave
         })
 
         if (!response.success || !response.data) {
-          throw new Error('Failed to add skills')
+          throw new Error('Failed to save skills')
         }
 
-        // API returns data already in camelCase format
-        const addedSkills = response.data
-
-        // Add to local state
-        this.profileSkills.push(...addedSkills)
+        this.profileSkills = response.data
         this.lastSaved = new Date().toISOString()
 
-        return addedSkills
+        return response.data
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to add skills'
+        const errorMessage = error?.data?.message || error?.message || 'Failed to save skills'
         this.error = errorMessage
         throw error
       } finally {
@@ -701,92 +732,7 @@ export const useCareerIDStore = defineStore('careerID', {
       }
     },
 
-    // 5.8.2 Update skills (bulk operation)
-    async updateSkills(skills: Array<{ id: number } & Partial<Pick<ProfileSkill, 'name' | 'group' | 'proficiencyLevel' | 'yearsExperience' | 'displayOrder'>>>) {
-      if (!this.profile?.id) {
-        throw new Error('No profile loaded')
-      }
-
-      this.isSaving = true
-      this.error = null
-
-      try {
-        const response = await $fetch<{
-          success: boolean
-          status: number
-          message: string
-          updated: number
-          failed: number
-          results: Array<{
-            index: number
-            id: number
-            status: number
-            success: boolean
-            data?: ProfileSkill
-            error?: { code: string, message: string }
-          }>
-        }>(`/api/career-id/profile/${this.profile.id}/skills`, {
-          method: 'PATCH',
-          body: skills
-        })
-
-        // Update successful skills in local state
-        response.results.forEach((result) => {
-          if (result.success && result.data) {
-            const index = this.profileSkills.findIndex(skill => skill.id === result.id)
-            if (index !== -1) {
-              this.profileSkills[index] = result.data
-            }
-          }
-        })
-
-        this.lastSaved = new Date().toISOString()
-
-        return response
-      } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to update skills'
-        this.error = errorMessage
-        throw error
-      } finally {
-        this.isSaving = false
-      }
-    },
-
-    // 5.8.3 Delete skills (bulk operation)
-    async deleteSkills(ids: number[]) {
-      if (!this.profile?.id) {
-        throw new Error('No profile loaded')
-      }
-
-      this.isSaving = true
-      this.error = null
-
-      try {
-        const response = await $fetch<{
-          success: boolean
-          message: string
-        }>(`/api/career-id/profile/${this.profile.id}/skills`, {
-          method: 'DELETE',
-          body: { ids }
-        })
-
-        if (!response.success) {
-          throw new Error('Failed to delete skills')
-        }
-
-        // Remove from local state
-        this.profileSkills = this.profileSkills.filter(skill => !ids.includes(skill.id))
-        this.lastSaved = new Date().toISOString()
-      } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to delete skills'
-        this.error = errorMessage
-        throw error
-      } finally {
-        this.isSaving = false
-      }
-    },
-
-    // 5.8.4 Search skills for autocomplete
+    // 5.8.2 Search skills for autocomplete
     async searchSkills(query: string) {
       try {
         const response = await $fetch<{
@@ -1622,8 +1568,8 @@ export const useCareerIDStore = defineStore('careerID', {
       // Remove extracted and unsaved education entries
       this.education = this.education.filter(edu => !edu.isExtracted || edu.id !== undefined)
       
-      // Remove extracted and unsaved skills
-      this.profileSkills = this.profileSkills.filter(skill => !skill.isExtracted || skill.id !== undefined)
+      // Remove extracted skills that haven't been saved yet
+      this.profileSkills = this.profileSkills.filter(skill => !skill.isExtracted)
       
       // Remove extracted and unsaved certifications
       this.certifications = this.certifications.filter(cert => !cert.isExtracted || cert.id !== undefined)

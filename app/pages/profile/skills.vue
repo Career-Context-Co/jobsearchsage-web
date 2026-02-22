@@ -3,6 +3,7 @@ import type { ProfileSkill } from '#shared/types/careerId'
 import { validateRequired } from '~/utils/validation'
 
 const careerIDStore = useCareerIDStore()
+const accountStore = useAccountStore()
 const toast = useToast()
 
 // Loading and saving states
@@ -19,7 +20,6 @@ const proficiencyLevels = [
 
 // Skill group interface
 interface SkillItem {
-  id?: number
   name: string
   proficiencyLevel: 'beginner' | 'intermediate' | 'advanced' | 'expert'
   yearsExperience: string
@@ -44,7 +44,6 @@ function transformSkillsToGroups(skills: ProfileSkill[]): SkillGroupFormData[] {
       grouped.set(categoryKey, [])
     }
     grouped.get(categoryKey)!.push({
-      id: skill.id,
       name: skill.name,
       proficiencyLevel: skill.proficiencyLevel,
       yearsExperience: skill.yearsExperience?.toString() || ''
@@ -219,12 +218,11 @@ function validateSkillGroup(group: SkillGroupFormData, index: number): boolean {
   return isValid
 }
 
-// Save skill group
+// Save skill group — flattens ALL groups into one atomic PUT
 async function saveSkillGroup(index: number) {
   const group = skillGroups.value[index]
   if (!group) return
   
-  // Validate before saving
   if (!validateSkillGroup(group, index)) {
     toast.add({
       title: 'Validation Error',
@@ -236,85 +234,30 @@ async function saveSkillGroup(index: number) {
   }
   
   try {
-    // Filter out skills without names
-    const validSkills = group.skills.filter(s => s.name.trim())
+    // Build the full skills array from all groups for atomic replace
+    let displayCounter = 0
+    const allSkills = skillGroups.value.flatMap((g) => {
+      const categoryValue = g.category === 'No Group' ? null : g.category
+      return g.skills
+        .filter(s => s.name.trim())
+        .map((skill) => {
+          // Preserve skillId from stored data if it was matched by background job
+          const stored = careerIDStore.profileSkills.find(
+            s => s.name.toLowerCase() === skill.name.toLowerCase().trim() &&
+                 (s.group || null) === categoryValue
+          )
+          return {
+            skillId: stored?.skillId ?? null,
+            name: skill.name.trim(),
+            group: categoryValue,
+            proficiencyLevel: skill.proficiencyLevel,
+            yearsExperience: skill.yearsExperience ? parseFloat(skill.yearsExperience) : null,
+            displayOrder: ++displayCounter
+          }
+        })
+    })
     
-    // Convert to API format
-    const categoryValue = group.category === 'No Group' ? null : group.category
-    const originalCategoryValue = group.originalCategory === 'No Group' ? null : group.originalCategory
-    
-    // Prepare skills for API
-    const skillsToSave = validSkills.map((skill, idx) => ({
-      id: skill.id,
-      name: skill.name.trim(),
-      group: categoryValue,
-      proficiencyLevel: skill.proficiencyLevel,
-      yearsExperience: skill.yearsExperience ? parseInt(skill.yearsExperience) : undefined,
-      displayOrder: idx + 1
-    }))
-    
-    // If this is a new group or category changed, add all skills
-    if (!group.originalCategory || group.category !== group.originalCategory) {
-      // Add new skills
-      const newSkills = skillsToSave.filter(s => !s.id).map(s => {
-        const { id, ...rest } = s
-        return rest
-      })
-      if (newSkills.length > 0) {
-        await careerIDStore.addSkills(newSkills)
-      }
-      
-      // Update existing skills with new category
-      const existingSkills = skillsToSave.filter(s => s.id).map(s => ({ ...s, id: s.id! }))
-      if (existingSkills.length > 0) {
-        await careerIDStore.updateSkills(existingSkills)
-      }
-      
-      // Delete skills that were in the old category but not in the new list
-      if (group.originalCategory && group.originalCategory !== group.category) {
-        const originalSkills = careerIDStore.profileSkills.filter(
-          s => (s.group || 'No Group') === group.originalCategory
-        )
-        const deletedSkillIds = originalSkills
-          .filter(os => !skillsToSave.some(ns => ns.id === os.id))
-          .map(s => s.id)
-        
-        if (deletedSkillIds.length > 0) {
-          await careerIDStore.deleteSkills(deletedSkillIds)
-        }
-      }
-    } else {
-      // Category unchanged - update/add/delete as needed
-      const existingSkillIds = new Set(skillsToSave.filter(s => s.id).map(s => s.id!))
-      
-      // Find skills to delete (were in original but not in current)
-      const originalCategorySkills = careerIDStore.profileSkills.filter(
-        s => (s.group || 'No Group') === group.originalCategory
-      )
-      const deletedSkillIds = originalCategorySkills
-        .filter(s => !existingSkillIds.has(s.id))
-        .map(s => s.id)
-      
-      // Delete removed skills
-      if (deletedSkillIds.length > 0) {
-        await careerIDStore.deleteSkills(deletedSkillIds)
-      }
-      
-      // Add new skills
-      const newSkills = skillsToSave.filter(s => !s.id).map(s => {
-        const { id, ...rest } = s
-        return rest
-      })
-      if (newSkills.length > 0) {
-        await careerIDStore.addSkills(newSkills)
-      }
-      
-      // Update existing skills
-      const existingSkills = skillsToSave.filter(s => s.id).map(s => ({ ...s, id: s.id! }))
-      if (existingSkills.length > 0) {
-        await careerIDStore.updateSkills(existingSkills)
-      }
-    }
+    await careerIDStore.saveSkills(allSkills)
     
     toast.add({
       title: 'Success',
@@ -323,12 +266,10 @@ async function saveSkillGroup(index: number) {
       color: 'success'
     })
     
-    // Update the group after successful save
     group.originalCategory = group.category
-    group.isOpen = true // Keep group open after save for adding more skills
+    group.isOpen = true
     editedSkillGroups.value.delete(index)
     
-    // Clear validation errors
     if (skillGroupErrors.value[index]) {
       delete skillGroupErrors.value[index]
     }
@@ -375,11 +316,9 @@ function cancelEditSkillGroup(index: number) {
   }
   
   // Reset to original values from store
-  const originalCategoryValue = group.originalCategory === 'No Group' ? null : group.originalCategory
   const originalSkills = careerIDStore.profileSkills
     .filter(skill => (skill.group || 'No Group') === group.originalCategory)
     .map(skill => ({
-      id: skill.id,
       name: skill.name,
       proficiencyLevel: skill.proficiencyLevel,
       yearsExperience: skill.yearsExperience?.toString() || ''
@@ -398,7 +337,7 @@ function cancelEditSkillGroup(index: number) {
 const showEmptyState = ref(false)
 
 onMounted(async () => {
-  const profileId = careerIDStore.profileId
+  const profileId = careerIDStore.profileId || accountStore.profileId
 
   // If no profileId is set, show empty state immediately
   if (!profileId) {

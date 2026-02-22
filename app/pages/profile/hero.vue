@@ -10,6 +10,7 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const careerIDStore = useCareerIDStore()
+const accountStore = useAccountStore()
 const sageAIStore = useSageAIStore()
 
 const {
@@ -21,7 +22,7 @@ const {
 } = storeToRefs(careerIDStore)
 const { discoverySession, isLoading: isDiscoveryLoading, error: discoveryError } = storeToRefs(sageAIStore)
 
-const profileId = computed(() => careerIDStore.profile?.id || careerIDStore.profileId)
+const profileId = computed(() => careerIDStore.profile?.id || careerIDStore.profileId || accountStore.profileId)
 const savedDiscoverySessions = new Set<number>()
 
 // Show create form inline
@@ -450,12 +451,20 @@ async function handleMomentRemove(moment: any) {
 }
 
 onMounted(async () => {
-  if (profileId.value) {
-    await Promise.allSettled([
-      careerIDStore.fetchMoments(profileId.value),
-      careerIDStore.fetchStories(profileId.value)
-    ])
+  if (!profileId.value) return
+
+  if (!careerIDStore.isProfileLoaded) {
+    try {
+      await careerIDStore.fetchProfile(profileId.value)
+    } catch {
+      // Profile fetch failed — moments/stories will still be attempted
+    }
   }
+
+  await Promise.allSettled([
+    careerIDStore.fetchMoments(profileId.value),
+    careerIDStore.fetchStories(profileId.value)
+  ])
 })
 </script>
 

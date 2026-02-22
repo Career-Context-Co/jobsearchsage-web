@@ -4,6 +4,7 @@ import { vMaska } from 'maska/vue'
 import { validateRequired, validateUrl, validateMonthYear } from '~/utils/validation'
 
 const careerIDStore = useCareerIDStore()
+const accountStore = useAccountStore()
 const toast = useToast()
 
 /**
@@ -241,7 +242,7 @@ function formatDate(dateString: string | null | undefined): string {
 const showEmptyState = ref(false)
 
 onMounted(async () => {
-  const profileId = careerIDStore.profileId
+  const profileId = careerIDStore.profileId || accountStore.profileId
 
   // If no profileId is set, show empty state immediately
   if (!profileId) {

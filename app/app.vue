@@ -1,20 +1,18 @@
 <script setup lang="ts">
 const careerIDStore = useCareerIDStore()
-const accountStore = useAccountStore()
 
-// Only fetch profile when authenticated AND profileId is a real value (not null/undefined/"null")
-const hasProfile = accountStore.isAuthenticated && 
-                   accountStore.profileId != null && 
-                   accountStore.profileId !== 'null' &&
-                   accountStore.profileId !== ''
-
-if (hasProfile && !careerIDStore.isProfileLoaded) {
+// Fetch the profile for whoever is logged in. The /me endpoint resolves
+// by jss_user_id server-side so we never need a client-supplied profileId here.
+// 401 = not logged in yet, 404 = new user with no profile — both are silent.
+if (!careerIDStore.isProfileLoaded) {
   try {
-    await careerIDStore.fetchProfile(accountStore.profileId!)
-    console.log('Profile loaded successfully')
+    await careerIDStore.fetchProfileByUser()
   } catch (error: any) {
-    console.error('Failed to load profile:', error)
-    careerIDStore.error = null // Clear error to allow app to function
+    const status = error?.status ?? error?.statusCode ?? error?.data?.statusCode
+    if (status !== 401 && status !== 404) {
+      console.error('Failed to load profile:', error)
+    }
+    careerIDStore.error = null
   }
 }
 
