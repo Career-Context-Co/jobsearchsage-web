@@ -1,9 +1,18 @@
 <script setup lang="ts">
+const route = useRoute()
+const router = useRouter()
 const careerIDStore = useCareerIDStore()
 const { generatePdf, isGenerating: isPdfExporting } = usePdfLibResume()
 const { generateDocx, isGenerating: isDocxExporting } = useDocxResume()
 
-// Download format selection
+// TODO(backend): When persistence is ready, load the docs_resumes record by this ID
+// For now, 'new' and any numeric ID both load fresh from careerIDStore
+const resumeId = route.params.id
+
+// TODO(backend): Replace with resume.title loaded from docs_resumes
+const resumeTitle = ref('Resume')
+const isSaving = ref(false)
+
 type DownloadFormat = 'pdf' | 'docx'
 const downloadFormat = ref<DownloadFormat>('pdf')
 const formatOptions = [
@@ -11,23 +20,19 @@ const formatOptions = [
   { label: 'Word (DOCX)', value: 'docx' }
 ]
 
-// Combined loading state
 const isExporting = computed(() => isPdfExporting.value || isDocxExporting.value)
 
 const activeTab = ref('content')
+const mobilePanel = ref('edit')
 
 const tabs = [
   { label: 'Content', value: 'content', icon: 'i-lucide-file-text' },
   { label: 'Design', value: 'design', icon: 'i-lucide-palette' }
 ]
 
-// Accent color state (shared between Designer tab and Preview)
 const accentColor = ref('#0d9488')
-
-// Track which item is being edited (for preview highlighting)
 const editingItem = ref<{ type: string, id: string | number | null }>({ type: '', id: null })
 
-// Preview zoom
 const previewZoom = ref(85)
 const ZOOM_STEP = 10
 const ZOOM_MIN = 40
@@ -35,33 +40,20 @@ const ZOOM_MAX = 100
 function zoomIn() { previewZoom.value = Math.min(ZOOM_MAX, previewZoom.value + ZOOM_STEP) }
 function zoomOut() { previewZoom.value = Math.max(ZOOM_MIN, previewZoom.value - ZOOM_STEP) }
 
-const router = useRouter()
 const showEmptyState = ref(false)
 
-// Load profile data on mount
-onMounted(async () => {
-  const profileId = careerIDStore.profileId
+const contactInfoForPreview = computed(() => ({
+  firstName: careerIDStore.contactInfo?.firstName,
+  lastName: careerIDStore.contactInfo?.lastName,
+  email: careerIDStore.contactInfo?.email,
+  phone: careerIDStore.contactInfo?.phone || undefined
+}))
 
-  if (!profileId) {
-    showEmptyState.value = true
-    return
-  }
-
-  if (!careerIDStore.isProfileLoaded) {
-    try {
-      await careerIDStore.fetchProfile(profileId)
-    } catch (err: any) {
-      showEmptyState.value = true
-      return
-    }
-  }
-
-  if (!careerIDStore.profile) {
-    showEmptyState.value = true
-    return
-  }
-
-  initializeSelections()
+const linkedInUsername = computed(() => {
+  const link = careerIDStore.profileSocialLinks.find(l => l.platformId === 1)
+  if (!link?.url) return null
+  const match = link.url.match(/linkedin\.com\/in\/([^/?]+)/i)
+  return match ? match[1] : link.url
 })
 
 /**
@@ -69,18 +61,13 @@ onMounted(async () => {
  */
 function formatDateForDisplay(dateString: string | null | undefined): string {
   if (!dateString) return ''
-  
   const date = new Date(dateString)
   if (isNaN(date.getTime())) return dateString
-  
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const year = date.getFullYear()
   return `${month}/${year}`
 }
 
-/**
- * Format employment type for display (e.g., "full_time" -> "Full-time")
- */
 function formatEmploymentType(type: string): string {
   const types: Record<string, string> = {
     'full_time': 'Full-time',
@@ -92,9 +79,6 @@ function formatEmploymentType(type: string): string {
   return types[type] || type
 }
 
-/**
- * Format location type for display (e.g., "on_site" -> "On-site")
- */
 function formatLocationType(type: string): string {
   const types: Record<string, string> = {
     'on_site': 'On-site',
@@ -104,40 +88,19 @@ function formatLocationType(type: string): string {
   return types[type] || type
 }
 
-// Contact info formatted for preview component
-const contactInfoForPreview = computed(() => ({
-  firstName: careerIDStore.contactInfo?.firstName,
-  lastName: careerIDStore.contactInfo?.lastName,
-  email: careerIDStore.contactInfo?.email,
-  phone: careerIDStore.contactInfo?.phone || undefined
-}))
-
-// Extract LinkedIn username from social links
-const linkedInUsername = computed(() => {
-  const linkedInLink = careerIDStore.profileSocialLinks.find(link => link.platformId === 1)
-  if (!linkedInLink?.url) return null
-  const match = linkedInLink.url.match(/linkedin\.com\/in\/([^/?]+)/i)
-  return match ? match[1] : linkedInLink.url
-})
-
-// Get profile data from store - using correct field names from types
 const profileData = computed(() => ({
-  // Professional summary is in contactInfo.summary
   professionalSummary: careerIDStore.contactInfo?.summary || '',
   workExperience: careerIDStore.experience.map(exp => {
-    // For location display: show actual location for on-site/hybrid, "Remote" for remote
     let locationDisplay = ''
     if (exp.locationType === 'remote') {
       locationDisplay = 'Remote'
     } else {
-      // For on-site or hybrid, show actual location if available, otherwise show locationType
       locationDisplay = exp.location || formatLocationType(exp.locationType)
     }
-    
     return {
       id: exp.id,
       employer: exp.employer,
-      jobTitle: exp.title, // Experience uses 'title' not 'jobTitle'
+      jobTitle: exp.title,
       employmentType: formatEmploymentType(exp.employmentType),
       locationType: locationDisplay,
       startDate: exp.startDate,
@@ -158,34 +121,30 @@ const profileData = computed(() => ({
     endDate: edu.endDate
   })),
   skills: careerIDStore.profileSkills.map(skill => ({
-    id: skill.name, // name is unique per profile, used as stable selection key
+    id: skill.name,
     name: skill.name,
     group: skill.group || 'Skills'
   })),
   certifications: careerIDStore.certifications.map(cert => ({
     id: cert.id,
-    name: cert.name, // Certification uses 'name' not 'certificationName'
+    name: cert.name,
     issuer: cert.issuer || '',
     issueDate: cert.issueDate || ''
   }))
 }))
 
-// Section checkboxes
 const summaryEnabled = ref(false)
 const workExperienceEnabled = ref(false)
 const educationEnabled = ref(false)
 const skillsEnabled = ref(false)
 const certificationsEnabled = ref(false)
 
-// Individual item selections (initialized in onMounted)
 const selectedExperiences = ref<Set<string>>(new Set())
 const selectedHighlights = ref<Set<string>>(new Set())
 const selectedEducation = ref<Set<string>>(new Set())
 const selectedSkills = ref<Set<string>>(new Set())
 const selectedCertifications = ref<Set<string>>(new Set())
 
-// Editable data layer - a session-only snapshot that can be modified without affecting careerIDStore
-// This is the source of truth for the preview and exports
 interface EditableHighlight {
   id: string
   text: string
@@ -231,10 +190,7 @@ interface EditableCertification {
 }
 
 interface EditableData {
-  summary: {
-    text: string
-    enabled: boolean
-  }
+  summary: { text: string; enabled: boolean }
   workExperience: EditableExperience[]
   education: EditableEducation[]
   skills: EditableSkill[]
@@ -249,7 +205,6 @@ const editableData = ref<EditableData>({
   certifications: []
 })
 
-// Initialize editableData as a deep copy of profileData with selection state
 function initializeEditableData() {
   editableData.value = {
     summary: {
@@ -279,43 +234,23 @@ function initializeEditableData() {
   }
 }
 
-// Sync selections from Content tab into editableData
-// - Newly selected items: copy fresh from profileData
-// - Deselected items: remove (discard edits)
-// - Items that remain selected: preserve edits
 function syncSelectionsToEditableData() {
-  // Sync summary
   editableData.value.summary.enabled = summaryEnabled.value
-  
-  // Sync work experience
+
   const newWorkExperience: EditableExperience[] = []
   for (const exp of profileData.value.workExperience) {
     const isSelected = selectedExperiences.value.has(String(exp.id))
     if (!isSelected) continue
-    
-    // Check if we already have this experience in editableData (preserve edits)
     const existing = editableData.value.workExperience.find(e => e.id === exp.id)
     if (existing) {
-      // Sync highlight selections while preserving text edits
       const newHighlights: EditableHighlight[] = []
       for (const h of exp.highlights) {
-        const isHighlightSelected = selectedHighlights.value.has(h.id)
-        if (!isHighlightSelected) continue
-        
-        const existingHighlight = existing.highlights.find(eh => eh.id === h.id)
-        if (existingHighlight) {
-          newHighlights.push({ ...existingHighlight, selected: true })
-        } else {
-          newHighlights.push({ ...h, selected: true })
-        }
+        if (!selectedHighlights.value.has(h.id)) continue
+        const existingH = existing.highlights.find(eh => eh.id === h.id)
+        newHighlights.push(existingH ? { ...existingH, selected: true } : { ...h, selected: true })
       }
-      newWorkExperience.push({
-        ...existing,
-        selected: true,
-        highlights: newHighlights
-      })
+      newWorkExperience.push({ ...existing, selected: true, highlights: newHighlights })
     } else {
-      // New selection - copy fresh from profileData
       newWorkExperience.push({
         ...exp,
         selected: true,
@@ -326,68 +261,37 @@ function syncSelectionsToEditableData() {
     }
   }
   editableData.value.workExperience = newWorkExperience
-  
-  // Sync education
-  const newEducation: EditableEducation[] = []
-  for (const edu of profileData.value.education) {
-    const isSelected = selectedEducation.value.has(String(edu.id))
-    if (!isSelected) continue
-    
-    const existing = editableData.value.education.find(e => e.id === edu.id)
-    if (existing) {
-      newEducation.push({ ...existing, selected: true })
-    } else {
-      newEducation.push({ ...edu, selected: true })
-    }
-  }
-  editableData.value.education = newEducation
-  
-  // Sync skills
-  const newSkills: EditableSkill[] = []
-  for (const skill of profileData.value.skills) {
-    const isSelected = selectedSkills.value.has(skill.id)
-    if (!isSelected) continue
-    
-    const existing = editableData.value.skills.find(s => s.id === skill.id)
-    if (existing) {
-      newSkills.push({ ...existing, selected: true })
-    } else {
-      newSkills.push({ ...skill, selected: true })
-    }
-  }
-  editableData.value.skills = newSkills
-  
-  // Sync certifications
-  const newCertifications: EditableCertification[] = []
-  for (const cert of profileData.value.certifications) {
-    const isSelected = selectedCertifications.value.has(String(cert.id))
-    if (!isSelected) continue
-    
-    const existing = editableData.value.certifications.find(c => c.id === cert.id)
-    if (existing) {
-      newCertifications.push({ ...existing, selected: true })
-    } else {
-      newCertifications.push({ ...cert, selected: true })
-    }
-  }
-  editableData.value.certifications = newCertifications
+
+  editableData.value.education = profileData.value.education
+    .filter(edu => selectedEducation.value.has(String(edu.id)))
+    .map(edu => {
+      const existing = editableData.value.education.find(e => e.id === edu.id)
+      return existing ? { ...existing, selected: true } : { ...edu, selected: true }
+    })
+
+  editableData.value.skills = profileData.value.skills
+    .filter(skill => selectedSkills.value.has(skill.id))
+    .map(skill => {
+      const existing = editableData.value.skills.find(s => s.id === skill.id)
+      return existing ? { ...existing, selected: true } : { ...skill, selected: true }
+    })
+
+  editableData.value.certifications = profileData.value.certifications
+    .filter(cert => selectedCertifications.value.has(String(cert.id)))
+    .map(cert => {
+      const existing = editableData.value.certifications.find(c => c.id === cert.id)
+      return existing ? { ...existing, selected: true } : { ...cert, selected: true }
+    })
 }
 
-// Watch selections and sync to editableData
 watch(
   [summaryEnabled, selectedExperiences, selectedHighlights, selectedEducation, selectedSkills, selectedCertifications],
-  () => {
-    syncSelectionsToEditableData()
-  },
+  () => { syncSelectionsToEditableData() },
   { deep: true }
 )
 
-// Initialize all content as selected (called after data is loaded)
 function initializeSelections() {
-  // Enable sections that have data
-  if (profileData.value.professionalSummary) {
-    summaryEnabled.value = true
-  }
+  if (profileData.value.professionalSummary) summaryEnabled.value = true
   if (profileData.value.workExperience.length > 0) {
     workExperienceEnabled.value = true
     profileData.value.workExperience.forEach(exp => {
@@ -407,12 +311,42 @@ function initializeSelections() {
     certificationsEnabled.value = true
     profileData.value.certifications.forEach(cert => selectedCertifications.value.add(String(cert.id)))
   }
-  
-  // Initialize editableData after selections are set
   initializeEditableData()
 }
 
-// Section toggle handlers
+// TODO(backend): Set resumeTitle from loaded docs_resumes.title
+// TODO(backend): When resumeId is numeric, load content_snapshot and design_settings from API
+// and call initializeFromSnapshot() instead of initializeSelections()
+onMounted(async () => {
+  const profileId = careerIDStore.profileId
+  if (!profileId) {
+    showEmptyState.value = true
+    return
+  }
+  if (!careerIDStore.isProfileLoaded) {
+    try {
+      await careerIDStore.fetchProfile(profileId)
+    } catch {
+      showEmptyState.value = true
+      return
+    }
+  }
+  if (!careerIDStore.profile) {
+    showEmptyState.value = true
+    return
+  }
+
+  const contact = careerIDStore.contactInfo
+  if (contact?.firstName || contact?.lastName) {
+    const namePart = [contact.firstName, contact.lastName].filter(Boolean).join(' ')
+    resumeTitle.value = resumeId === 'new'
+      ? `${namePart} Resume`
+      : `${namePart} Resume`
+  }
+
+  initializeSelections()
+})
+
 function toggleSection(section: 'summary' | 'workExperience' | 'education' | 'skills' | 'certifications') {
   switch (section) {
     case 'summary':
@@ -421,10 +355,10 @@ function toggleSection(section: 'summary' | 'workExperience' | 'education' | 'sk
     case 'workExperience':
       workExperienceEnabled.value = !workExperienceEnabled.value
       if (workExperienceEnabled.value) {
-        profileData.value.workExperience.forEach(exp => selectedExperiences.value.add(String(exp.id)))
-        profileData.value.workExperience.forEach(exp => 
+        profileData.value.workExperience.forEach(exp => {
+          selectedExperiences.value.add(String(exp.id))
           exp.highlights.forEach(h => selectedHighlights.value.add(h.id))
-        )
+        })
       } else {
         selectedExperiences.value.clear()
         selectedHighlights.value.clear()
@@ -457,119 +391,70 @@ function toggleSection(section: 'summary' | 'workExperience' | 'education' | 'sk
   }
 }
 
-// Format date range for display
 function formatDateRange(startDate: string | null | undefined, endDate: string | null | undefined, currentPosition?: boolean) {
   const startFormatted = formatDateForDisplay(startDate) || 'Unknown'
-  
-  if (currentPosition || !endDate) {
-    return `${startFormatted} - Present`
-  }
-  
-  const endFormatted = formatDateForDisplay(endDate)
-  return `${startFormatted} - ${endFormatted}`
+  if (currentPosition || !endDate) return `${startFormatted} - Present`
+  return `${startFormatted} - ${formatDateForDisplay(endDate)}`
 }
 
 function formatMonthYear(dateStr: string | null | undefined) {
   return formatDateForDisplay(dateStr)
 }
 
-const accordionItems = [
-  {
-    label: 'Professional Summary',
-    icon: 'i-lucide-text-cursor-input',
-    defaultOpen: false,
-    slot: 'summary'
-  },
-  {
-    label: 'Work Experience',
-    icon: 'i-lucide-briefcase',
-    defaultOpen: false,
-    slot: 'workExperience'
-  },
-  {
-    label: 'Education',
-    icon: 'i-lucide-graduation-cap',
-    defaultOpen: false,
-    slot: 'education'
-  },
-  {
-    label: 'Skills',
-    icon: 'i-lucide-lightbulb',
-    defaultOpen: false,
-    slot: 'skills'
-  },
-  {
-    label: 'Certifications',
-    icon: 'i-lucide-award',
-    defaultOpen: false,
-    slot: 'certifications'
-  }
-]
-
-// Prepare data for preview component - reads from editableData so edits flow to preview
-const previewData = computed(() => editableData.value)
-
-// Group skills by category for the editor
 const groupedProfileSkills = computed(() => {
   const groups: Record<string, Array<{ id: string, name: string }>> = {}
-  
   profileData.value.skills.forEach(skill => {
     const groupName = skill.group || 'Skills'
-    if (!groups[groupName]) {
-      groups[groupName] = []
-    }
+    if (!groups[groupName]) groups[groupName] = []
     groups[groupName].push({ id: skill.id, name: skill.name })
   })
-  
-  return Object.entries(groups).map(([group, skills]) => ({
-    group,
-    skills
-  }))
+  return Object.entries(groups).map(([group, skills]) => ({ group, skills }))
 })
 
-// Check if all skills in a category are selected
 function isCategoryFullySelected(groupName: string): boolean {
   const category = groupedProfileSkills.value.find(g => g.group === groupName)
   if (!category) return false
   return category.skills.every(skill => selectedSkills.value.has(skill.id))
 }
 
-// Check if some (but not all) skills in a category are selected
 function isCategoryPartiallySelected(groupName: string): boolean {
   const category = groupedProfileSkills.value.find(g => g.group === groupName)
   if (!category) return false
-  const selectedCount = category.skills.filter(skill => selectedSkills.value.has(skill.id)).length
-  return selectedCount > 0 && selectedCount < category.skills.length
+  const count = category.skills.filter(skill => selectedSkills.value.has(skill.id)).length
+  return count > 0 && count < category.skills.length
 }
 
-// Toggle all skills in a category
 function toggleSkillCategory(groupName: string) {
   const category = groupedProfileSkills.value.find(g => g.group === groupName)
   if (!category) return
-  
-  const allSelected = isCategoryFullySelected(groupName)
-  
-  if (allSelected) {
-    // Deselect all skills in this category
-    category.skills.forEach(skill => {
-      selectedSkills.value.delete(skill.id)
-    })
+  if (isCategoryFullySelected(groupName)) {
+    category.skills.forEach(skill => selectedSkills.value.delete(skill.id))
   } else {
-    // Select all skills in this category
-    category.skills.forEach(skill => {
-      selectedSkills.value.add(skill.id)
-    })
+    category.skills.forEach(skill => selectedSkills.value.add(skill.id))
   }
 }
 
-// Track whether any content is selected (for Export PDF button)
-const hasSelectedContent = computed(() => {
-  return summaryEnabled.value ||
-    selectedExperiences.value.size > 0 ||
-    selectedEducation.value.size > 0 ||
-    selectedSkills.value.size > 0 ||
-    selectedCertifications.value.size > 0
-})
+const hasSelectedContent = computed(() =>
+  summaryEnabled.value ||
+  selectedExperiences.value.size > 0 ||
+  selectedEducation.value.size > 0 ||
+  selectedSkills.value.size > 0 ||
+  selectedCertifications.value.size > 0
+)
+
+const previewData = computed(() => editableData.value)
+
+// TODO(backend): Persist to docs_resumes.content_snapshot and docs_resumes.design_settings
+async function saveResume() {
+  if (isSaving.value) return
+  isSaving.value = true
+  try {
+    // stub — wire to PUT /api/docs/resumes/[id] when backend is ready
+    await new Promise(resolve => setTimeout(resolve, 300))
+  } finally {
+    isSaving.value = false
+  }
+}
 
 async function downloadResume() {
   const options = {
@@ -579,12 +464,13 @@ async function downloadResume() {
     selectedContent: previewData.value,
     socialLinks: careerIDStore.profileSocialLinks
   }
-
   try {
     if (downloadFormat.value === 'docx') {
       await generateDocx(options)
+      // TODO(backend): log to docs_generated_resume_log after download
     } else {
       await generatePdf(options)
+      // TODO(backend): log to docs_generated_resume_log after download
     }
   } catch (error) {
     console.error('Download failed:', error)
@@ -595,7 +481,7 @@ async function downloadResume() {
 <template>
   <UDashboardPanel id="resume" :ui="{ body: 'p-0 sm:p-0 lg:p-0' }">
     <template #header>
-      <UDashboardNavbar title="Resume">
+      <UDashboardNavbar :title="resumeTitle">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -605,7 +491,7 @@ async function downloadResume() {
         <template #default>
           <div class="flex items-center justify-between w-full">
             <div class="flex gap-1 -mx-1">
-              <!-- Mobile: Edit / Preview toggle (hidden on lg+) -->
+              <!-- Mobile: Edit / Preview toggle -->
               <div class="flex lg:hidden gap-1">
                 <UButton
                   label="Edit"
@@ -624,7 +510,7 @@ async function downloadResume() {
                   @click="mobilePanel = 'preview'"
                 />
               </div>
-              <!-- Desktop: Content / Design tabs (hidden below lg) -->
+              <!-- Desktop: Content / Design tabs -->
               <div class="hidden lg:flex gap-1">
                 <UButton
                   v-for="tab in tabs"
@@ -639,6 +525,17 @@ async function downloadResume() {
               </div>
             </div>
             <div class="flex items-center gap-2">
+              <UButton
+                label="Save"
+                icon="i-lucide-save"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                :loading="isSaving"
+                :disabled="true"
+                title="Saving coming soon"
+                @click="saveResume"
+              />
               <USelectMenu
                 v-model="downloadFormat"
                 :items="formatOptions"
@@ -662,7 +559,7 @@ async function downloadResume() {
     </template>
 
     <template #body>
-      <!-- Empty State - No Profile Found -->
+      <!-- Empty State -->
       <div v-if="showEmptyState" class="flex items-center justify-center p-8 min-h-[calc(100vh-8rem)]">
         <UPageCard variant="subtle" class="max-w-md w-full">
           <div class="flex flex-col items-center justify-center py-12 gap-4 text-center">
@@ -670,7 +567,7 @@ async function downloadResume() {
             <div class="space-y-2">
               <h3 class="text-xl font-semibold">No Profile Yet</h3>
               <p class="text-muted text-base">
-                You need to complete your profile before generating a resume. Let's get started!
+                You need to complete your profile before building a resume. Let's get started!
               </p>
             </div>
             <div class="space-y-3 w-full pt-2">
@@ -698,12 +595,12 @@ async function downloadResume() {
 
       <!-- Resume Builder -->
       <div v-else class="flex flex-col lg:flex-row h-full min-h-[calc(100vh-8rem)]">
-        <!-- Left Panel: Editor Controls (scrollable) -->
+        <!-- Left Panel: Editor Controls -->
         <div
           class="w-full lg:w-2/5 xl:w-[35%] 2xl:w-[30%] overflow-y-auto p-4 sm:p-6 lg:border-r lg:border-default"
           :class="{ 'hidden lg:block': mobilePanel !== 'edit' }"
         >
-          <!-- Mobile Content/Design sub-tabs (only visible below lg) -->
+          <!-- Mobile Content/Design sub-tabs -->
           <div class="flex lg:hidden gap-1 mb-4 -mx-1">
             <UButton
               v-for="tab in tabs"
@@ -718,7 +615,7 @@ async function downloadResume() {
           </div>
 
           <!-- Content Tab -->
-          <ResumeContentEditorForm
+          <DocsResumeContentEditorForm
             v-if="activeTab === 'content'"
             :editable-data="editableData"
             @update:editable-data="editableData = $event"
@@ -726,13 +623,13 @@ async function downloadResume() {
           />
 
           <!-- Design Tab -->
-          <ResumeDesigner 
+          <DocsResumeDesigner
             v-if="activeTab === 'design'"
             v-model="accentColor"
           />
         </div>
 
-        <!-- Right Panel: Live Preview (sticky) -->
+        <!-- Right Panel: Live Preview -->
         <div
           class="w-full lg:w-3/5 xl:w-[65%] 2xl:w-[70%] lg:sticky lg:top-0 lg:h-[calc(100vh-8rem)] flex flex-col bg-elevated/50"
           :class="{ 'hidden lg:flex': mobilePanel !== 'preview' }"
@@ -767,7 +664,7 @@ async function downloadResume() {
                 marginLeft: `${-((100 / previewZoom) - 1) * 50}%`
               }"
             >
-              <ResumePreview 
+              <DocsResumePreview
                 :accent-color="accentColor"
                 :contact-info="contactInfoForPreview"
                 :linked-in-username="linkedInUsername"

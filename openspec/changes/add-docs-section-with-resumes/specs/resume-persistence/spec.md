@@ -1,0 +1,67 @@
+## ADDED Requirements
+
+### Requirement: Resume List Page
+The application SHALL provide a resume list page at `/docs/resumes` showing all saved resumes for the profile.
+
+#### Scenario: Display saved resumes
+- **GIVEN** the user has one or more saved resumes
+- **WHEN** the user navigates to `/docs/resumes`
+- **THEN** the system SHALL display a list of all saved resumes for the profile
+- **AND** each resume entry SHALL display the resume title and creation/update date
+- **AND** clicking a resume entry SHALL navigate to `/docs/resumes/[id]`
+
+#### Scenario: Display empty state when no resumes exist
+- **GIVEN** the user has no saved resumes
+- **WHEN** the user navigates to `/docs/resumes`
+- **THEN** the system SHALL display an empty state with a prompt to create a new resume
+- **AND** the system SHALL provide a "New Resume" action button
+
+#### Scenario: Create new resume from list page
+- **WHEN** the user clicks "New Resume" on the list page
+- **THEN** the system SHALL create a new `docs.resumes` record with a snapshot of the current profile data
+- **AND** the title SHALL be auto-generated as "[FirstName] [LastName] Resume [id]" using the profile's contact info
+- **AND** the system SHALL navigate to `/docs/resumes/[id]` for the newly created record
+
+### Requirement: Resume Snapshot Persistence
+The application SHALL persist resume content and design settings to the `docs.resumes` database table.
+
+#### Scenario: Resume snapshot stored on creation
+- **WHEN** a new resume is created
+- **THEN** the system SHALL store a `content_snapshot` JSONB capturing the full editable state (summary, work experience with highlights, education, skills, certifications)
+- **AND** the system SHALL store a `design_settings` JSONB capturing accent color and section visibility
+- **AND** the snapshot SHALL reflect the profile data at the time of creation
+
+#### Scenario: Resume snapshot replaced on save
+- **GIVEN** the user has opened a saved resume at `/docs/resumes/[id]` and made edits
+- **WHEN** the user saves the resume
+- **THEN** the system SHALL replace the existing `content_snapshot` and `design_settings` in the `docs.resumes` record
+- **AND** the `updated_at` timestamp SHALL be updated
+- **AND** the previous snapshot SHALL be discarded (no versioning)
+
+#### Scenario: Resume loads from snapshot
+- **WHEN** the user navigates to `/docs/resumes/[id]`
+- **THEN** the system SHALL load the `content_snapshot` and `design_settings` from the database
+- **AND** the editor SHALL initialize with the saved content and design settings
+- **AND** the live preview SHALL reflect the saved state
+
+### Requirement: Download Event Logging
+The application SHALL log each resume download event to `docs.generated_resume_log`.
+
+#### Scenario: Log PDF download
+- **GIVEN** the user is on the resume editor page `/docs/resumes/[id]`
+- **WHEN** the user downloads the resume as PDF
+- **THEN** the system SHALL insert a record into `docs.generated_resume_log` with `resume_id`, `profile_id`, `download_format = 'pdf'`, and `generated_at = NOW()`
+
+#### Scenario: Log DOCX download
+- **GIVEN** the user is on the resume editor page `/docs/resumes/[id]`
+- **WHEN** the user downloads the resume as DOCX
+- **THEN** the system SHALL insert a record into `docs.generated_resume_log` with `resume_id`, `profile_id`, `download_format = 'docx'`, and `generated_at = NOW()`
+
+### Requirement: Resume Data Isolation
+The application SHALL ensure users can only access their own resume records.
+
+#### Scenario: RLS prevents cross-user access
+- **GIVEN** two users each have saved resumes
+- **WHEN** either user queries `docs.resumes` or `docs.generated_resume_log`
+- **THEN** the system SHALL only return records belonging to their own profile
+- **AND** RLS policies SHALL enforce this at the database level via `career_id.profiles.jss_user_id = auth.uid()`
