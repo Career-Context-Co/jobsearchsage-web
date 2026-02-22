@@ -56,33 +56,52 @@ export const useAccountStore = defineStore('account', {
      * Hydrate user state from existing Supabase session.
      * Called on app init to restore authenticated state.
      * Session endpoint now returns name fields and profileId from public.users.
+     *
+     * On page reload, useSupabaseUser() may be null while the Supabase client is
+     * still restoring its session from localStorage. We fall back to getSession()
+     * so hydration always succeeds when a session exists.
      */
     async hydrateFromSession() {
       const supabaseUser = useSupabaseUser()
 
+      let userId: string | undefined
+      let userEmail: string | undefined
+
       if (supabaseUser.value) {
-        try {
-          // Fetch full user data (name fields + profileId) from public.users in one request,
-          // then set the complete user object in a single assignment so components that
-          // initialize from the store see all fields at once — no watchers needed.
-          const response: any = await $fetch('/api/auth/session', { method: 'GET' })
-          this.user = {
-            id: supabaseUser.value.id,
-            email: supabaseUser.value.email || '',
-            firstName: response?.data?.firstName ?? null,
-            lastName: response?.data?.lastName ?? null,
-            preferredName: response?.data?.preferredName ?? null
-          }
-          this.profileId = response?.data?.profileId ?? null
-        } catch {
-          // Session endpoint throws 401 only if not authenticated — shouldn't happen here.
-          // Still set minimal user so isAuthenticated stays true.
-          this.user = {
-            id: supabaseUser.value.id,
-            email: supabaseUser.value.email || ''
-          }
-          this.profileId = null
+        userId = supabaseUser.value.id
+        userEmail = supabaseUser.value.email
+      } else {
+        const supabase = useSupabaseClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          userId = session.user.id
+          userEmail = session.user.email
         }
+      }
+
+      if (!userId) return
+
+      try {
+        // Fetch full user data (name fields + profileId) from public.users in one request,
+        // then set the complete user object in a single assignment so components that
+        // initialize from the store see all fields at once — no watchers needed.
+        const response: any = await $fetch('/api/auth/session', { method: 'GET' })
+        this.user = {
+          id: userId,
+          email: userEmail || '',
+          firstName: response?.data?.firstName ?? null,
+          lastName: response?.data?.lastName ?? null,
+          preferredName: response?.data?.preferredName ?? null
+        }
+        this.profileId = response?.data?.profileId ?? null
+      } catch {
+        // Session endpoint throws 401 only if not authenticated — shouldn't happen here.
+        // Still set minimal user so isAuthenticated stays true.
+        this.user = {
+          id: userId,
+          email: userEmail || ''
+        }
+        this.profileId = null
       }
     },
 
