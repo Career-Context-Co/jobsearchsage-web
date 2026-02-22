@@ -22,9 +22,34 @@ onMounted(async () => {
       return navigateTo('/signin?confirmed=true')
     }
 
-    // OAuth flows (PKCE ?code= and implicit #access_token=) are handled
-    // automatically by detectSessionInUrl during Supabase client init.
-    // getSession() awaits that initialization, so the session is ready.
+    // Hash tokens from server OAuth callback
+    const hashParams = new URLSearchParams(window.location.hash.substring(1))
+    const accessToken = hashParams.get('access_token')
+    const refreshToken = hashParams.get('refresh_token')
+
+    if (accessToken && refreshToken) {
+      const { error: sessionError } = await supabaseClient.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken
+      })
+      if (sessionError) throw sessionError
+      // Full page navigation so the app reloads with cookies committed.
+      // SPA navigateTo() fires API calls before @nuxtjs/supabase flushes
+      // session cookies, causing "Auth session missing!" on the server.
+      window.location.href = next
+      return
+    }
+
+    // OAuth code fallback (PKCE direct redirect)
+    const code = route.query.code as string
+    if (code) {
+      const { error: exchangeError } = await supabaseClient.auth.exchangeCodeForSession(code)
+      if (exchangeError) throw exchangeError
+      window.location.href = next
+      return
+    }
+
+    // No URL params — check if session already exists in cookies
     const { data: { session } } = await supabaseClient.auth.getSession()
     if (session) {
       await accountStore.hydrateFromSession()
