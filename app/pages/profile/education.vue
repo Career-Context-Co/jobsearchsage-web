@@ -619,7 +619,7 @@ onMounted(async () => {
                   <h3 class="text-lg font-semibold">{{ education.degreeType }} in {{ education.areaOfStudy }}</h3>
                   <p class="text-base font-medium text-muted">{{ education.institution }}</p>
                   <div class="flex flex-wrap gap-2 mt-2 text-sm text-muted">
-                    <span>{{ formatDate(education.startDate) }} - {{ formatDate(education.endDate) }}</span>
+                    <span>{{ formatDate(education.endDate) }}</span>
                     <span v-if="education.completed">• Completed</span>
                     <span v-if="education.creditHours">• {{ education.creditHours }} credit hours</span>
                   </div>

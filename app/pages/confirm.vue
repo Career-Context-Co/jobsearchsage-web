@@ -74,7 +74,7 @@ onMounted(async () => {
       <template #header>
         <div class="text-center">
           <h1 class="text-2xl font-bold text-neutral-900 dark:text-white">
-            {{ loading ? 'Confirming your email...' : 'Confirmation Failed' }}
+            {{ loading ? 'Signing you in...' : 'Confirmation Failed' }}
           </h1>
         </div>
       </template>
@@ -84,7 +84,7 @@ onMounted(async () => {
         <div v-if="loading" class="flex flex-col items-center gap-4">
           <Icon name="i-lucide-loader-2" class="w-12 h-12 animate-spin text-primary" />
           <p class="text-neutral-600 dark:text-neutral-400">
-            Please wait while we confirm your email address...
+            Please wait while we get you signed in...
           </p>
         </div>
 
