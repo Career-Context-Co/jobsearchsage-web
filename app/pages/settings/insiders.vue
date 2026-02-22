@@ -66,14 +66,6 @@ const resumeGenerationEnabled = ref(false)
         <USwitch v-model="heroEnabled" disabled />
       </UFormField>
 
-      <UFormField
-        name="resumeGeneration"
-        label="Resume Generation"
-        description="Automatically generate polished, ATS-optimized resumes from your career profile. Choose from multiple professional templates and export to PDF."
-        class="flex items-center justify-between not-last:pb-4 gap-2 opacity-60"
-      >
-        <USwitch v-model="resumeGenerationEnabled" disabled />
-      </UFormField>
     </UPageCard>
   </div>
 </template>

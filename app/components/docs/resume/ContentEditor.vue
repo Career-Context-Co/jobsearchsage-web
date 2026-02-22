@@ -1,5 +1,67 @@
 <script setup lang="ts">
-// Mock data for prototyping
+// --- Config types (will eventually be a real DB-backed model) ---
+
+interface HighlightConfig {
+  sourceId: string
+  isSelected: boolean
+  displayOrder: number
+}
+
+interface ExperienceConfig {
+  sourceId: string
+  isSelected: boolean
+  displayOrder: number
+  fields: {
+    jobTitle: boolean
+    employer: boolean
+    employmentType: boolean
+    locationType: boolean
+    dateRange: boolean
+  }
+  highlights: HighlightConfig[]
+}
+
+interface EducationConfig {
+  sourceId: string
+  isSelected: boolean
+  displayOrder: number
+  fields: {
+    institution: boolean
+    degree: boolean
+    areaOfStudy: boolean
+    dateRange: boolean
+  }
+}
+
+interface SimpleConfig {
+  sourceId: string
+  isSelected: boolean
+  displayOrder: number
+}
+
+// Structural constraint for the reorder helper
+interface Orderable {
+  sourceId: string
+  displayOrder: number
+}
+
+const EXP_FIELDS: { key: keyof ExperienceConfig['fields']; label: string }[] = [
+  { key: 'jobTitle', label: 'Job Title' },
+  { key: 'employer', label: 'Company' },
+  { key: 'employmentType', label: 'Employment Type' },
+  { key: 'locationType', label: 'Location' },
+  { key: 'dateRange', label: 'Date Range' }
+]
+
+const EDU_FIELDS: { key: keyof EducationConfig['fields']; label: string }[] = [
+  { key: 'institution', label: 'Institution' },
+  { key: 'degree', label: 'Degree' },
+  { key: 'areaOfStudy', label: 'Field of Study' },
+  { key: 'dateRange', label: 'Date Range' }
+]
+
+// --- Mock source data (will be replaced by real careerID data) ---
+
 const mockData = {
   professionalSummary: {
     text: 'Experienced software engineer with 5+ years of building scalable web applications and leading cross-functional teams.'
@@ -54,318 +116,418 @@ const mockData = {
     { id: 's8', name: 'CI/CD' }
   ],
   certifications: [
-    {
-      id: 'cert1',
-      name: 'AWS Certified Solutions Architect',
-      issuer: 'Amazon Web Services',
-      issueDate: '2022-03'
-    },
-    {
-      id: 'cert2',
-      name: 'Professional Scrum Master I',
-      issuer: 'Scrum.org',
-      issueDate: '2020-11'
-    }
+    { id: 'cert1', name: 'AWS Certified Solutions Architect', issuer: 'Amazon Web Services', issueDate: '2022-03' },
+    { id: 'cert2', name: 'Professional Scrum Master I', issuer: 'Scrum.org', issueDate: '2020-11' }
   ]
 }
 
-// Section checkboxes
-const summaryEnabled = ref(true)
-const workExperienceEnabled = ref(true)
-const educationEnabled = ref(true)
-const skillsEnabled = ref(true)
-const certificationsEnabled = ref(true)
+// Fast lookups into source data
+const expById = Object.fromEntries(mockData.workExperience.map(e => [e.id, e]))
+const eduById = Object.fromEntries(mockData.education.map(e => [e.id, e]))
+const skillById = Object.fromEntries(mockData.skills.map(s => [s.id, s]))
+const certById = Object.fromEntries(mockData.certifications.map(c => [c.id, c]))
 
-// Individual item selections (all start checked)
-const selectedExperiences = ref<Set<string>>(new Set(mockData.workExperience.map(exp => exp.id)))
-const selectedHighlights = ref<Set<string>>(
-  new Set(mockData.workExperience.flatMap(exp => exp.highlights.map(h => h.id)))
-)
-const selectedEducation = ref<Set<string>>(new Set(mockData.education.map(edu => edu.id)))
-const selectedSkills = ref<Set<string>>(new Set(mockData.skills.map(skill => skill.id)))
-const selectedCertifications = ref<Set<string>>(new Set(mockData.certifications.map(cert => cert.id)))
-
-// Accordion state
-const openSections = ref([0]) // Professional Summary open by default
-
-// Section toggle handlers
-function toggleSection(section: 'summary' | 'workExperience' | 'education' | 'skills' | 'certifications') {
-  switch (section) {
-    case 'summary':
-      summaryEnabled.value = !summaryEnabled.value
-      break
-    case 'workExperience':
-      workExperienceEnabled.value = !workExperienceEnabled.value
-      if (workExperienceEnabled.value) {
-        // Check all
-        mockData.workExperience.forEach(exp => selectedExperiences.value.add(exp.id))
-        mockData.workExperience.forEach(exp => 
-          exp.highlights.forEach(h => selectedHighlights.value.add(h.id))
-        )
-      } else {
-        // Uncheck all
-        selectedExperiences.value.clear()
-        selectedHighlights.value.clear()
-      }
-      break
-    case 'education':
-      educationEnabled.value = !educationEnabled.value
-      if (educationEnabled.value) {
-        mockData.education.forEach(edu => selectedEducation.value.add(edu.id))
-      } else {
-        selectedEducation.value.clear()
-      }
-      break
-    case 'skills':
-      skillsEnabled.value = !skillsEnabled.value
-      if (skillsEnabled.value) {
-        mockData.skills.forEach(skill => selectedSkills.value.add(skill.id))
-      } else {
-        selectedSkills.value.clear()
-      }
-      break
-    case 'certifications':
-      certificationsEnabled.value = !certificationsEnabled.value
-      if (certificationsEnabled.value) {
-        mockData.certifications.forEach(cert => selectedCertifications.value.add(cert.id))
-      } else {
-        selectedCertifications.value.clear()
-      }
-      break
-  }
+function getHighlight(expId: string, hlId: string) {
+  return expById[expId].highlights.find(h => h.id === hlId)!
 }
 
-// Format date range
 function formatDateRange(startDate: string, endDate: string | null) {
-  const start = new Date(startDate + '-01')
-  const startFormatted = start.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-  
-  if (!endDate) return `${startFormatted} - Present`
-  
-  const end = new Date(endDate + '-01')
-  const endFormatted = end.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-  return `${startFormatted} - ${endFormatted}`
+  const fmt = (d: string) => new Date(d + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  return endDate ? `${fmt(startDate)} – ${fmt(endDate)}` : `${fmt(startDate)} – Present`
 }
 
-const accordionItems = computed(() => [
-  {
-    label: 'Professional Summary',
-    icon: 'i-lucide-text-cursor-input',
-    defaultOpen: false,
-    content: 'summary'
-  },
-  {
-    label: 'Work Experience',
-    icon: 'i-lucide-briefcase',
-    defaultOpen: false,
-    content: 'workExperience'
-  },
-  {
-    label: 'Education',
-    icon: 'i-lucide-graduation-cap',
-    defaultOpen: false,
-    content: 'education'
-  },
-  {
-    label: 'Skills',
-    icon: 'i-lucide-lightbulb',
-    defaultOpen: false,
-    content: 'skills'
-  },
-  {
-    label: 'Certifications',
-    icon: 'i-lucide-award',
-    defaultOpen: false,
-    content: 'certifications'
-  }
-])
+// --- Resume config: selection + field visibility + ordering ---
+
+const summaryConfig = reactive({ isSelected: true })
+
+const expConfigs = reactive<ExperienceConfig[]>(
+  mockData.workExperience.map((exp, i) => ({
+    sourceId: exp.id,
+    isSelected: true,
+    displayOrder: i,
+    fields: { jobTitle: true, employer: true, employmentType: true, locationType: true, dateRange: true },
+    highlights: exp.highlights.map((h, j) => ({ sourceId: h.id, isSelected: true, displayOrder: j }))
+  }))
+)
+
+const eduConfigs = reactive<EducationConfig[]>(
+  mockData.education.map((edu, i) => ({
+    sourceId: edu.id,
+    isSelected: true,
+    displayOrder: i,
+    fields: { institution: true, degree: true, areaOfStudy: true, dateRange: true }
+  }))
+)
+
+const skillConfigs = reactive<SimpleConfig[]>(
+  mockData.skills.map((s, i) => ({ sourceId: s.id, isSelected: true, displayOrder: i }))
+)
+
+const certConfigs = reactive<SimpleConfig[]>(
+  mockData.certifications.map((c, i) => ({ sourceId: c.id, isSelected: true, displayOrder: i }))
+)
+
+// --- Sorted views (render order respects displayOrder) ---
+
+const sortedExps = computed(() => [...expConfigs].sort((a, b) => a.displayOrder - b.displayOrder))
+const sortedEdus = computed(() => [...eduConfigs].sort((a, b) => a.displayOrder - b.displayOrder))
+const sortedSkills = computed(() => [...skillConfigs].sort((a, b) => a.displayOrder - b.displayOrder))
+const sortedCerts = computed(() => [...certConfigs].sort((a, b) => a.displayOrder - b.displayOrder))
+
+function sortedHighlights(expConfig: ExperienceConfig) {
+  return [...expConfig.highlights].sort((a, b) => a.displayOrder - b.displayOrder)
+}
+
+// --- Reordering: swap displayOrder between two adjacent items ---
+
+function move(items: Orderable[], sortedIdx: number, direction: 'up' | 'down') {
+  const sorted = [...items].sort((a, b) => a.displayOrder - b.displayOrder)
+  const swapIdx = direction === 'up' ? sortedIdx - 1 : sortedIdx + 1
+  if (swapIdx < 0 || swapIdx >= sorted.length) return
+  const a = items.find(x => x.sourceId === sorted[sortedIdx].sourceId)!
+  const b = items.find(x => x.sourceId === sorted[swapIdx].sourceId)!
+  const temp = a.displayOrder
+  a.displayOrder = b.displayOrder
+  b.displayOrder = temp
+}
+
+// --- Section "select all" writable computeds ---
+
+const allExpsSelected = computed({
+  get: () => expConfigs.every(e => e.isSelected),
+  set: (val) => expConfigs.forEach(e => {
+    e.isSelected = val
+    e.highlights.forEach(h => h.isSelected = val)
+  })
+})
+
+const allEdusSelected = computed({
+  get: () => eduConfigs.every(e => e.isSelected),
+  set: (val) => eduConfigs.forEach(e => e.isSelected = val)
+})
+
+const allSkillsSelected = computed({
+  get: () => skillConfigs.every(s => s.isSelected),
+  set: (val) => skillConfigs.forEach(s => s.isSelected = val)
+})
+
+const allCertsSelected = computed({
+  get: () => certConfigs.every(c => c.isSelected),
+  set: (val) => certConfigs.forEach(c => c.isSelected = val)
+})
+
+// --- Accordion ---
+
+const accordionItems = [
+  { label: 'Professional Summary', icon: 'i-lucide-text-cursor-input', content: 'summary' },
+  { label: 'Work Experience', icon: 'i-lucide-briefcase', content: 'workExperience' },
+  { label: 'Education', icon: 'i-lucide-graduation-cap', content: 'education' },
+  { label: 'Skills', icon: 'i-lucide-lightbulb', content: 'skills' },
+  { label: 'Certifications', icon: 'i-lucide-award', content: 'certifications' }
+]
 </script>
 
 <template>
   <div class="space-y-4">
     <div>
-      <h2 class="text-lg font-semibold mb-1">Content Selection</h2>
-      <p class="text-sm text-muted">Choose what to include in your resume</p>
+      <h2 class="text-lg font-semibold mb-1">
+        Content Selection
+      </h2>
+      <p class="text-sm text-muted">
+        Choose what to include in your resume
+      </p>
     </div>
 
     <UAccordion
       :items="accordionItems"
       multiple
     >
-      <!-- Professional Summary Section -->
+      <!-- Professional Summary -->
       <template #summary>
-        <div class="flex items-start gap-3 py-2">
+        <div
+          class="flex items-start gap-3 py-2 transition-opacity"
+          :class="{ 'opacity-50': !summaryConfig.isSelected }"
+        >
           <UCheckbox
-            v-model="summaryEnabled"
+            v-model="summaryConfig.isSelected"
             @click.stop
-            @change="toggleSection('summary')"
           />
-          <div class="flex-1 min-w-0">
-            <p class="text-sm text-muted whitespace-pre-wrap">{{ mockData.professionalSummary.text }}</p>
-          </div>
+          <p class="text-sm text-muted whitespace-pre-wrap flex-1">
+            {{ mockData.professionalSummary.text }}
+          </p>
         </div>
       </template>
 
-      <!-- Work Experience Section -->
+      <!-- Work Experience -->
       <template #workExperience>
-        <div class="space-y-4">
-          <div class="flex items-center gap-2 mb-3">
+        <div class="space-y-3">
+          <div class="flex items-center gap-2 pb-1">
             <UCheckbox
-              v-model="workExperienceEnabled"
+              v-model="allExpsSelected"
               @click.stop
-              @change="toggleSection('workExperience')"
             />
-            <span class="text-sm font-medium">Include all work experience</span>
+            <span class="text-xs text-muted">Select all</span>
           </div>
 
           <div
-            v-for="exp in mockData.workExperience"
-            :key="exp.id"
-            class="pl-6 border-l-2 border-default space-y-2"
+            v-for="(expConfig, sortedIdx) in sortedExps"
+            :key="expConfig.sourceId"
+            class="border border-default rounded-lg p-3 space-y-3 transition-opacity"
+            :class="{ 'opacity-50': !expConfig.isSelected }"
           >
+            <!-- Header: checkbox + title/company + reorder -->
             <div class="flex items-start gap-3">
               <UCheckbox
-                :model-value="selectedExperiences.has(exp.id)"
-                @update:model-value="(val) => {
-                  if (val) {
-                    selectedExperiences.add(exp.id)
-                    exp.highlights.forEach(h => selectedHighlights.add(h.id))
-                  } else {
-                    selectedExperiences.delete(exp.id)
-                    exp.highlights.forEach(h => selectedHighlights.delete(h.id))
-                  }
-                }"
+                v-model="expConfig.isSelected"
                 @click.stop
               />
               <div class="flex-1 min-w-0">
-                <p class="font-medium">{{ exp.jobTitle }}</p>
-                <p class="text-sm text-muted">{{ exp.employer }}</p>
-                <p class="text-xs text-muted mt-1">
-                  {{ exp.employmentType }} • {{ exp.locationType }} • {{ formatDateRange(exp.startDate, exp.endDate) }}
+                <p class="font-medium text-sm">
+                  {{ expById[expConfig.sourceId].jobTitle }}
+                </p>
+                <p class="text-xs text-muted">
+                  {{ expById[expConfig.sourceId].employer }}
+                  · {{ formatDateRange(expById[expConfig.sourceId].startDate, expById[expConfig.sourceId].endDate) }}
                 </p>
               </div>
+              <div class="flex gap-0.5 shrink-0">
+                <UButton
+                  icon="i-lucide-chevron-up"
+                  size="xs"
+                  variant="ghost"
+                  :disabled="sortedIdx === 0"
+                  @click.stop="move(expConfigs, sortedIdx, 'up')"
+                />
+                <UButton
+                  icon="i-lucide-chevron-down"
+                  size="xs"
+                  variant="ghost"
+                  :disabled="sortedIdx === sortedExps.length - 1"
+                  @click.stop="move(expConfigs, sortedIdx, 'down')"
+                />
+              </div>
             </div>
 
-            <!-- Highlights/Bullets -->
-            <div class="pl-6 space-y-2">
-              <div
-                v-for="highlight in exp.highlights"
-                :key="highlight.id"
-                class="flex items-start gap-3"
+            <!-- Field visibility toggles -->
+            <div class="flex flex-wrap gap-1.5 pl-7">
+              <label
+                v-for="field in EXP_FIELDS"
+                :key="field.key"
+                class="flex items-center gap-1.5 text-xs border border-default rounded px-2 py-1 cursor-pointer select-none hover:bg-elevated/50 transition-colors"
+                :class="{ 'opacity-40': !expConfig.fields[field.key] }"
               >
                 <UCheckbox
-                  :model-value="selectedHighlights.has(highlight.id)"
-                  @update:model-value="(val) => {
-                    if (val) {
-                      selectedHighlights.add(highlight.id)
-                    } else {
-                      selectedHighlights.delete(highlight.id)
-                    }
-                  }"
+                  :model-value="expConfig.fields[field.key]"
+                  size="sm"
+                  @update:model-value="expConfig.fields[field.key] = $event as boolean"
                   @click.stop
                 />
-                <p class="text-sm flex-1">{{ highlight.text }}</p>
+                {{ field.label }}
+              </label>
+            </div>
+
+            <!-- Bullets -->
+            <div class="pl-7 space-y-2">
+              <p class="text-xs text-muted font-medium">
+                Bullets
+              </p>
+              <div
+                v-for="(hlConfig, hlIdx) in sortedHighlights(expConfig)"
+                :key="hlConfig.sourceId"
+                class="flex items-start gap-2 transition-opacity"
+                :class="{ 'opacity-40': !hlConfig.isSelected }"
+              >
+                <UCheckbox
+                  v-model="hlConfig.isSelected"
+                  class="mt-0.5 shrink-0"
+                  @click.stop
+                />
+                <p class="text-sm flex-1 leading-snug">
+                  {{ getHighlight(expConfig.sourceId, hlConfig.sourceId).text }}
+                </p>
+                <div class="flex gap-0.5 shrink-0">
+                  <UButton
+                    icon="i-lucide-chevron-up"
+                    size="xs"
+                    variant="ghost"
+                    :disabled="hlIdx === 0"
+                    @click.stop="move(expConfig.highlights, hlIdx, 'up')"
+                  />
+                  <UButton
+                    icon="i-lucide-chevron-down"
+                    size="xs"
+                    variant="ghost"
+                    :disabled="hlIdx === sortedHighlights(expConfig).length - 1"
+                    @click.stop="move(expConfig.highlights, hlIdx, 'down')"
+                  />
+                </div>
               </div>
             </div>
           </div>
         </div>
       </template>
 
-      <!-- Education Section -->
+      <!-- Education -->
       <template #education>
         <div class="space-y-3">
-          <div class="flex items-center gap-2 mb-3">
+          <div class="flex items-center gap-2 pb-1">
             <UCheckbox
-              v-model="educationEnabled"
+              v-model="allEdusSelected"
               @click.stop
-              @change="toggleSection('education')"
             />
-            <span class="text-sm font-medium">Include all education</span>
+            <span class="text-xs text-muted">Select all</span>
           </div>
 
           <div
-            v-for="edu in mockData.education"
-            :key="edu.id"
-            class="pl-6 flex items-start gap-3"
+            v-for="(eduConfig, sortedIdx) in sortedEdus"
+            :key="eduConfig.sourceId"
+            class="border border-default rounded-lg p-3 space-y-3 transition-opacity"
+            :class="{ 'opacity-50': !eduConfig.isSelected }"
           >
-            <UCheckbox
-              :model-value="selectedEducation.has(edu.id)"
-              @update:model-value="(val) => {
-                if (val) selectedEducation.add(edu.id)
-                else selectedEducation.delete(edu.id)
-              }"
-              @click.stop
-            />
-            <div class="flex-1 min-w-0">
-              <p class="font-medium">{{ edu.institution }}</p>
-              <p class="text-sm text-muted">{{ edu.degree }} in {{ edu.areaOfStudy }}</p>
-              <p class="text-xs text-muted mt-1">{{ formatDateRange(edu.startDate, edu.endDate) }}</p>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <!-- Skills Section -->
-      <template #skills>
-        <div class="space-y-3">
-          <div class="flex items-center gap-2 mb-3">
-            <UCheckbox
-              v-model="skillsEnabled"
-              @click.stop
-              @change="toggleSection('skills')"
-            />
-            <span class="text-sm font-medium">Include all skills</span>
-          </div>
-
-          <div class="pl-6 grid grid-cols-2 gap-2">
-            <div
-              v-for="skill in mockData.skills"
-              :key="skill.id"
-              class="flex items-center gap-2"
-            >
+            <div class="flex items-start gap-3">
               <UCheckbox
-                :model-value="selectedSkills.has(skill.id)"
-                @update:model-value="(val) => {
-                  if (val) selectedSkills.add(skill.id)
-                  else selectedSkills.delete(skill.id)
-                }"
+                v-model="eduConfig.isSelected"
                 @click.stop
               />
-              <span class="text-sm">{{ skill.name }}</span>
+              <div class="flex-1 min-w-0">
+                <p class="font-medium text-sm">
+                  {{ eduById[eduConfig.sourceId].institution }}
+                </p>
+                <p class="text-xs text-muted">
+                  {{ eduById[eduConfig.sourceId].degree }} in {{ eduById[eduConfig.sourceId].areaOfStudy }}
+                </p>
+              </div>
+              <div class="flex gap-0.5 shrink-0">
+                <UButton
+                  icon="i-lucide-chevron-up"
+                  size="xs"
+                  variant="ghost"
+                  :disabled="sortedIdx === 0"
+                  @click.stop="move(eduConfigs, sortedIdx, 'up')"
+                />
+                <UButton
+                  icon="i-lucide-chevron-down"
+                  size="xs"
+                  variant="ghost"
+                  :disabled="sortedIdx === sortedEdus.length - 1"
+                  @click.stop="move(eduConfigs, sortedIdx, 'down')"
+                />
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-1.5 pl-7">
+              <label
+                v-for="field in EDU_FIELDS"
+                :key="field.key"
+                class="flex items-center gap-1.5 text-xs border border-default rounded px-2 py-1 cursor-pointer select-none hover:bg-elevated/50 transition-colors"
+                :class="{ 'opacity-40': !eduConfig.fields[field.key] }"
+              >
+                <UCheckbox
+                  :model-value="eduConfig.fields[field.key]"
+                  size="sm"
+                  @update:model-value="eduConfig.fields[field.key] = $event as boolean"
+                  @click.stop
+                />
+                {{ field.label }}
+              </label>
             </div>
           </div>
         </div>
       </template>
 
-      <!-- Certifications Section -->
+      <!-- Skills -->
+      <template #skills>
+        <div class="space-y-3">
+          <div class="flex items-center gap-2 pb-1">
+            <UCheckbox
+              v-model="allSkillsSelected"
+              @click.stop
+            />
+            <span class="text-xs text-muted">Select all</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div
+              v-for="(skillConfig, sortedIdx) in sortedSkills"
+              :key="skillConfig.sourceId"
+              class="flex items-center gap-2 transition-opacity"
+              :class="{ 'opacity-50': !skillConfig.isSelected }"
+            >
+              <UCheckbox
+                v-model="skillConfig.isSelected"
+                @click.stop
+              />
+              <span class="text-sm flex-1">{{ skillById[skillConfig.sourceId].name }}</span>
+              <div class="flex gap-0.5">
+                <UButton
+                  icon="i-lucide-chevron-up"
+                  size="xs"
+                  variant="ghost"
+                  :disabled="sortedIdx === 0"
+                  @click.stop="move(skillConfigs, sortedIdx, 'up')"
+                />
+                <UButton
+                  icon="i-lucide-chevron-down"
+                  size="xs"
+                  variant="ghost"
+                  :disabled="sortedIdx === sortedSkills.length - 1"
+                  @click.stop="move(skillConfigs, sortedIdx, 'down')"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Certifications -->
       <template #certifications>
         <div class="space-y-3">
-          <div class="flex items-center gap-2 mb-3">
+          <div class="flex items-center gap-2 pb-1">
             <UCheckbox
-              v-model="certificationsEnabled"
+              v-model="allCertsSelected"
               @click.stop
-              @change="toggleSection('certifications')"
             />
-            <span class="text-sm font-medium">Include all certifications</span>
+            <span class="text-xs text-muted">Select all</span>
           </div>
 
           <div
-            v-for="cert in mockData.certifications"
-            :key="cert.id"
-            class="pl-6 flex items-start gap-3"
+            v-for="(certConfig, sortedIdx) in sortedCerts"
+            :key="certConfig.sourceId"
+            class="border border-default rounded-lg p-3 transition-opacity"
+            :class="{ 'opacity-50': !certConfig.isSelected }"
           >
-            <UCheckbox
-              :model-value="selectedCertifications.has(cert.id)"
-              @update:model-value="(val) => {
-                if (val) selectedCertifications.add(cert.id)
-                else selectedCertifications.delete(cert.id)
-              }"
-              @click.stop
-            />
-            <div class="flex-1 min-w-0">
-              <p class="font-medium">{{ cert.name }}</p>
-              <p class="text-sm text-muted">{{ cert.issuer }}</p>
-              <p class="text-xs text-muted mt-1">Issued {{ new Date(cert.issueDate + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) }}</p>
+            <div class="flex items-start gap-3">
+              <UCheckbox
+                v-model="certConfig.isSelected"
+                @click.stop
+              />
+              <div class="flex-1 min-w-0">
+                <p class="font-medium text-sm">
+                  {{ certById[certConfig.sourceId].name }}
+                </p>
+                <p class="text-xs text-muted">
+                  {{ certById[certConfig.sourceId].issuer }}
+                </p>
+                <p class="text-xs text-muted mt-0.5">
+                  Issued {{ new Date(certById[certConfig.sourceId].issueDate + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) }}
+                </p>
+              </div>
+              <div class="flex gap-0.5 shrink-0">
+                <UButton
+                  icon="i-lucide-chevron-up"
+                  size="xs"
+                  variant="ghost"
+                  :disabled="sortedIdx === 0"
+                  @click.stop="move(certConfigs, sortedIdx, 'up')"
+                />
+                <UButton
+                  icon="i-lucide-chevron-down"
+                  size="xs"
+                  variant="ghost"
+                  :disabled="sortedIdx === sortedCerts.length - 1"
+                  @click.stop="move(certConfigs, sortedIdx, 'down')"
+                />
+              </div>
             </div>
           </div>
         </div>
