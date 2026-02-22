@@ -3,23 +3,132 @@ const router = useRouter()
 const careerIDStore = useCareerIDStore()
 
 interface ResumeRecord {
-  id: number
+  id: string
   title: string
   createdAt: string
   updatedAt: string
 }
 
-// TODO(backend): Replace with real API call — GET /api/docs/resumes
 const resumes = ref<ResumeRecord[]>([])
-const isLoading = ref(false)
+const isLoading = ref(true)
 const isCreating = ref(false)
+const loadError = ref(false)
 
-// TODO(backend): Call POST /api/docs/resumes to create a real record, then navigate to /docs/resumes/[id]
+onMounted(async () => {
+  const profileId = careerIDStore.profileId
+  if (!profileId) {
+    isLoading.value = false
+    return
+  }
+  if (!careerIDStore.isProfileLoaded) {
+    try {
+      await careerIDStore.fetchProfile(profileId)
+    } catch {
+      isLoading.value = false
+      return
+    }
+  }
+  await loadResumes()
+})
+
+async function loadResumes() {
+  isLoading.value = true
+  loadError.value = false
+  try {
+    const result = await $fetch<{ success: boolean; data: ResumeRecord[] }>('/api/docs/resumes')
+    if (result.success) resumes.value = result.data
+  } catch {
+    loadError.value = true
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Build a full content snapshot from careerIDStore with everything selected.
+// This is sent on creation so the editor opens with a fully-populated resume.
+function buildSnapshot() {
+  const contact = careerIDStore.contactInfo
+
+  function formatEmploymentType(type: string) {
+    const map: Record<string, string> = {
+      full_time: 'Full-time', part_time: 'Part-time',
+      contract: 'Contract', freelance: 'Freelance', internship: 'Internship'
+    }
+    return map[type] || type
+  }
+
+  function formatLocationType(type: string) {
+    const map: Record<string, string> = {
+      on_site: 'On-site', remote: 'Remote', hybrid: 'Hybrid'
+    }
+    return map[type] || type
+  }
+
+  return {
+    summary: {
+      text: contact?.summary || '',
+      enabled: !!(contact?.summary)
+    },
+    workExperience: careerIDStore.experience.map(exp => ({
+      id: exp.id,
+      employer: exp.employer,
+      jobTitle: exp.title,
+      employmentType: formatEmploymentType(exp.employmentType),
+      locationType: exp.locationType === 'remote'
+        ? 'Remote'
+        : (exp.location || formatLocationType(exp.locationType)),
+      startDate: exp.startDate,
+      endDate: exp.endDate,
+      currentPosition: exp.currentPosition,
+      highlights: (exp.highlights || []).map((h, i) => ({
+        id: `${exp.id}-h${i}`,
+        text: h,
+        selected: true
+      })),
+      selected: true
+    })),
+    education: careerIDStore.education.map(edu => ({
+      id: edu.id,
+      institution: edu.institution,
+      degree: edu.degreeType,
+      areaOfStudy: edu.areaOfStudy || '',
+      startDate: edu.startDate,
+      endDate: edu.endDate,
+      selected: true
+    })),
+    skills: careerIDStore.profileSkills.map(skill => ({
+      id: skill.name,
+      name: skill.name,
+      group: skill.group || 'Skills',
+      selected: true
+    })),
+    certifications: careerIDStore.certifications.map(cert => ({
+      id: cert.id,
+      name: cert.name,
+      issuer: cert.issuer || '',
+      issueDate: cert.issueDate || '',
+      selected: true
+    }))
+  }
+}
+
 async function createNewResume() {
   if (isCreating.value) return
   isCreating.value = true
   try {
-    await router.push('/docs/resumes/new')
+    const contact = careerIDStore.contactInfo
+    const result = await $fetch<{ success: boolean; data: ResumeRecord }>('/api/docs/resumes', {
+      method: 'POST',
+      body: {
+        firstName: contact?.firstName || '',
+        lastName: contact?.lastName || '',
+        content: buildSnapshot(),
+        designSettings: { accentColor: '#0d9488' }
+      }
+    })
+    if (result.success && result.data) {
+      await router.push(`/docs/resumes/${result.data.id}`)
+    }
   } finally {
     isCreating.value = false
   }
@@ -27,9 +136,7 @@ async function createNewResume() {
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
+    month: 'short', day: 'numeric', year: 'numeric'
   })
 }
 </script>
@@ -38,6 +145,13 @@ function formatDate(dateString: string): string {
   <!-- Loading state -->
   <div v-if="isLoading" class="flex justify-center py-16">
     <UIcon name="i-lucide-loader-circle" class="w-8 h-8 text-muted animate-spin" />
+  </div>
+
+  <!-- Error state -->
+  <div v-else-if="loadError" class="flex flex-col items-center justify-center gap-4 text-center py-16">
+    <UIcon name="i-lucide-circle-alert" class="w-10 h-10 text-red-500" />
+    <p class="text-muted text-sm">Failed to load resumes.</p>
+    <UButton label="Retry" color="neutral" variant="outline" size="sm" @click="loadResumes" />
   </div>
 
   <!-- Resume list -->

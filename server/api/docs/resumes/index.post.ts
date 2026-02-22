@@ -2,14 +2,15 @@
  * POST /api/docs/resumes
  *
  * Creates a new resume for the authenticated user's profile.
- * Takes a snapshot of the current profile data at creation time.
- * Auto-titles as "[FirstName] [LastName] Resume [id]".
+ * ID is a prefixed CUID2 (`doc_*`) generated server-side.
+ * Auto-titles as "[FirstName] [LastName] Resume [short-id]".
  * Returns the created resume record.
  */
 
 import { serverSupabaseClient } from '#supabase/server'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { handleDatabaseError, ErrorCodes } from '@@/server/utils/error-handler'
+import { generatePrefixedId } from '@@/server/utils/id-generator'
 
 const ROUTE_PATH = '/api/docs/resumes'
 
@@ -52,16 +53,20 @@ export default eventHandler(async (event) => {
   }
 
   const profileId = profileRow.id
+  const resumeId = generatePrefixedId('doc')
 
-  // Create the resume with an empty snapshot first (title uses placeholder)
-  const placeholderTitle = [body.firstName, body.lastName].filter(Boolean).join(' ')
+  const firstName = (body.firstName || '').trim()
+  const lastName = (body.lastName || '').trim()
+  const namePart = [firstName, lastName].filter(Boolean).join('_')
+  const title = namePart ? `${namePart}_Resume_${resumeId}` : `Resume_${resumeId}`
 
-  const { data: inserted, error: insertError } = await supabase
+  const { data, error: insertError } = await supabase
     .from('docs_resumes')
     .insert({
+      id: resumeId,
       profile_id: profileId,
-      title: placeholderTitle ? `${placeholderTitle} Resume` : 'Resume',
-      content_snapshot: body.contentSnapshot || {},
+      title,
+      content: body.content || {},
       design_settings: body.designSettings || {}
     })
     .select('id, title, created_at, updated_at')
@@ -72,35 +77,18 @@ export default eventHandler(async (event) => {
     throw handleDatabaseError(insertError, { operation: 'create', resource: 'resume' })
   }
 
-  // Update the title to include the integer ID
-  const finalTitle = placeholderTitle
-    ? `${placeholderTitle} Resume ${inserted.id}`
-    : `Resume ${inserted.id}`
-
-  const { data: updated, error: updateError } = await supabase
-    .from('docs_resumes')
-    .update({ title: finalTitle })
-    .eq('id', inserted.id)
-    .select('id, title, created_at, updated_at')
-    .single()
-
-  if (updateError) {
-    logError('POST', ROUTE_PATH, updateError, { profileId, resumeId: inserted.id })
-    throw handleDatabaseError(updateError, { operation: 'update', resource: 'resume' })
-  }
-
   setResponseStatus(event, 201)
 
   const duration = getElapsed()
-  logSuccess('POST', ROUTE_PATH, duration, { profileId, resumeId: updated.id })
+  logSuccess('POST', ROUTE_PATH, duration, { profileId, resumeId: data.id })
 
   return {
     success: true,
     data: {
-      id: updated.id,
-      title: updated.title,
-      createdAt: updated.created_at,
-      updatedAt: updated.updated_at
+      id: data.id,
+      title: data.title,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at
     }
   }
 })

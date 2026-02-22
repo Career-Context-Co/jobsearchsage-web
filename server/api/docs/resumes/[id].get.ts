@@ -1,8 +1,8 @@
 /**
  * GET /api/docs/resumes/:id
  *
- * Loads a single resume record by integer ID for the authenticated user.
- * Returns id, title, content_snapshot, design_settings, created_at, updated_at.
+ * Loads a single resume record by its `doc_*` prefixed ID for the authenticated user.
+ * Returns id, title, content, design_settings, created_at, updated_at.
  */
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -14,17 +14,16 @@ const ROUTE_PATH = '/api/docs/resumes/:id'
 export default eventHandler(async (event) => {
   const getElapsed = createTimer()
   const supabase = await serverSupabaseClient(event)
-  const idParam = getRouterParam(event, 'id')
-  const resumeId = Number(idParam)
+  const resumeId = getRouterParam(event, 'id')
 
   logRequest('GET', ROUTE_PATH, { resumeId })
 
-  if (!resumeId || isNaN(resumeId)) {
+  if (!resumeId) {
     throw createError({
       statusCode: 400,
       data: {
         success: false,
-        error: { code: 'VALIDATION_ERROR', message: 'Invalid resume ID' }
+        error: { code: 'VALIDATION_ERROR', message: 'Resume ID is required' }
       }
     })
   }
@@ -43,7 +42,7 @@ export default eventHandler(async (event) => {
 
   const { data, error } = await supabase
     .from('docs_resumes')
-    .select('id, title, content_snapshot, design_settings, created_at, updated_at')
+    .select('id, title, content, design_settings, created_at, updated_at')
     .eq('id', resumeId)
     .maybeSingle()
 
@@ -64,7 +63,7 @@ export default eventHandler(async (event) => {
     data: {
       id: data.id,
       title: data.title,
-      contentSnapshot: data.content_snapshot,
+      content: data.content,
       designSettings: data.design_settings,
       createdAt: data.created_at,
       updatedAt: data.updated_at

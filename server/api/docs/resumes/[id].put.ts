@@ -1,8 +1,9 @@
 /**
  * PUT /api/docs/resumes/:id
  *
- * Saves the current editor state (content_snapshot + design_settings) to the resume record.
- * Replaces the snapshot wholesale. Updates updated_at automatically.
+ * Saves the current editor state to the resume record.
+ * Accepts `content` (JSONB) and `designSettings` (JSONB).
+ * Replaces both columns wholesale. Updates updated_at.
  */
 
 import { serverSupabaseClient } from '#supabase/server'
@@ -15,17 +16,16 @@ export default eventHandler(async (event) => {
   const getElapsed = createTimer()
   const supabase = await serverSupabaseClient(event)
   const body = await readBody(event)
-  const idParam = getRouterParam(event, 'id')
-  const resumeId = Number(idParam)
+  const resumeId = getRouterParam(event, 'id')
 
   logRequest('PUT', ROUTE_PATH, { resumeId })
 
-  if (!resumeId || isNaN(resumeId)) {
+  if (!resumeId) {
     throw createError({
       statusCode: 400,
       data: {
         success: false,
-        error: { code: 'VALIDATION_ERROR', message: 'Invalid resume ID' }
+        error: { code: 'VALIDATION_ERROR', message: 'Resume ID is required' }
       }
     })
   }
@@ -46,8 +46,12 @@ export default eventHandler(async (event) => {
     updated_at: new Date().toISOString()
   }
 
-  if (body.contentSnapshot !== undefined) {
-    updatePayload.content_snapshot = body.contentSnapshot
+  if (body.title !== undefined && typeof body.title === 'string' && body.title.trim()) {
+    updatePayload.title = body.title.trim()
+  }
+
+  if (body.content !== undefined) {
+    updatePayload.content = body.content
   }
 
   if (body.designSettings !== undefined) {
