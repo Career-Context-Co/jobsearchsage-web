@@ -14,12 +14,11 @@ onMounted(async () => {
   const next = (route.query.next as string) || '/'
 
   try {
+    // Hash tokens from server OAuth callback (Google sign-in flow)
     const hashParams = new URLSearchParams(window.location.hash.substring(1))
     const accessToken = hashParams.get('access_token')
     const refreshToken = hashParams.get('refresh_token')
-    const isOAuth = route.query.from === 'oauth'
 
-    // Hash tokens from our server OAuth callback
     if (accessToken && refreshToken) {
       const { data, error: sessionError } = await supabaseClient.auth.setSession({
         access_token: accessToken,
@@ -27,24 +26,21 @@ onMounted(async () => {
       })
       if (sessionError) throw sessionError
       if (data.session) {
-        // Give reactive state time to propagate before navigating
-        await new Promise(resolve => setTimeout(resolve, 500))
         await accountStore.hydrateFromSession()
-        return navigateTo(isOAuth ? next : '/signin?confirmed=true')
+        return navigateTo(next)
       }
     }
 
-    // Direct OAuth code (fallback if server callback not used)
+    // OAuth PKCE code exchange (client-side, has access to code_verifier in cookies)
     const code = route.query.code as string
     if (code) {
       const { error: exchangeError } = await supabaseClient.auth.exchangeCodeForSession(code)
       if (exchangeError) throw exchangeError
-      await new Promise(resolve => setTimeout(resolve, 500))
       await accountStore.hydrateFromSession()
       return navigateTo(next)
     }
 
-    // Email confirmation token in query
+    // Email confirmation token
     const emailToken = route.query.token as string
     if (emailToken) {
       const { error: exchangeError } = await supabaseClient.auth.exchangeCodeForSession(window.location.href)

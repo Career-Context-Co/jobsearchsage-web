@@ -59,12 +59,20 @@ export default defineNuxtConfig({
       callback: '/confirm',
       exclude: ['/signin', '/confirm']
     },
+    clientOptions: {
+      auth: {
+        flowType: 'pkce',
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    },
     cookieOptions: {
       maxAge: 60 * 60 * 8, // 8 hours
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
       httpOnly: false
-    },
+    }
   },
 
   eslint: {
