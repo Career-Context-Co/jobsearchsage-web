@@ -7,10 +7,6 @@ const links = [[{
   to: '/settings',
   exact: true
 }, {
-  label: 'Notifications',
-  icon: 'i-lucide-bell',
-  to: '/settings/notifications'
-}, {
   label: 'Insiders',
   icon: 'i-lucide-sparkles',
   to: '/settings/insiders'
