@@ -61,13 +61,13 @@ export default eventHandler(async (event) => {
       lastName = parts.length > 1 ? parts.slice(1).join(' ') : null
     }
     if (firstName || lastName) {
-      supabase.from('users').upsert({
+      await supabase.from('users').upsert({
         id: user.id,
         email: user.email ?? '',
         first_name: firstName,
         last_name: lastName,
         last_active_at: new Date().toISOString()
-      }, { onConflict: 'id' }).then(() => {}).catch(() => {})
+      }, { onConflict: 'id' })
     }
   }
 
