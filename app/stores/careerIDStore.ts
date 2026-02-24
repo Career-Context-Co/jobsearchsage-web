@@ -1404,7 +1404,17 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return response
       } catch (error: any) {
-        const errorMessage = error?.data?.error?.message || error?.message || 'Failed to extract resume data'
+        // H3/Nitro wraps createError({ data }) in an envelope: { statusCode, statusMessage, data: {...} }
+        // so the structured payload may live at error.data.data; check both shapes.
+        const serverMessage =
+          error?.data?.data?.error?.message ??
+          error?.data?.data?.message ??
+          error?.data?.error?.message ??
+          error?.data?.message
+        const rawMessage = error?.message
+        const isGenericStatusLine = typeof rawMessage === 'string' && /":\s*\d{3}\s*$/.test(rawMessage.trim())
+        const errorMessage = serverMessage ||
+          (rawMessage && !isGenericStatusLine ? rawMessage : 'Failed to extract resume data')
         this.extractionError = errorMessage
         throw error
       } finally {

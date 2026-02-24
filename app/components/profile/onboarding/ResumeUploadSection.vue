@@ -9,8 +9,7 @@ const emit = defineEmits<{
 const store = useCareerIDStore()
 const selectedFile = ref<File | null>(null)
 
-// File validation configuration
-const acceptedFileTypes = '.pdf,.txt,.md'
+const ALLOWED_EXTENSIONS = ['pdf', 'txt', 'md']
 const maxFileSize = 10 * 1024 * 1024 // 10MB in bytes
 
 // Use store state
@@ -18,60 +17,72 @@ const isUploading = computed(() => store.isExtracting)
 const hasPerformedExtraction = computed(() => store.hasPerformedExtraction)
 const uploadError = computed(() => store.extractionError)
 
-// Clear error when file is selected
-watch(selectedFile, () => {
-  if (selectedFile.value) {
-    store.extractionError = null
-  }
-})
+// Called by UFileUpload @change — fires after v-model is updated (drag or browse)
+function handleFileChange() {
+  if (!selectedFile.value) return
 
-// Handle file validation errors from UFileUpload
-function handleFileError(error: any) {
-  console.error('File validation error:', error)
-  
-  if (error?.message?.includes('size')) {
-    store.extractionError = 'File is too large. Maximum size is 10MB.'
-  } else if (error?.message?.includes('type')) {
-    store.extractionError = 'File format not supported. Please upload a PDF, Txt, or Markdown file.'
-  } else {
-    store.extractionError = 'Invalid file. Please try again.'
+  const ext = selectedFile.value.name.toLowerCase().split('.').pop() ?? ''
+
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    store.extractionError = `"${selectedFile.value.name}" is not a supported file type. Please upload a PDF, TXT, or MD file.`
+    selectedFile.value = null
+    return
   }
+
+  if (selectedFile.value.size > maxFileSize) {
+    store.extractionError = `File is too large (${(selectedFile.value.size / 1024 / 1024).toFixed(1)} MB). Maximum size is 10 MB.`
+    selectedFile.value = null
+    return
+  }
+
+  store.extractionError = null
+}
+
+// Extract the most useful message from a $fetch error.
+// H3/Nitro wraps createError({ data }) in an envelope: { statusCode, statusMessage, data: {...} }
+// so the structured payload lives at error.data.data; we also check the flat shape as fallback.
+function extractApiErrorMessage(error: any): string | null {
+  return (
+    error?.data?.data?.error?.message ??
+    error?.data?.data?.message ??
+    error?.data?.error?.message ??
+    error?.data?.message ??
+    null
+  )
+}
+
+function extractApiErrorCode(error: any): string | null {
+  return (
+    error?.data?.data?.error?.code ??
+    error?.data?.error?.code ??
+    null
+  )
 }
 
 // Handle file upload
 async function handleUpload() {
   if (!selectedFile.value) return
-  
+
   try {
-    // Extract resume data via store action
     const response = await store.extractResumeData(selectedFile.value)
-    
-    console.log('Extraction successful:', response)
-    
-    // Apply extraction to profile (always merges, with isExtracted flag for visual indicators)
     store.applyExtractionToProfile()
-    
-    // Emit success with extracted flag
     emit('uploadComplete', true)
   } catch (error: any) {
-    console.error('Extraction failed:', error)
-    
-    // Error is already set in store, but handle specific error codes for better UX
-    const errorCode = error?.data?.error?.code
-    
-    if (errorCode === 'FILE_TOO_LARGE') {
-      store.extractionError = error?.data?.error?.message || 'File is too large. Maximum size is 10MB.'
-    } else if (errorCode === 'INVALID_EXTENSION') {
-      store.extractionError = error?.data?.error?.message || 'File format not supported. Please upload PDF, Txt, or Markdown file.'
-    } else if (errorCode === 'INVALID_MIME_TYPE') {
-      store.extractionError = error?.data?.error?.message || 'Invalid file type. Please upload a valid resume file.'
+    const serverMessage = extractApiErrorMessage(error)
+    const errorCode = extractApiErrorCode(error)
+
+    if (serverMessage) {
+      store.extractionError = serverMessage
+    } else if (errorCode === 'FILE_TOO_LARGE') {
+      store.extractionError = 'File is too large. Maximum size is 10 MB.'
+    } else if (errorCode === 'INVALID_EXTENSION' || errorCode === 'INVALID_MIME_TYPE') {
+      store.extractionError = 'File format not supported. Please upload a PDF, TXT, or MD file.'
     } else if (errorCode === 'EXTRACTION_TIMEOUT') {
       store.extractionError = 'Extraction timed out. Please try again or use a smaller file.'
     } else if (errorCode === 'SERVICE_UNAVAILABLE') {
       store.extractionError = 'AI service is temporarily unavailable. Please try again in a moment.'
-    } else if (!store.extractionError) {
-      // Only set generic message if no error message was set by store
-      store.extractionError = 'We couldn\'t read this resume. Can you try uploading another version (PDF, Txt, or Markdown)?'
+    } else if (!store.extractionError || /":\s*\d{3}\s*$/.test(String(store.extractionError).trim())) {
+      store.extractionError = 'We couldn\'t read this resume. Please upload a PDF, TXT, or MD file.'
     }
   }
 }
@@ -113,16 +124,14 @@ function handleRetry() {
     <div class="flex flex-col gap-4">
       <UFileUpload
         v-model="selectedFile"
-        :accept="acceptedFileTypes"
-        :max-size="maxFileSize"
         :multiple="false"
         highlight
         icon="i-lucide-upload-cloud"
         label="Drop your resume here or click to browse"
-        description="Supported formats: PDF, Txt, Markdown (max 10MB)"
+        description="Supported formats: PDF, TXT, MD (max 10 MB)"
         :preview="false"
         class="cursor-pointer"
-        @error="handleFileError"
+        @change="handleFileChange"
       />
 
       <!-- Selected File Display -->
@@ -173,7 +182,7 @@ function handleRetry() {
         icon="i-lucide-alert-circle"
         :title="uploadError"
         :close-button="{ icon: 'i-lucide-x', color: 'error', variant: 'ghost' }"
-        @close="uploadError = null"
+        @close="store.extractionError = null"
       >
         <template #actions>
           <div class="flex gap-2">
