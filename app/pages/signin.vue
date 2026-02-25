@@ -10,6 +10,7 @@ const route = useRoute()
 const accountStore = useAccountStore()
 const supabaseClient = useSupabaseClient()
 const toast = useToast()
+const posthog = usePostHog()
 
 const mode = ref<'signin' | 'signup'>('signin')
 const loading = ref(false)
@@ -27,7 +28,7 @@ onMounted(() => {
   }
   if (route.query.confirmed === 'true') {
     successMessage.value = 'Success! Your email has been confirmed. You can now sign in.'
-    
+
     // Show toast notification
     toast.add({
       title: 'Email Confirmed!',
@@ -35,7 +36,7 @@ onMounted(() => {
       icon: 'i-lucide-check-circle',
       color: 'success'
     })
-    
+
     // Clear the query param from URL after showing message
     setTimeout(() => {
       navigateTo('/signin', { replace: true })
@@ -49,7 +50,7 @@ const isSignUp = computed(() => mode.value === 'signup')
 // Define fields based on mode
 const fields = computed<AuthFormField[]>(() => {
   const baseFields: AuthFormField[] = []
-  
+
   // Add name fields for sign-up
   if (isSignUp.value) {
     baseFields.push(
@@ -60,7 +61,7 @@ const fields = computed<AuthFormField[]>(() => {
         placeholder: 'e.g. Alex',
         required: false,
         size: 'md',
-        help: "What you'd like to be called — we'll use this throughout the app"
+        help: 'What you\'d like to be called — we\'ll use this throughout the app'
       },
       {
         name: 'firstName',
@@ -82,7 +83,7 @@ const fields = computed<AuthFormField[]>(() => {
       }
     )
   }
-  
+
   // Email and password for both modes
   baseFields.push(
     {
@@ -100,7 +101,7 @@ const fields = computed<AuthFormField[]>(() => {
       required: true
     }
   )
-  
+
   return baseFields
 })
 
@@ -115,7 +116,7 @@ const schema = computed(() => {
       password: z.string().min(6, 'Password must be at least 6 characters')
     })
   }
-  
+
   return z.object({
     email: z.string().email('Invalid email'),
     password: z.string().min(6, 'Password must be at least 6 characters')
@@ -137,7 +138,7 @@ const toggleMode = () => {
   mode.value = isSignIn.value ? 'signup' : 'signin'
   error.value = null
   successMessage.value = null
-  
+
   // Clear the confirmed query param if present
   if (route.query.confirmed) {
     navigateTo('/signin', { replace: true })
@@ -163,6 +164,9 @@ async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
   try {
     if (isSignIn.value) {
       await accountStore.signIn(event.data.email, event.data.password)
+      // Identify user on successful sign-in
+      posthog?.identify(event.data.email)
+      posthog?.capture('user_signed_in', { method: 'email' })
       await navigateTo('/')
     } else {
       const response = await accountStore.signUp(
@@ -174,15 +178,20 @@ async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
       )
       // On success, show confirmation message (don't redirect)
       if (response.success) {
+        posthog?.capture('user_signed_up', {
+          method: 'email',
+          has_preferred_name: !!((event.data as any).preferredName)
+        })
         successMessage.value = response.message
       }
     }
   } catch (err: any) {
     console.error('Auth error:', err)
-    
+    posthog?.captureException(err)
+
     // Extract user-friendly error message from various possible error structures
     let errorMessage = `Failed to ${isSignIn.value ? 'sign in' : 'sign up'}`
-    
+
     if (err?.data?.error?.message) {
       // Structured error from our API
       errorMessage = err.data.error.message
@@ -196,7 +205,7 @@ async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
       // HTTP status message
       errorMessage = err.statusMessage
     }
-    
+
     error.value = errorMessage
   } finally {
     loading.value = false
@@ -229,7 +238,7 @@ async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
           root: 'space-y-4',
           body: 'space-y-4',
           form: 'space-y-4',
-          providers: 'mb-4',
+          providers: 'mb-4'
         }"
         @submit="onSubmit"
       >
@@ -300,9 +309,9 @@ async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
     <!-- Legal -->
     <div class="text-center">
       <p class="text-sm text-gray-500 dark:text-gray-400">
-        By clicking continue, you agree to our 
-        <ULink to="#" class="text-primary font-medium">Terms of Service</ULink> 
-        and 
+        By clicking continue, you agree to our
+        <ULink to="#" class="text-primary font-medium">Terms of Service</ULink>
+        and
         <ULink to="#" class="text-primary font-medium">Privacy Policy</ULink>.
       </p>
     </div>

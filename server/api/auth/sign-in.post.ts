@@ -10,6 +10,7 @@ import { serverSupabaseClient } from '#supabase/server'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { ErrorCodes } from '@@/server/utils/error-handler'
 import { mapAuthError } from '@@/server/utils/auth-error-mapper'
+import { useServerPostHog } from '@@/server/utils/posthog'
 
 const ROUTE_PATH = '/api/auth/sign-in'
 
@@ -124,6 +125,20 @@ export default eventHandler(async (event) => {
     logSuccess('POST', ROUTE_PATH, duration, {
       userId: authData.user.id,
       profileId: publicUser?.career_id_profile_id ?? null
+    })
+
+    const sessionId = getHeader(event, 'x-posthog-session-id')
+    const distinctId = getHeader(event, 'x-posthog-distinct-id')
+    const posthog = useServerPostHog()
+    posthog.capture({
+      distinctId: distinctId ?? authData.user.id,
+      event: 'server_user_signed_in',
+      properties: {
+        $session_id: sessionId,
+        user_id: authData.user.id,
+        has_profile: !!(publicUser?.career_id_profile_id),
+        source: 'api'
+      }
     })
 
     return {

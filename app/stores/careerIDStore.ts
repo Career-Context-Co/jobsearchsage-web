@@ -38,7 +38,6 @@ type HeroStoryApiResponse = HeroStory & {
   internalId?: number | null
 }
 
-
 const mapHeroMoment = (moment: HeroMomentApiResponse): HeroMoment => ({
   id: moment.id,
   profile_id: moment.profileId,
@@ -786,7 +785,7 @@ export const useCareerIDStore = defineStore('careerID', {
         // Remove old extracted links (without IDs) before adding new ones
         // This prevents duplicates when saving extracted social links
         this.profileSocialLinks = this.profileSocialLinks.filter(link => link.id)
-        
+
         // Add the newly created links with IDs
         this.profileSocialLinks.push(...addedLinks)
         this.lastSaved = new Date().toISOString()
@@ -1220,7 +1219,7 @@ export const useCareerIDStore = defineStore('careerID', {
         }>(`/api/career-id/profile/${profileId}/hero-moments/${momentId}`, {
           method: 'DELETE'
         })
-        
+
         if (!response.success) {
           throw new Error('Failed to delete moment')
         }
@@ -1406,15 +1405,15 @@ export const useCareerIDStore = defineStore('careerID', {
       } catch (error: any) {
         // H3/Nitro wraps createError({ data }) in an envelope: { statusCode, statusMessage, data: {...} }
         // so the structured payload may live at error.data.data; check both shapes.
-        const serverMessage =
-          error?.data?.data?.error?.message ??
-          error?.data?.data?.message ??
-          error?.data?.error?.message ??
-          error?.data?.message
+        const serverMessage
+          = error?.data?.data?.error?.message
+            ?? error?.data?.data?.message
+            ?? error?.data?.error?.message
+            ?? error?.data?.message
         const rawMessage = error?.message
         const isGenericStatusLine = typeof rawMessage === 'string' && /":\s*\d{3}\s*$/.test(rawMessage.trim())
-        const errorMessage = serverMessage ||
-          (rawMessage && !isGenericStatusLine ? rawMessage : 'Failed to extract resume data')
+        const errorMessage = serverMessage
+          || (rawMessage && !isGenericStatusLine ? rawMessage : 'Failed to extract resume data')
         this.extractionError = errorMessage
         throw error
       } finally {
@@ -1531,7 +1530,7 @@ export const useCareerIDStore = defineStore('careerID', {
       if (result.socialLinks && result.socialLinks.length > 0) {
         // Remove any dummy social links (links without IDs)
         const savedLinks = this.profileSocialLinks.filter(link => link.id !== undefined)
-        
+
         // Transform extracted links to ProfileSocialLink format
         const transformedLinks = result.socialLinks.map(link => ({
           ...link,
@@ -1574,19 +1573,19 @@ export const useCareerIDStore = defineStore('careerID', {
 
       // Remove extracted and unsaved experience entries
       this.experience = this.experience.filter(exp => !exp.isExtracted || exp.id !== undefined)
-      
+
       // Remove extracted and unsaved education entries
       this.education = this.education.filter(edu => !edu.isExtracted || edu.id !== undefined)
-      
+
       // Remove extracted skills that haven't been saved yet
       this.profileSkills = this.profileSkills.filter(skill => !skill.isExtracted)
-      
+
       // Remove extracted and unsaved certifications
       this.certifications = this.certifications.filter(cert => !cert.isExtracted || cert.id !== undefined)
-      
+
       // Remove extracted and unsaved social links
       this.profileSocialLinks = this.profileSocialLinks.filter(link => !link.isExtracted || link.id !== undefined)
-      
+
       this.hasPerformedExtraction = false
       console.log('Cleared all extracted and unsaved data')
     },
@@ -1753,6 +1752,14 @@ export const useCareerIDStore = defineStore('careerID', {
       this.isEnhancingExperience = true
       this.error = null
 
+      const posthog = usePostHog()
+      posthog?.capture('ai_enhancement_started', {
+        employer: experienceSlice.employer,
+        title: experienceSlice.title,
+        employment_type: experienceSlice.employmentType,
+        highlights_count: experienceSlice.highlights.length
+      })
+
       try {
         const response = await $fetch<{
           success: boolean
@@ -1768,6 +1775,13 @@ export const useCareerIDStore = defineStore('careerID', {
         if (!response.success || !response.enhanced?.highlights) {
           throw new Error('Enhancement failed: Invalid response format')
         }
+
+        posthog?.capture('ai_enhancement_completed', {
+          employer: experienceSlice.employer,
+          title: experienceSlice.title,
+          highlights_count: response.enhanced.highlights.length,
+          duration_ms: response.duration
+        })
 
         return response.enhanced.highlights
       } catch (error: any) {
@@ -1786,11 +1800,33 @@ export const useCareerIDStore = defineStore('careerID', {
           errorMessage = error.message
         }
 
+        posthog?.captureException(error)
         this.error = errorMessage
         throw new Error(errorMessage)
       } finally {
         this.isEnhancingExperience = false
       }
+    },
+
+    async generateInitialQuestionsTracked(experience: Experience) {
+      const posthog = usePostHog()
+      posthog?.capture('ai_context_questions_generated', {
+        experience_employer: experience.employer,
+        experience_title: experience.title,
+        round: 1
+      })
+      return this.generateInitialQuestions(experience)
+    },
+
+    async generateFinalBulletsTracked(experience: Experience, notes: ContextStory[]) {
+      const result = await this.generateFinalBullets(experience, notes)
+      const posthog = usePostHog()
+      posthog?.capture('ai_bullets_generated', {
+        experience_employer: experience.employer,
+        experience_title: experience.title,
+        bullets_count: result.length
+      })
+      return result
     }
   }
 })

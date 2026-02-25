@@ -19,33 +19,33 @@ const skillsSectionRef = useTemplateRef('skillsSection')
 const certificationsSectionRef = useTemplateRef('certificationsSection')
 
 const steps: StepperItem[] = [
-  { 
-    title: 'Upload', 
+  {
+    title: 'Upload',
     icon: 'i-lucide-upload',
     value: 'upload'
   },
-  { 
-    title: 'Contact', 
+  {
+    title: 'Contact',
     icon: 'i-lucide-user',
     value: 'contact'
   },
-  { 
-    title: 'Experience', 
+  {
+    title: 'Experience',
     icon: 'i-lucide-briefcase',
     value: 'experience'
   },
-  { 
-    title: 'Education', 
+  {
+    title: 'Education',
     icon: 'i-lucide-graduation-cap',
     value: 'education'
   },
-  { 
-    title: 'Skills', 
+  {
+    title: 'Skills',
     icon: 'i-lucide-lightbulb',
     value: 'skills'
   },
-  { 
-    title: 'Certifications', 
+  {
+    title: 'Certifications',
     icon: 'i-lucide-award',
     value: 'certifications'
   }
@@ -55,30 +55,31 @@ const careerIDStore = useCareerIDStore()
 const accountStore = useAccountStore()
 const toast = useToast()
 const router = useRouter()
+const posthog = usePostHog()
 
 // Check if user is continuing onboarding after taking a break
-const isContinuingOnboarding = computed(() => 
+const isContinuingOnboarding = computed(() =>
   careerIDStore.profile?.completionStatus === 'incomplete' && careerIDStore.isProfileLoaded
 )
 
 // Handle save from ContactSection - diffs against store to determine API calls
-async function handleSaveContact(payload: { 
-  contactInfo: any, 
-  socialLinks: { id?: number, platformId: number, url: string }[],
+async function handleSaveContact(payload: {
+  contactInfo: any
+  socialLinks: { id?: number, platformId: number, url: string }[]
   deletedLinkIds: number[]
 }) {
   try {
     const { contactInfo, socialLinks, deletedLinkIds } = payload
-    
+
     // 1. Save contact info
     if (careerIDStore.contactInfo?.id) {
       await careerIDStore.updateContactInfo(careerIDStore.contactInfo.id, contactInfo)
     } else {
       await careerIDStore.createContactInfo(contactInfo)
     }
-    
+
     // 2. Handle social links changes
-    
+
     // STEP 1: Delete explicitly removed links (user clicked delete button)
     for (const deletedId of deletedLinkIds) {
       try {
@@ -88,7 +89,7 @@ async function handleSaveContact(payload: {
         // Continue to next delete - don't stop the save process
       }
     }
-    
+
     // STEP 2: Update existing links (id exists, check if url changed)
     const existingLinks = careerIDStore.profileSocialLinks
     for (const link of socialLinks) {
@@ -99,28 +100,28 @@ async function handleSaveContact(payload: {
         }
       }
     }
-    
+
     // STEP 3: Add new links (no id)
     const linksToAdd = socialLinks.filter(l => !l.id)
     if (linksToAdd.length > 0) {
       // Remove old extracted links without IDs before adding saved ones
       careerIDStore.profileSocialLinks = careerIDStore.profileSocialLinks.filter(link => link.id !== undefined)
-      
+
       await careerIDStore.addSocialLinks(linksToAdd.map((l, i) => ({
         platformId: l.platformId,
         url: l.url,
         displayOrder: existingLinks.length + i
       })))
     }
-    
+
     // Clear isExtracted flag from all items after successful save
     if (careerIDStore.contactInfo) {
       careerIDStore.contactInfo.isExtracted = false
     }
-    careerIDStore.profileSocialLinks.forEach(link => {
+    careerIDStore.profileSocialLinks.forEach((link) => {
       link.isExtracted = false
     })
-    
+
     // Show success toast
     toast.add({
       title: 'Saved',
@@ -129,12 +130,12 @@ async function handleSaveContact(payload: {
     })
   } catch (error: any) {
     console.error('Failed to save contact section:', error)
-    
+
     // Handle API errors in the child component (e.g., duplicate platforms)
     if (contactSectionRef.value?.handleApiError) {
       contactSectionRef.value.handleApiError(error)
     }
-    
+
     // Show error toast
     toast.add({
       title: 'Save Failed',
@@ -154,7 +155,7 @@ async function handleSaveExperience(experience: any) {
       // Add new experience (POST)
       await careerIDStore.addExperience(experience)
     }
-    
+
     toast.add({
       title: 'Saved',
       description: 'Experience saved successfully',
@@ -162,13 +163,13 @@ async function handleSaveExperience(experience: any) {
     })
   } catch (error: any) {
     console.error('Failed to save experience:', error)
-    
+
     toast.add({
       title: 'Save Failed',
       description: error?.data?.error?.message || 'Failed to save experience',
       color: 'error'
     })
-    
+
     // Revert changes in child component
     experienceSectionRef.value?.revertChanges()
   }
@@ -180,7 +181,7 @@ async function handleSaveAllExperiences(experiences: any[]) {
   try {
     // Just POST for new items (no id) and PATCH for existing items (has id)
     // No delete logic - delete only happens when user explicitly clicks delete button
-    
+
     for (const exp of experiences) {
       if (exp.id) {
         // Update existing experience
@@ -190,7 +191,7 @@ async function handleSaveAllExperiences(experiences: any[]) {
         await careerIDStore.addExperience(exp)
       }
     }
-    
+
     toast.add({
       title: 'Saved',
       description: 'Work experience saved successfully',
@@ -198,13 +199,13 @@ async function handleSaveAllExperiences(experiences: any[]) {
     })
   } catch (error: any) {
     console.error('Failed to save experience section:', error)
-    
+
     toast.add({
       title: 'Save Failed',
       description: error?.data?.error?.message || 'Failed to save work experience',
       color: 'error'
     })
-    
+
     // Revert changes in child component
     experienceSectionRef.value?.revertChanges()
   }
@@ -220,7 +221,7 @@ async function handleSaveEducation(education: any) {
       // Add new education (POST)
       await careerIDStore.addEducation(education)
     }
-    
+
     toast.add({
       title: 'Saved',
       description: 'Education saved successfully',
@@ -228,13 +229,13 @@ async function handleSaveEducation(education: any) {
     })
   } catch (error: any) {
     console.error('Failed to save education:', error)
-    
+
     toast.add({
       title: 'Save Failed',
       description: error?.data?.error?.message || 'Failed to save education',
       color: 'error'
     })
-    
+
     // Revert changes in child component
     educationSectionRef.value?.revertChanges()
   }
@@ -246,7 +247,7 @@ async function handleSaveAllEducations(educations: any[]) {
   try {
     // Child component only sends edited or new educations
     // Just POST for new items (no id) and PATCH for existing items (has id)
-    
+
     for (const edu of educations) {
       if (edu.id) {
         // Update existing education
@@ -256,7 +257,7 @@ async function handleSaveAllEducations(educations: any[]) {
         await careerIDStore.addEducation(edu)
       }
     }
-    
+
     toast.add({
       title: 'Saved',
       description: 'Education saved successfully',
@@ -264,13 +265,13 @@ async function handleSaveAllEducations(educations: any[]) {
     })
   } catch (error: any) {
     console.error('Failed to save education section:', error)
-    
+
     toast.add({
       title: 'Save Failed',
       description: error?.data?.error?.message || 'Failed to save education',
       color: 'error'
     })
-    
+
     // Revert changes in child component
     educationSectionRef.value?.revertChanges()
   }
@@ -286,7 +287,7 @@ async function handleSaveCertification(data: any) {
       // Add new certification (POST)
       await careerIDStore.addCertification(data)
     }
-    
+
     toast.add({
       title: 'Saved',
       description: 'Certification saved successfully',
@@ -294,13 +295,13 @@ async function handleSaveCertification(data: any) {
     })
   } catch (error: any) {
     console.error('Failed to save certification:', error)
-    
+
     toast.add({
       title: 'Save Failed',
       description: error?.data?.error?.message || 'Failed to save certification',
       color: 'error'
     })
-    
+
     // Revert changes in child component
     additionalSectionRef.value?.revertChanges()
   }
@@ -312,7 +313,7 @@ async function handleSaveCertification(data: any) {
 async function handleDeleteExperience(id: number) {
   try {
     await careerIDStore.deleteExperience(id)
-    
+
     toast.add({
       title: 'Deleted',
       description: 'Experience deleted successfully',
@@ -320,13 +321,13 @@ async function handleDeleteExperience(id: number) {
     })
   } catch (error: any) {
     console.error('Failed to delete experience:', error)
-    
+
     toast.add({
       title: 'Delete Failed',
       description: error?.data?.error?.message || 'Failed to delete experience',
       color: 'error'
     })
-    
+
     // Revert changes in child component
     experienceSectionRef.value?.revertChanges()
   }
@@ -335,7 +336,7 @@ async function handleDeleteExperience(id: number) {
 async function handleDeleteEducation(id: number) {
   try {
     await careerIDStore.deleteEducation(id)
-    
+
     toast.add({
       title: 'Deleted',
       description: 'Education deleted successfully',
@@ -343,13 +344,13 @@ async function handleDeleteEducation(id: number) {
     })
   } catch (error: any) {
     console.error('Failed to delete education:', error)
-    
+
     toast.add({
       title: 'Delete Failed',
       description: error?.data?.error?.message || 'Failed to delete education',
       color: 'error'
     })
-    
+
     // Revert changes in child component
     educationSectionRef.value?.revertChanges()
   }
@@ -358,7 +359,7 @@ async function handleDeleteEducation(id: number) {
 async function handleDeleteCertification(id: number) {
   try {
     await careerIDStore.deleteCertification(id)
-    
+
     toast.add({
       title: 'Deleted',
       description: 'Certification deleted successfully',
@@ -366,17 +367,16 @@ async function handleDeleteCertification(id: number) {
     })
   } catch (error: any) {
     console.error('Failed to delete certification:', error)
-    
+
     toast.add({
       title: 'Delete Failed',
       description: error?.data?.error?.message || 'Failed to delete certification',
       color: 'error'
     })
-    
+
     // Note: New sections will handle their own reverts
   }
 }
-
 
 // Handle skip or successful upload from ResumeUploadSection
 function handleUploadComplete(extracted: boolean) {
@@ -391,6 +391,14 @@ function handleUploadComplete(extracted: boolean) {
       color: 'success',
       timeout: 5000
     })
+
+    posthog?.capture('resume_uploaded', {
+      extracted_experience: counts.experience,
+      extracted_education: counts.education,
+      extracted_skills: counts.skills,
+      extracted_certifications: counts.certifications,
+      total_extracted: totalExtracted
+    })
   }
 
   // Advance to Contact step
@@ -401,7 +409,7 @@ function handleUploadComplete(extracted: boolean) {
 async function saveAndValidateCurrentStep(): Promise<boolean> {
   try {
     let success = true
-    
+
     switch (activeStep.value) {
       case 'upload':
         // No save needed for upload step
@@ -423,7 +431,7 @@ async function saveAndValidateCurrentStep(): Promise<boolean> {
         success = await certificationsSectionRef.value?.saveAllUnsaved() ?? true
         break
     }
-    
+
     if (!success) {
       toast.add({
         title: 'Validation Errors',
@@ -432,7 +440,7 @@ async function saveAndValidateCurrentStep(): Promise<boolean> {
         color: 'error'
       })
     }
-    
+
     return success
   } catch (error) {
     console.error('Failed to save current step:', error)
@@ -450,17 +458,19 @@ async function saveAndValidateCurrentStep(): Promise<boolean> {
 function takeABreak() {
   // Clear all extracted and unsaved data
   careerIDStore.clearExtractedData()
-  
+
   // Clear any error state from the store
   careerIDStore.clearError()
-  
+
+  posthog?.capture('onboarding_abandoned', { step: activeStep.value })
+
   toast.add({
     title: 'Taking a Break',
     description: 'Your saved progress has been preserved. Come back anytime to continue!',
     icon: 'i-lucide-coffee',
     color: 'primary'
   })
-  
+
   // Navigate to profile page
   router.push('/profile')
 }
@@ -470,18 +480,27 @@ async function completeProfile() {
   try {
     // Save certifications section (last step)
     const success = await saveAndValidateCurrentStep()
-    
+
     if (!success) {
       return // Don't redirect if validation failed
     }
-    
+
     // Update profile completion status to 'complete'
     if (careerIDStore.profileId) {
       await careerIDStore.updateProfile(careerIDStore.profileId, {
         completionStatus: 'complete'
       })
     }
-    
+
+    posthog?.capture('onboarding_completed', {
+      experience_count: careerIDStore.sectionCounts.experience,
+      education_count: careerIDStore.sectionCounts.education,
+      skills_count: careerIDStore.sectionCounts.skills,
+      certifications_count: careerIDStore.sectionCounts.certifications,
+      has_contact_info: careerIDStore.hasContactInfo,
+      completion_percentage: careerIDStore.completionPercentage
+    })
+
     // All done! Show success toast and redirect
     toast.add({
       title: 'Profile Completed! 🎉',
@@ -489,12 +508,11 @@ async function completeProfile() {
       icon: 'i-lucide-check-circle',
       color: 'success'
     })
-    
+
     // Redirect to profile page after a brief delay
     setTimeout(() => {
       router.push('/profile')
     }, 1500)
-    
   } catch (error: any) {
     console.error('Failed to complete profile:', error)
     toast.add({
@@ -529,7 +547,6 @@ onMounted(async () => {
     })
   }
 })
-
 </script>
 
 <template>
@@ -544,12 +561,12 @@ onMounted(async () => {
 
     <template #body>
       <div class="flex flex-col gap-6 sm:gap-8 w-full max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
-        <!-- Stepper Component-->
+        <!-- Stepper Component -->
         <UStepper
           ref="stepper"
+          v-model="activeStep"
           size="lg"
           disabled
-          v-model="activeStep"
           :items="steps"
           orientation="horizontal"
           class="w-full"
@@ -567,45 +584,43 @@ onMounted(async () => {
             class="mb-6"
           />
 
-          <ProfileOnboardingResumeUploadSection 
-            ref="uploadSection"
+          <ProfileOnboardingResumeUploadSection
             v-show="activeStep === 'upload'"
+            ref="uploadSection"
             @upload-complete="handleUploadComplete"
           />
-          
+
           <ProfileOnboardingContactSection
-            ref="contactSection"
             v-show="activeStep === 'contact'"
+            ref="contactSection"
             :contact-info="careerIDStore.contactInfo"
             :profile-social-links="careerIDStore.profileSocialLinks"
             @save="handleSaveContact"
           />
-          
-          <ProfileOnboardingExperienceSection 
-            ref="experienceSection"
+
+          <ProfileOnboardingExperienceSection
             v-show="activeStep === 'experience'"
+            ref="experienceSection"
             :experience="careerIDStore.experience"
           />
-          
-        
-          <ProfileOnboardingEducationSection 
-            ref="educationSection"
+
+          <ProfileOnboardingEducationSection
             v-show="activeStep === 'education'"
+            ref="educationSection"
             :education="careerIDStore.education"
-          />     
-          
-          <ProfileOnboardingSkillsSection 
-            ref="skillsSection"
+          />
+
+          <ProfileOnboardingSkillsSection
             v-show="activeStep === 'skills'"
+            ref="skillsSection"
             :skill-groups="careerIDStore.profileSkills"
           />
-          
-          <ProfileOnboardingCertificationsSection 
-            ref="certificationsSection"
+
+          <ProfileOnboardingCertificationsSection
             v-show="activeStep === 'certifications'"
+            ref="certificationsSection"
             :certifications="careerIDStore.certifications"
           />
-          
         </div>
 
         <!-- Navigation Buttons -->
@@ -631,7 +646,7 @@ onMounted(async () => {
               @click="takeABreak"
             />
           </div>
-          
+
           <div class="flex gap-2">
             <UButton
               v-if="stepper?.hasNext"
@@ -643,6 +658,7 @@ onMounted(async () => {
               @click="async () => {
                 const success = await saveAndValidateCurrentStep()
                 if (success) {
+                  posthog?.capture('onboarding_step_completed', { step: activeStep })
                   stepper?.next()
                 }
               }"

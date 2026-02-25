@@ -30,9 +30,9 @@ export const useAccountStore = defineStore('account', {
   }),
 
   getters: {
-    isAuthenticated: (state) => state.user !== null,
-    isHeroEnabled: (state) => state.features.hero,
-    isBulletEnhancementEnabled: (state) => state.features.bulletEnhancement
+    isAuthenticated: state => state.user !== null,
+    isHeroEnabled: state => state.features.hero,
+    isBulletEnhancementEnabled: state => state.features.bulletEnhancement
   },
 
   actions: {
@@ -133,10 +133,10 @@ export const useAccountStore = defineStore('account', {
 
         return response
       } catch (error: any) {
-        const errorMessage = error?.data?.error?.message ||
-                           error?.data?.message ||
-                           error?.message ||
-                           'Sign in failed'
+        const errorMessage = error?.data?.error?.message
+          || error?.data?.message
+          || error?.message
+          || 'Sign in failed'
         throw new Error(errorMessage)
       }
     },
@@ -163,10 +163,10 @@ export const useAccountStore = defineStore('account', {
 
         return response
       } catch (error: any) {
-        const errorMessage = error?.data?.error?.message ||
-                           error?.data?.message ||
-                           error?.message ||
-                           'Sign up failed'
+        const errorMessage = error?.data?.error?.message
+          || error?.data?.message
+          || error?.message
+          || 'Sign up failed'
         throw new Error(errorMessage)
       }
     },
@@ -174,7 +174,7 @@ export const useAccountStore = defineStore('account', {
     /**
      * Update the current user's name fields in public.users.
      */
-    async updateUser(data: { firstName?: string; lastName?: string; preferredName?: string }) {
+    async updateUser(data: { firstName?: string, lastName?: string, preferredName?: string }) {
       const response: any = await $fetch('/api/auth/user', {
         method: 'PATCH',
         body: data
@@ -195,6 +195,10 @@ export const useAccountStore = defineStore('account', {
     async signOut() {
       const supabaseClient = useSupabaseClient()
       await supabaseClient.auth.signOut()
+
+      const posthog = usePostHog()
+      posthog?.capture('user_signed_out')
+      posthog?.reset()
 
       this.user = null
       this.profileId = null
