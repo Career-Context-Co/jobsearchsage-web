@@ -654,7 +654,8 @@ onMounted(async () => {
               size="xl"
               label="Continue"
               trailing-icon="i-lucide-chevron-right"
-              color="primary"
+              :color="activeStep === 'upload' ? 'neutral' : 'primary'"
+              :variant="activeStep === 'upload' ? 'subtle' : 'solid'"
               @click="async () => {
                 const success = await saveAndValidateCurrentStep()
                 if (success) {

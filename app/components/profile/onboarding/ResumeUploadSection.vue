@@ -111,18 +111,20 @@ function handleRetry() {
       </p>
     </div>
 
-        <!-- Help Text -->
+    <!-- Help Text -->
     <div class="flex items-start gap-3 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
       <UIcon name="i-lucide-info" class="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
       <p class="text-sm text-green-900 dark:text-green-200">
-        We'll extract as much as we can and you can edit it in the later steps. 
-        We don't store your resume and only use it to extract info. 
+        We'll extract as much as we can and you can edit it in the later steps.
+        We don't store your resume and only use it to extract info.
       </p>
     </div>
 
     <!-- File Upload Area -->
     <div class="flex flex-col gap-4">
+      <!-- Upload dropzone — only shown when no file is selected -->
       <UFileUpload
+        v-if="!selectedFile"
         v-model="selectedFile"
         :multiple="false"
         highlight
@@ -134,11 +136,11 @@ function handleRetry() {
         @change="handleFileChange"
       />
 
-      <!-- Selected File Display -->
-      <div v-if="selectedFile" class="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-        <UIcon name="i-lucide-file-text" class="w-5 h-5 text-primary-500" />
-        <div class="flex-1">
-          <p class="text-sm font-medium text-gray-900 dark:text-white">
+      <!-- File selected — clear confirmation with option to change -->
+      <div v-if="selectedFile && !isUploading" class="flex items-center gap-3 p-4  rounded-lg border border-primary-500 dark:border-primary-500">
+        <UIcon name="i-lucide-file-check" class="w-6 h-6 text-primary-600 dark:text-primary-400 shrink-0" />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
             {{ selectedFile.name }}
           </p>
           <p class="text-xs text-gray-500 dark:text-gray-400">
@@ -146,12 +148,12 @@ function handleRetry() {
           </p>
         </div>
         <UButton
-          v-if="!isUploading"
-          class="cursor-pointer"
+          label="Remove"
           icon="i-lucide-x"
           size="xs"
           color="neutral"
           variant="ghost"
+          class="cursor-pointer shrink-0"
           @click="selectedFile = null"
         />
       </div>
@@ -165,14 +167,6 @@ function handleRetry() {
           </p>
         </div>
         <UProgress :value="100" animation="carousel" />
-      </div>
-
-      <!-- Extraction Result Display -->
-      <div v-if="store.extractionResult" class="flex flex-col gap-2">
-        <p class="text-sm text-gray-700 dark:text-gray-300">
-          Extraction successful!
-        </p>
-        <pre class="text-xs text-gray-500 dark:text-gray-400">{{ store.extractionResult }}</pre>
       </div>
 
       <!-- Error Display -->
@@ -193,49 +187,34 @@ function handleRetry() {
               variant="subtle"
               @click="handleRetry"
             />
-            <UButton
-              label="Skip to Manual Entry"
-              size="xs"
-              color="neutral"
-              variant="subtle"
-              @click="handleSkip"
-            />
           </div>
         </template>
       </UAlert>
 
-      <!-- Action Buttons -->
-      <div class="flex flex-col gap-3 mt-4">
-        <div v-if="hasPerformedExtraction" class="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 flex items-center gap-2">
-          <UIcon name="i-lucide-check-circle" class="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          <p class="text-sm text-blue-900 dark:text-blue-200">
-            Resume information has already been extracted. Continue to review the results.
-          </p>
-        </div>
-
-        <div class="flex gap-3">
-          <UButton
-            v-if="selectedFile && !isUploading"
-            class="cursor-pointer"
-            label="Extract Information"
-            size="xl"
-            color="primary"
-            leading-icon="i-lucide-sparkles"
-            :disabled="hasPerformedExtraction"
-            @click="handleUpload"
-          />
-          <UButton
-            class="cursor-pointer"
-            :label="hasPerformedExtraction ? 'View Results' : 'Skip'"
-            size="xl"
-            color="neutral"
-            variant="subtle"
-            :disabled="isUploading"
-            @click="handleSkip"
-          />
-        </div>
+      <!-- Already extracted banner -->
+      <div v-if="hasPerformedExtraction" class="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 flex items-center gap-2">
+        <UIcon name="i-lucide-check-circle" class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+        <p class="text-sm text-blue-900 dark:text-blue-200">
+          Resume information extracted. Click <strong>Continue</strong> to review the results.
+        </p>
       </div>
+
+      <!-- Extract button — full width, prominent CTA -->
+      <UButton
+        v-if="selectedFile && !isUploading"
+        class="cursor-pointer w-full justify-center text-base"
+        label="Extract Information"
+        size="xl"
+        color="primary"
+        leading-icon="i-lucide-sparkles"
+        :disabled="hasPerformedExtraction"
+        @click="handleUpload"
+      />
     </div>
 
+    <!-- Hint to skip -->
+    <p v-if="!selectedFile && !hasPerformedExtraction" class="text-center text-sm text-gray-400 dark:text-gray-500">
+      No resume? No problem — click <strong>Continue</strong> below to enter your info manually.
+    </p>
   </div>
 </template>
