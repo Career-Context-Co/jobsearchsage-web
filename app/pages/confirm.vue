@@ -40,20 +40,27 @@ onMounted(async () => {
       return
     }
 
-    // OAuth code fallback (PKCE direct redirect)
+    // OAuth code (PKCE direct redirect) or existing session.
+    // getSession() awaits client initialization, which includes the
+    // automatic detectSessionInUrl PKCE exchange when configured.
+    // Calling it first avoids a double-exchange race condition.
     const code = route.query.code as string
+    const { data: { session } } = await supabaseClient.auth.getSession()
+
+    if (session) {
+      if (code) {
+        window.location.href = next
+        return
+      }
+      await accountStore.hydrateFromSession()
+      return navigateTo(next)
+    }
+
     if (code) {
       const { error: exchangeError } = await supabaseClient.auth.exchangeCodeForSession(code)
       if (exchangeError) throw exchangeError
       window.location.href = next
       return
-    }
-
-    // No URL params — check if session already exists in cookies
-    const { data: { session } } = await supabaseClient.auth.getSession()
-    if (session) {
-      await accountStore.hydrateFromSession()
-      return navigateTo(next)
     }
 
     return navigateTo('/signin?error=no_session')
