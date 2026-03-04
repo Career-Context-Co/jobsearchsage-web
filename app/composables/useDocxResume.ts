@@ -494,6 +494,7 @@ export function useDocxResume() {
         children.push(createSectionHeader('Skills', accentColor))
 
         const groupedSkillsList = groupSkills(selectedSkills)
+        const showGroupLabels = groupedSkillsList.length > 1
 
         for (let i = 0; i < groupedSkillsList.length; i++) {
           const skillGroup = groupedSkillsList[i]
@@ -501,12 +502,12 @@ export function useDocxResume() {
           children.push(
             new Paragraph({
               children: [
-                new TextRun({
+                ...(showGroupLabels ? [new TextRun({
                   text: `${skillGroup?.group}: `,
                   bold: true,
                   size: FONT_SIZES.body,
                   color: COLORS.gray
-                }),
+                })] : []),
                 new TextRun({
                   text: skillGroup?.skills.join(', ') || '',
                   size: FONT_SIZES.body,

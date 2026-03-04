@@ -570,43 +570,60 @@ export function usePdfLibResume() {
         const groupedSkillsList = groupSkills(selectedSkills)
         const lineHeight = FONT_SIZES.body + 4
         
+        const showGroupLabels = groupedSkillsList.length > 1
+
         for (let i = 0; i < groupedSkillsList.length; i++) {
           const skillGroup = groupedSkillsList[i]
-          const skillText = `${skillGroup.group}: ${skillGroup.skills.join(', ')}`
-          const skillLines = wrapText(skillText, helvetica, FONT_SIZES.body, CONTENT_WIDTH)
-          
-          checkNewPage(skillLines.length * lineHeight)
-          
-          // Draw group name in bold, rest in regular
-          const groupLabel = `${skillGroup.group}: `
-          const groupLabelWidth = helveticaBold.widthOfTextAtSize(groupLabel, FONT_SIZES.body)
-          
-          page.drawText(groupLabel, {
-            x: PAGE.marginLeft,
-            y,
-            size: FONT_SIZES.body,
-            font: helveticaBold,
-            color: grayColor
-          })
-          
-          // Draw skills (handling wrapping manually for first line)
           const skillsText = skillGroup.skills.join(', ')
-          const firstLineSkillsWidth = CONTENT_WIDTH - groupLabelWidth
-          const firstLineSkills = wrapText(skillsText, helvetica, FONT_SIZES.body, firstLineSkillsWidth)
-          
-          if (firstLineSkills.length > 0) {
-            page.drawText(firstLineSkills[0], {
-              x: PAGE.marginLeft + groupLabelWidth,
+
+          if (showGroupLabels) {
+            const skillText = `${skillGroup.group}: ${skillsText}`
+            const skillLines = wrapText(skillText, helvetica, FONT_SIZES.body, CONTENT_WIDTH)
+            checkNewPage(skillLines.length * lineHeight)
+
+            // Draw group name in bold, rest in regular
+            const groupLabel = `${skillGroup.group}: `
+            const groupLabelWidth = helveticaBold.widthOfTextAtSize(groupLabel, FONT_SIZES.body)
+
+            page.drawText(groupLabel, {
+              x: PAGE.marginLeft,
               y,
               size: FONT_SIZES.body,
-              font: helvetica,
+              font: helveticaBold,
               color: grayColor
             })
-            y -= lineHeight
-            
-            // Remaining lines at full width
-            for (let j = 1; j < firstLineSkills.length; j++) {
-              page.drawText(firstLineSkills[j], {
+
+            const firstLineSkillsWidth = CONTENT_WIDTH - groupLabelWidth
+            const firstLineSkills = wrapText(skillsText, helvetica, FONT_SIZES.body, firstLineSkillsWidth)
+
+            if (firstLineSkills.length > 0) {
+              page.drawText(firstLineSkills[0], {
+                x: PAGE.marginLeft + groupLabelWidth,
+                y,
+                size: FONT_SIZES.body,
+                font: helvetica,
+                color: grayColor
+              })
+              y -= lineHeight
+
+              for (let j = 1; j < firstLineSkills.length; j++) {
+                page.drawText(firstLineSkills[j], {
+                  x: PAGE.marginLeft,
+                  y,
+                  size: FONT_SIZES.body,
+                  font: helvetica,
+                  color: grayColor
+                })
+                y -= lineHeight
+              }
+            }
+          }
+          else {
+            const skillLines = wrapText(skillsText, helvetica, FONT_SIZES.body, CONTENT_WIDTH)
+            checkNewPage(skillLines.length * lineHeight)
+
+            for (let j = 0; j < skillLines.length; j++) {
+              page.drawText(skillLines[j], {
                 x: PAGE.marginLeft,
                 y,
                 size: FONT_SIZES.body,
@@ -616,7 +633,7 @@ export function usePdfLibResume() {
               y -= lineHeight
             }
           }
-          
+
           if (i < groupedSkillsList.length - 1) {
             y -= 2
           }

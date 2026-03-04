@@ -281,8 +281,7 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
       <!-- Display skills grouped by category -->
       <div v-for="(skillGroup, groupIndex) in groupedSkills" :key="skillGroup.group" :style="{ marginBottom: groupIndex < groupedSkills.length - 1 ? '0.5rem' : '0' }">
         <p :style="{ fontSize: '0.8125rem', color: '#374151', lineHeight: '1.5' }">
-          <span :style="{ fontWeight: 'bold' }">{{ skillGroup.group }}:</span>
-          {{ skillGroup.skills.join(', ') }}
+          <span v-if="groupedSkills.length > 1" :style="{ fontWeight: 'bold' }">{{ skillGroup.group }}: </span>{{ skillGroup.skills.join(', ') }}
         </p>
       </div>
     </section>
