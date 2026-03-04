@@ -320,7 +320,7 @@ async function saveExperience(): Promise<boolean> {
   } catch (err: any) {
     toast.add({
       title: 'Error',
-      description: err?.message || 'Failed to save work experience',
+      description: getApiErrorMessage(err, 'Failed to save work experience'),
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
@@ -356,7 +356,7 @@ async function deleteExperience(experienceToDelete: Experience) {
   } catch (err: any) {
     toast.add({
       title: 'Error',
-      description: err?.message || 'Failed to delete work experience',
+      description: getApiErrorMessage(err, 'Failed to delete work experience'),
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
@@ -435,7 +435,7 @@ async function enhanceExperience() {
     // Error message already set in store, just show toast
     toast.add({
       title: 'Enhancement Failed',
-      description: error?.message || 'Failed to enhance achievements. Please try again.',
+      description: getApiErrorMessage(error, 'Failed to enhance achievements. Please try again.'),
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })

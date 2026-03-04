@@ -38,19 +38,6 @@ function handleFileChange() {
   store.extractionError = null
 }
 
-// Extract the most useful message from a $fetch error.
-// H3/Nitro wraps createError({ data }) in an envelope: { statusCode, statusMessage, data: {...} }
-// so the structured payload lives at error.data.data; we also check the flat shape as fallback.
-function extractApiErrorMessage(error: any): string | null {
-  return (
-    error?.data?.data?.error?.message ??
-    error?.data?.data?.message ??
-    error?.data?.error?.message ??
-    error?.data?.message ??
-    null
-  )
-}
-
 function extractApiErrorCode(error: any): string | null {
   return (
     error?.data?.data?.error?.code ??
@@ -68,12 +55,9 @@ async function handleUpload() {
     store.applyExtractionToProfile()
     emit('uploadComplete', true)
   } catch (error: any) {
-    const serverMessage = extractApiErrorMessage(error)
     const errorCode = extractApiErrorCode(error)
 
-    if (serverMessage) {
-      store.extractionError = serverMessage
-    } else if (errorCode === 'FILE_TOO_LARGE') {
+    if (errorCode === 'FILE_TOO_LARGE') {
       store.extractionError = 'File is too large. Maximum size is 10 MB.'
     } else if (errorCode === 'INVALID_EXTENSION' || errorCode === 'INVALID_MIME_TYPE') {
       store.extractionError = 'File format not supported. Please upload a PDF, TXT, or MD file.'
@@ -81,8 +65,10 @@ async function handleUpload() {
       store.extractionError = 'Extraction timed out. Please try again or use a smaller file.'
     } else if (errorCode === 'SERVICE_UNAVAILABLE') {
       store.extractionError = 'AI service is temporarily unavailable. Please try again in a moment.'
-    } else if (!store.extractionError || /":\s*\d{3}\s*$/.test(String(store.extractionError).trim())) {
-      store.extractionError = 'We couldn\'t read this resume. Please upload a PDF, TXT, or MD file.'
+    } else if (errorCode === 'EXTRACTION_SERVICE_ERROR' || errorCode === 'EXTRACTION_PARSE_ERROR') {
+      store.extractionError = 'We couldn\'t read this resume. Please try a different file format.'
+    } else {
+      store.extractionError = getApiErrorMessage(error, 'We couldn\'t read this resume. Please try a different file.')
     }
   }
 }
@@ -115,7 +101,7 @@ function handleRetry() {
     <div class="flex items-start gap-3 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
       <UIcon name="i-lucide-info" class="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
       <p class="text-sm text-green-900 dark:text-green-200">
-        We'll extract as much as we can and you can edit it in the later steps.
+        AI extraction isn't perfect — some details may be missing or incorrect, but don't worry, you can review and correct everything in the next steps.
         We don't store your resume and only use it to extract info.
       </p>
     </div>

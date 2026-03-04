@@ -211,7 +211,7 @@ async function saveCertification(): Promise<boolean> {
   } catch (err: any) {
     toast.add({
       title: 'Error',
-      description: err?.message || 'Failed to save certification',
+      description: getApiErrorMessage(err, 'Failed to save certification'),
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
@@ -247,7 +247,7 @@ async function deleteCertification(certificationToDelete: Certification) {
   } catch (err: any) {
     toast.add({
       title: 'Error',
-      description: err?.message || 'Failed to delete certification',
+      description: getApiErrorMessage(err, 'Failed to delete certification'),
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })

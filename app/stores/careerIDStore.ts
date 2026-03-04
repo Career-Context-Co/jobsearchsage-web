@@ -217,8 +217,7 @@ export const useCareerIDStore = defineStore('careerID', {
         // Sync profileId back to accountStore so sub-pages and session stay consistent
         useAccountStore().profileId = data.profile.id
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to fetch profile'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to fetch profile')
         throw error
       } finally {
         this.isLoading = false
@@ -253,8 +252,7 @@ export const useCareerIDStore = defineStore('careerID', {
         this.contactInfo = data.contactInfo || null
         this.lastSaved = new Date().toISOString()
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to fetch profile'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to fetch profile')
         throw error
       } finally {
         this.isLoading = false
@@ -292,8 +290,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return profile
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to create profile'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to create profile')
         throw error
       } finally {
         this.isSaving = false
@@ -327,8 +324,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return profile
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to update profile'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to update profile')
         throw error
       } finally {
         this.isSaving = false
@@ -367,8 +363,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return education
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to add education'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to add education')
         throw error
       } finally {
         this.isSaving = false
@@ -410,8 +405,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return updatedEducation
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to update education'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to update education')
         throw error
       } finally {
         this.isSaving = false
@@ -443,8 +437,7 @@ export const useCareerIDStore = defineStore('careerID', {
         this.education = this.education.filter(edu => edu.id !== id)
         this.lastSaved = new Date().toISOString()
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to delete education'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to delete education')
         throw error
       } finally {
         this.isSaving = false
@@ -483,8 +476,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return certification
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to add certification'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to add certification')
         throw error
       } finally {
         this.isSaving = false
@@ -526,8 +518,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return updatedCertification
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to update certification'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to update certification')
         throw error
       } finally {
         this.isSaving = false
@@ -559,8 +550,7 @@ export const useCareerIDStore = defineStore('careerID', {
         this.certifications = this.certifications.filter(cert => cert.id !== id)
         this.lastSaved = new Date().toISOString()
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to delete certification'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to delete certification')
         throw error
       } finally {
         this.isSaving = false
@@ -605,8 +595,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return contactInfo
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to create contact info'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to create contact info')
         throw error
       } finally {
         this.isSaving = false
@@ -651,8 +640,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return updatedContactInfo
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to update contact info'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to update contact info')
         throw error
       } finally {
         this.isSaving = false
@@ -684,8 +672,7 @@ export const useCareerIDStore = defineStore('careerID', {
         this.contactInfo = null
         this.lastSaved = new Date().toISOString()
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to delete contact info'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to delete contact info')
         throw error
       } finally {
         this.isSaving = false
@@ -723,8 +710,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return response.data
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to save skills'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to save skills')
         throw error
       } finally {
         this.isSaving = false
@@ -750,8 +736,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return response.data
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to search skills'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to search skills')
         throw error
       }
     },
@@ -792,8 +777,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return addedLinks
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to add social links'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to add social links')
         throw error
       } finally {
         this.isSaving = false
@@ -835,8 +819,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return updatedLink
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to update social link'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to update social link')
         throw error
       } finally {
         this.isSaving = false
@@ -868,8 +851,7 @@ export const useCareerIDStore = defineStore('careerID', {
         this.profileSocialLinks = this.profileSocialLinks.filter(link => link.id !== id)
         this.lastSaved = new Date().toISOString()
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to delete social link'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to delete social link')
         throw error
       } finally {
         this.isSaving = false
@@ -896,8 +878,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return response.data
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to fetch social platforms'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to fetch social platforms')
         throw error
       }
     },
@@ -926,8 +907,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return this.heroStories
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to fetch stories'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to fetch stories')
         console.error('fetchStories failed', error)
         throw error
       } finally {
@@ -978,8 +958,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return createdStory
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to create story'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to create story')
         console.error('createStory failed', error)
         throw error
       } finally {
@@ -1042,8 +1021,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return updatedStory
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to update story'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to update story')
         console.error('updateStory failed', error)
         throw error
       } finally {
@@ -1072,8 +1050,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return response
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to delete story'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to delete story')
         console.error('deleteStory failed', error)
         throw error
       } finally {
@@ -1107,8 +1084,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return this.heroMoments
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to fetch moments'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to fetch moments')
         console.error('fetchMoments failed', error)
         throw error
       } finally {
@@ -1149,8 +1125,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return createdMoments
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to create moments'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to create moments')
         console.error('createMoments failed', error)
         throw error
       } finally {
@@ -1199,8 +1174,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return updatedMoment
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to update moment'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to update moment')
         console.error('updateMoment failed', error)
         throw error
       } finally {
@@ -1229,8 +1203,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return response
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to delete moment'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to delete moment')
         console.error('deleteMoment failed', error)
         throw error
       } finally {
@@ -1270,8 +1243,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return experience
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to add experience'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to add experience')
         throw error
       } finally {
         this.isSaving = false
@@ -1313,8 +1285,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return updatedExperience
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to update experience'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to update experience')
         throw error
       } finally {
         this.isSaving = false
@@ -1346,8 +1317,7 @@ export const useCareerIDStore = defineStore('careerID', {
         this.experience = this.experience.filter(exp => exp.id !== id)
         this.lastSaved = new Date().toISOString()
       } catch (error: any) {
-        const errorMessage = error?.data?.message || error?.message || 'Failed to delete experience'
-        this.error = errorMessage
+        this.error = getApiErrorMessage(error, 'Failed to delete experience')
         throw error
       } finally {
         this.isSaving = false
@@ -1403,18 +1373,7 @@ export const useCareerIDStore = defineStore('careerID', {
 
         return response
       } catch (error: any) {
-        // H3/Nitro wraps createError({ data }) in an envelope: { statusCode, statusMessage, data: {...} }
-        // so the structured payload may live at error.data.data; check both shapes.
-        const serverMessage
-          = error?.data?.data?.error?.message
-            ?? error?.data?.data?.message
-            ?? error?.data?.error?.message
-            ?? error?.data?.message
-        const rawMessage = error?.message
-        const isGenericStatusLine = typeof rawMessage === 'string' && /":\s*\d{3}\s*$/.test(rawMessage.trim())
-        const errorMessage = serverMessage
-          || (rawMessage && !isGenericStatusLine ? rawMessage : 'Failed to extract resume data')
-        this.extractionError = errorMessage
+        this.extractionError = getApiErrorMessage(error, 'Failed to extract resume data')
         throw error
       } finally {
         this.isExtracting = false
@@ -1625,10 +1584,8 @@ export const useCareerIDStore = defineStore('careerID', {
 
         if (error?.data?.error?.code === 'TIMEOUT') {
           errorMessage = 'Question generation timed out. Please try again.'
-        } else if (error?.data?.error?.message) {
-          errorMessage = error.data.error.message
-        } else if (error?.message) {
-          errorMessage = error.message
+        } else {
+          errorMessage = getApiErrorMessage(error, errorMessage)
         }
 
         throw new Error(errorMessage)
@@ -1673,10 +1630,8 @@ export const useCareerIDStore = defineStore('careerID', {
 
         if (error?.data?.error?.code === 'TIMEOUT') {
           errorMessage = 'Follow-up question generation timed out. Please try again.'
-        } else if (error?.data?.error?.message) {
-          errorMessage = error.data.error.message
-        } else if (error?.message) {
-          errorMessage = error.message
+        } else {
+          errorMessage = getApiErrorMessage(error, errorMessage)
         }
 
         throw new Error(errorMessage)
@@ -1718,10 +1673,8 @@ export const useCareerIDStore = defineStore('careerID', {
 
         if (error?.data?.error?.code === 'TIMEOUT') {
           errorMessage = 'Bullet generation timed out. Please try again.'
-        } else if (error?.data?.error?.message) {
-          errorMessage = error.data.error.message
-        } else if (error?.message) {
-          errorMessage = error.message
+        } else {
+          errorMessage = getApiErrorMessage(error, errorMessage)
         }
 
         throw new Error(errorMessage)
@@ -1787,17 +1740,14 @@ export const useCareerIDStore = defineStore('careerID', {
       } catch (error: any) {
         let errorMessage = 'Failed to enhance achievements'
 
-        // Handle different error types with user-friendly messages
         if (error?.data?.error?.code === 'TIMEOUT' || error?.data?.error?.code === 'ENHANCEMENT_TIMEOUT') {
           errorMessage = 'Enhancement timed out. Please try again.'
         } else if (error?.data?.error?.code === 'INVALID_INPUT') {
           errorMessage = 'Invalid experience data provided.'
         } else if (error?.data?.error?.code === 'ENHANCEMENT_SERVICE_ERROR' || error?.data?.error?.code === 'AI_PROVIDER_ERROR') {
           errorMessage = 'Enhancement service is temporarily unavailable. Please try again.'
-        } else if (error?.data?.error?.message) {
-          errorMessage = error.data.error.message
-        } else if (error?.message) {
-          errorMessage = error.message
+        } else {
+          errorMessage = getApiErrorMessage(error, errorMessage)
         }
 
         posthog?.captureException(error)

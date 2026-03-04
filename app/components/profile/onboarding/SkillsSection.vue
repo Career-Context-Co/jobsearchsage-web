@@ -280,7 +280,7 @@ async function saveGroup(): Promise<boolean> {
   } catch (err: any) {
     toast.add({
       title: 'Error',
-      description: err?.message || 'Failed to save skills',
+      description: getApiErrorMessage(err, 'Failed to save skills'),
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
@@ -315,7 +315,7 @@ async function deleteGroup(groupIndex: number) {
     skillGroups.value.splice(groupIndex, 0, group)
     toast.add({
       title: 'Error',
-      description: err?.message || 'Failed to delete skill group',
+      description: getApiErrorMessage(err, 'Failed to delete skill group'),
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })

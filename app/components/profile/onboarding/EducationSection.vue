@@ -178,6 +178,9 @@ function validateForm(): boolean {
   const institutionError = validateRequired(formData.value.institution, 'Institution')
   if (institutionError) errors.institution = institutionError
   
+  // Start date is required
+  const startDateError = validateMonthYear(formData.value.startDate, true)
+  if (startDateError) errors.startDate = startDateError
   
   // Validate end date - only required if degree is completed
   if (formData.value.completed) {
@@ -293,7 +296,7 @@ async function saveEducation(): Promise<boolean> {
   } catch (err: any) {
     toast.add({
       title: 'Error',
-      description: err?.message || 'Failed to save education',
+      description: getApiErrorMessage(err, 'Failed to save education'),
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
@@ -329,7 +332,7 @@ async function deleteEducation(educationToDelete: Education) {
   } catch (err: any) {
     toast.add({
       title: 'Error',
-      description: err?.message || 'Failed to delete education',
+      description: getApiErrorMessage(err, 'Failed to delete education'),
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
@@ -464,7 +467,7 @@ defineExpose({
         <!-- Dates -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium mb-1">Start Date <span class="text-muted text-xs">(optional)</span></label>
+            <label class="block text-sm font-medium mb-1">Start Date <span class="text-error">*</span></label>
             <UInput
               v-model="formData.startDate"
               v-maska="'##/####'"
@@ -738,7 +741,7 @@ defineExpose({
             <!-- Dates -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium mb-1">Start Date <span class="text-muted text-xs">(optional)</span></label>
+                <label class="block text-sm font-medium mb-1">Start Date <span class="text-error">*</span></label>
                 <UInput
                   v-model="formData.startDate"
                   v-maska="'##/####'"

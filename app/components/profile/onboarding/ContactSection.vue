@@ -320,7 +320,7 @@ async function saveContactInfo(): Promise<boolean> {
   } catch (error: any) {
     toast.add({
       title: 'Error',
-      description: error?.message || 'Failed to save contact information',
+      description: getApiErrorMessage(error, 'Failed to save contact information'),
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
@@ -440,7 +440,7 @@ async function saveWebsites(): Promise<boolean> {
   } catch (error: any) {
     toast.add({
       title: 'Error',
-      description: error?.message || 'Failed to update websites',
+      description: getApiErrorMessage(error, 'Failed to update websites'),
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
@@ -579,7 +579,7 @@ async function saveSocialLinks(): Promise<boolean> {
   } catch (error: any) {
     toast.add({
       title: 'Error',
-      description: error?.message || 'Failed to save social links',
+      description: getApiErrorMessage(error, 'Failed to save social links'),
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
@@ -771,7 +771,7 @@ async function saveSummary(): Promise<boolean> {
   } catch (error: any) {
     toast.add({
       title: 'Error',
-      description: error?.message || 'Failed to update professional summary',
+      description: getApiErrorMessage(error, 'Failed to update professional summary'),
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
@@ -907,7 +907,7 @@ async function saveAllUnsaved(): Promise<boolean> {
     } catch (error: any) {
       toast.add({
         title: 'Error',
-        description: error?.message || 'Failed to save contact information',
+        description: getApiErrorMessage(error, 'Failed to save contact information'),
         icon: 'i-lucide-alert-circle',
         color: 'error'
       })

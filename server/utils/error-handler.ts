@@ -132,6 +132,9 @@ export function handleDatabaseError(
   }
   
   if (error.code === DatabaseErrorCodes.NOT_NULL_VIOLATION) {
+    // PostgreSQL message: 'null value in column "start_date" of relation "education" ...'
+    const columnMatch = error.message?.match(/column "([^"]+)"/)
+    const columnName = columnMatch?.[1]?.replace(/_/g, ' ')
     return createError({
       statusCode: 400,
       statusMessage: 'Bad Request',
@@ -139,7 +142,9 @@ export function handleDatabaseError(
         success: false,
         error: {
           code: ErrorCodes.REQUIRED,
-          message: 'Required field is missing',
+          message: columnName
+            ? `${columnName.charAt(0).toUpperCase() + columnName.slice(1)} is required`
+            : 'A required field is missing',
           details: error.message,
         }
       }
