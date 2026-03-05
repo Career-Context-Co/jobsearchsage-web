@@ -82,28 +82,24 @@ export const useAccountStore = defineStore('account', {
 
       if (!userId) return
 
-      try {
-        // Fetch full user data (name fields + profileId) from public.users in one request,
-        // then set the complete user object in a single assignment so components that
-        // initialize from the store see all fields at once — no watchers needed.
-        const response: any = await $fetch('/api/auth/session', { method: 'GET' })
-        this.user = {
-          id: userId,
-          email: userEmail || '',
-          firstName: response?.data?.firstName ?? null,
-          lastName: response?.data?.lastName ?? null,
-          preferredName: response?.data?.preferredName ?? null
-        }
-        this.profileId = response?.data?.profileId ?? null
-      } catch {
-        // Session endpoint throws 401 only if not authenticated — shouldn't happen here.
-        // Still set minimal user so isAuthenticated stays true.
-        this.user = {
-          id: userId,
-          email: userEmail || ''
-        }
+      const response: any = await $fetch('/api/auth/session', { method: 'GET' })
+
+      if (!response?.data) {
+        // Server confirmed no authenticated session — stale client token.
+        // Clear local state so isAuthenticated reflects reality.
+        this.user = null
         this.profileId = null
+        return
       }
+
+      this.user = {
+        id: userId,
+        email: userEmail || '',
+        firstName: response.data.firstName ?? null,
+        lastName: response.data.lastName ?? null,
+        preferredName: response.data.preferredName ?? null
+      }
+      this.profileId = response.data.profileId ?? null
     },
 
     /**

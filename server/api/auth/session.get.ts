@@ -8,7 +8,6 @@
 
 import { serverSupabaseClient } from '#supabase/server'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
-import { ErrorCodes } from '@@/server/utils/error-handler'
 
 const ROUTE_PATH = '/api/auth/session'
 
@@ -19,22 +18,12 @@ export default eventHandler(async (event) => {
 
   const supabase = await serverSupabaseClient(event)
 
-  // Get current user
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  if (userError || !user) {
-    logError('GET', ROUTE_PATH, userError || new Error('No user'))
-    throw createError({
-      statusCode: 401,
-      statusMessage: 'Unauthorized',
-      data: {
-        success: false,
-        error: {
-          code: ErrorCodes.UNAUTHORIZED,
-          message: 'Not authenticated'
-        }
-      }
-    })
+  if (!user) {
+    const duration = getElapsed()
+    logSuccess('GET', ROUTE_PATH, duration, { authenticated: false })
+    return { success: true, data: null }
   }
 
   // Look up user record in public.users for name fields and profileId

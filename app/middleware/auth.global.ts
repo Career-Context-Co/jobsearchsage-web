@@ -1,40 +1,38 @@
 export default defineNuxtRouteMiddleware(async (to, from) => {
-  const user = useSupabaseUser()
   const accountStore = useAccountStore()
-
-  // Public routes that don't require authentication
   const publicRoutes = ['/signin', '/confirm']
   const isPublicRoute = publicRoutes.some(route => to.path.startsWith(route))
 
-  // If navigating away from /confirm or /signin, allow it through even if
-  // useSupabaseUser() hasn't caught up yet — session was just established
+  if (isPublicRoute) return
+
+  // After OAuth or email sign-in, the session was just established.
+  // Let the navigation through — cookies may not have flushed yet.
   if (from.path.startsWith('/confirm') || from.path.startsWith('/signin')) {
     return
   }
 
-  // useSupabaseUser() is populated asynchronously. On page reload, it may be
-  // null while the Supabase client is still initializing from storage.
-  // Fall back to getSession() to avoid a false redirect on slow init.
-  let resolvedUser = user.value
-  if (!resolvedUser && !isPublicRoute) {
+  // Hydrate auth state if needed (once per app session)
+  if (!accountStore.isAuthenticated) {
     const supabase = useSupabaseClient()
     const { data: { session } } = await supabase.auth.getSession()
-    resolvedUser = session?.user ?? null
+    if (session?.user) {
+      await accountStore.hydrateFromSession()
+    }
   }
 
-  // If user is authenticated but store isn't hydrated yet (e.g. page reload),
-  // hydrate the store now so profileId is available
-  if (resolvedUser && !accountStore.isAuthenticated) {
-    await accountStore.hydrateFromSession()
-  }
-
-  // If not authenticated and trying to access a protected route, redirect to signin
-  if (!resolvedUser && !isPublicRoute) {
+  if (!accountStore.isAuthenticated) {
     return navigateTo('/signin')
   }
 
-  // If authenticated and trying to access signin, redirect to home
-  if (resolvedUser && to.path.startsWith('/signin')) {
-    return navigateTo('/')
+  // Load profile if needed (once per app session)
+  const careerIDStore = useCareerIDStore()
+  if (!careerIDStore.isProfileLoaded) {
+    try {
+      await careerIDStore.fetchProfileByUser()
+    } catch (error: any) {
+      const status = error?.status ?? error?.statusCode
+      if (status !== 404) console.error('Failed to load profile:', error)
+      careerIDStore.error = null
+    }
   }
 })

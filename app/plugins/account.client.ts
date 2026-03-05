@@ -1,7 +1,4 @@
-export default defineNuxtPlugin(async () => {
+export default defineNuxtPlugin(() => {
   const accountStore = useAccountStore()
   accountStore.initializeAccount()
-  
-  // Hydrate user state from existing session
-  await accountStore.hydrateFromSession()
 })

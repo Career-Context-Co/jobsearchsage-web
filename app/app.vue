@@ -1,21 +1,4 @@
 <script setup lang="ts">
-const careerIDStore = useCareerIDStore()
-
-// Fetch the profile for whoever is logged in. The /me endpoint resolves
-// by jss_user_id server-side so we never need a client-supplied profileId here.
-// 401 = not logged in yet, 404 = new user with no profile — both are silent.
-if (!careerIDStore.isProfileLoaded) {
-  try {
-    await careerIDStore.fetchProfileByUser()
-  } catch (error: any) {
-    const status = error?.status ?? error?.statusCode ?? error?.data?.statusCode
-    if (status !== 401 && status !== 404) {
-      console.error('Failed to load profile:', error)
-    }
-    careerIDStore.error = null
-  }
-}
-
 const colorMode = useColorMode()
 const color = computed(() => colorMode.value === 'dark' ? '#1b1718' : 'white')
 

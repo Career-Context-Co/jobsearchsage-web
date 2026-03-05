@@ -8,7 +8,7 @@
 
 import { serverSupabaseClient } from '#supabase/server'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
-import { createNotFoundError, handleDatabaseError, ErrorCodes } from '@@/server/utils/error-handler'
+import { createNotFoundError, handleDatabaseError } from '@@/server/utils/error-handler'
 import { transformProfileResponse } from '@@/server/utils/career-id-transformer'
 
 const ROUTE_PATH = '/api/career-id/profile/me'
@@ -20,17 +20,12 @@ export default eventHandler(async (event) => {
 
   const supabase = await serverSupabaseClient(event)
 
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  if (userError || !user) {
-    logError('GET', ROUTE_PATH, userError || new Error('Not authenticated'))
-    throw createError({
-      statusCode: 401,
-      data: {
-        success: false,
-        error: { code: ErrorCodes.UNAUTHORIZED, message: 'Not authenticated' }
-      }
-    })
+  if (!user) {
+    const duration = getElapsed()
+    logSuccess('GET', ROUTE_PATH, duration, { authenticated: false })
+    return { success: true, data: null }
   }
 
   // Find the user's profile by jss_user_id — never trust a client-supplied profileId here
