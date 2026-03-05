@@ -106,7 +106,7 @@ export default defineNuxtConfig({
 
   sentry: {
     org: 'careercontext',
-    project: 'javascript-nuxt'
+    project: 'jobsearchsage-web'
   },
 
   sourcemap: {
