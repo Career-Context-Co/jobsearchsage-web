@@ -5,10 +5,15 @@ Sentry.init({
 
   tracesSampleRate: 0.5,
 
-  replaysSessionSampleRate: 0.1,
+  replaysSessionSampleRate: 0.5,
   replaysOnErrorSampleRate: 1.0,
 
-  integrations: [Sentry.replayIntegration()],
+  integrations: [
+    Sentry.replayIntegration({
+      maskAllText: false,
+      blockAllMedia: false,
+    }),
+  ],
 
   enableLogs: true,
   sendDefaultPii: true,
