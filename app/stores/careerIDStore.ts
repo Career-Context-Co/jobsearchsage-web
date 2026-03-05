@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import * as Sentry from '@sentry/nuxt'
 import type {
   Profile,
   Experience,
@@ -1750,7 +1751,7 @@ export const useCareerIDStore = defineStore('careerID', {
           errorMessage = getApiErrorMessage(error, errorMessage)
         }
 
-        posthog?.captureException(error)
+        Sentry.captureException(error)
         this.error = errorMessage
         throw new Error(errorMessage)
       } finally {

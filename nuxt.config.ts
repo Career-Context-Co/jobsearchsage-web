@@ -2,15 +2,16 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 export default defineNuxtConfig({
-
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
     '@vueuse/nuxt',
     '@nuxtjs/supabase',
     '@pinia/nuxt',
-    '@posthog/nuxt'
+    '@posthog/nuxt',
+    '@sentry/nuxt/module'
   ],
+
   ssr: false,
 
   devtools: {
@@ -27,6 +28,9 @@ export default defineNuxtConfig({
       posthog: {
         publicKey: process.env.NUXT_PUBLIC_POSTHOG_KEY || '',
         host: process.env.NUXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com'
+      },
+      sentry: {
+        dsn: process.env.NUXT_PUBLIC_SENTRY_DSN || ''
       }
     }
   },
@@ -44,6 +48,7 @@ export default defineNuxtConfig({
       external: ['pdf-parse', 'pdfjs-dist']
     }
   },
+
   hooks: {
     ready(nuxt) {
       const precomputedPath = join(nuxt.options.buildDir, 'dist', 'server', 'client.precomputed.mjs')
@@ -70,10 +75,9 @@ export default defineNuxtConfig({
     publicKey: process.env.NUXT_PUBLIC_POSTHOG_KEY || '',
     host: process.env.NUXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
     clientConfig: {
-      capture_exceptions: true
-    },
-    serverConfig: {
-      enableExceptionAutocapture: true
+      autocapture: false,
+      capture_pageview: false,
+      capture_pageleave: false
     }
   },
 
@@ -98,5 +102,14 @@ export default defineNuxtConfig({
       secure: process.env.NODE_ENV === 'production',
       httpOnly: false
     }
+  },
+
+  sentry: {
+    org: 'careercontext',
+    project: 'javascript-nuxt'
+  },
+
+  sourcemap: {
+    client: 'hidden'
   }
 })

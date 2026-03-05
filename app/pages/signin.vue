@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui'
+import * as Sentry from '@sentry/nuxt'
 import * as z from 'zod'
 
 definePageMeta({
@@ -166,6 +167,7 @@ async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
       await accountStore.signIn(event.data.email, event.data.password)
       // Identify user on successful sign-in
       posthog?.identify(event.data.email)
+      Sentry.setUser({ email: event.data.email })
       posthog?.capture('user_signed_in', { method: 'email' })
       await navigateTo('/')
     } else {
@@ -187,7 +189,7 @@ async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
     }
   } catch (err: any) {
     console.error('Auth error:', err)
-    posthog?.captureException(err)
+    Sentry.captureException(err)
 
     // Extract user-friendly error message from various possible error structures
     let errorMessage = `Failed to ${isSignIn.value ? 'sign in' : 'sign up'}`

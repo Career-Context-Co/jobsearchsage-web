@@ -49,4 +49,4 @@ Identify users during login and signup events. Refer to the example code and doc
 
 ## Error tracking
 
-Add PostHog error tracking to relevant files, particularly around critical user flows and API boundaries.
+Error tracking, performance monitoring, session replay, and logging are handled by **Sentry** (`@sentry/nuxt`), not PostHog. PostHog is used exclusively for product analytics (custom events like sign-up, onboarding, AI feature usage). Do not add `captureException` or error tracking calls via PostHog.

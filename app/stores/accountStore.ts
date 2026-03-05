@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import * as Sentry from '@sentry/nuxt'
 
 const STORAGE_KEY = 'jobsearchsage-account'
 
@@ -199,6 +200,7 @@ export const useAccountStore = defineStore('account', {
       const posthog = usePostHog()
       posthog?.capture('user_signed_out')
       posthog?.reset()
+      Sentry.setUser(null)
 
       this.user = null
       this.profileId = null
