@@ -41,7 +41,6 @@ export default defineEventHandler(async (event) => {
     if ((firstName || lastName) && data.user) {
       const payload: Record<string, string | null> = {
         id: data.user.id,
-        email: data.user.email ?? '',
         last_active_at: new Date().toISOString()
       }
       if (firstName) payload.first_name = firstName

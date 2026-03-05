@@ -52,7 +52,6 @@ export default eventHandler(async (event) => {
     if (firstName || lastName) {
       await supabase.from('users').upsert({
         id: user.id,
-        email: user.email ?? '',
         first_name: firstName,
         last_name: lastName,
         last_active_at: new Date().toISOString()

@@ -109,12 +109,14 @@ export default eventHandler(async (event) => {
       updatePayload.preferred_name = meta.preferred_name
     }
 
-    // Fire-and-forget — don't block the response on this
-    supabase
+    const { error: updateError } = await supabase
       .from('users')
       .update(updatePayload)
       .eq('id', authData.user.id)
-      .then(() => {})
+
+    if (updateError) {
+      logError('POST', ROUTE_PATH, updateError, { userId: authData.user.id, step: 'user_sync' })
+    }
 
     // Resolve final name values (merge public.users + any synced metadata)
     const firstName = publicUser?.first_name ?? meta.first_name ?? null
