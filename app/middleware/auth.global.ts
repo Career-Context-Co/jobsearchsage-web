@@ -5,23 +5,28 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
 
   if (isPublicRoute) return
 
-  // After OAuth or email sign-in, the session was just established.
-  // Let the navigation through — cookies may not have flushed yet.
   if (from.path.startsWith('/confirm') || from.path.startsWith('/signin')) {
     return
   }
 
-  // Hydrate auth state if needed (once per app session)
-  if (!accountStore.isAuthenticated) {
+  // Check auth: useSupabaseUser() is populated from cookies by @nuxtjs/supabase.
+  // Fall back to getSession() in case the composable hasn't caught up yet.
+  const user = useSupabaseUser()
+  let resolvedUser = user.value
+
+  if (!resolvedUser) {
     const supabase = useSupabaseClient()
     const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user) {
-      await accountStore.hydrateFromSession()
-    }
+    resolvedUser = session?.user ?? null
   }
 
-  if (!accountStore.isAuthenticated) {
+  if (!resolvedUser) {
     return navigateTo('/signin')
+  }
+
+  // Hydrate account store if needed (once per app session)
+  if (!accountStore.isAuthenticated) {
+    await accountStore.hydrateFromSession()
   }
 
   // Load profile if needed (once per app session)

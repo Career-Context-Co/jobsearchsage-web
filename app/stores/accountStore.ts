@@ -82,24 +82,29 @@ export const useAccountStore = defineStore('account', {
 
       if (!userId) return
 
-      const response: any = await $fetch('/api/auth/session', { method: 'GET' })
+      try {
+        const response: any = await $fetch('/api/auth/session', { method: 'GET' })
 
-      if (!response?.data) {
-        // Server confirmed no authenticated session — stale client token.
-        // Clear local state so isAuthenticated reflects reality.
-        this.user = null
-        this.profileId = null
-        return
+        if (response?.data) {
+          this.user = {
+            id: userId,
+            email: userEmail || '',
+            firstName: response.data.firstName ?? null,
+            lastName: response.data.lastName ?? null,
+            preferredName: response.data.preferredName ?? null
+          }
+          this.profileId = response.data.profileId ?? null
+          return
+        }
+      } catch {
+        // Server unreachable or errored — fall through to minimal user
       }
 
-      this.user = {
-        id: userId,
-        email: userEmail || '',
-        firstName: response.data.firstName ?? null,
-        lastName: response.data.lastName ?? null,
-        preferredName: response.data.preferredName ?? null
-      }
-      this.profileId = response.data.profileId ?? null
+      // Client has a session but server couldn't verify (cookies may not
+      // have flushed yet after OAuth). Set minimal user so isAuthenticated
+      // stays true; full data will load on the next navigation.
+      this.user = { id: userId, email: userEmail || '' }
+      this.profileId = null
     },
 
     /**
