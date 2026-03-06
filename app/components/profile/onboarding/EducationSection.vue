@@ -178,25 +178,24 @@ function validateForm(): boolean {
   const institutionError = validateRequired(formData.value.institution, 'Institution')
   if (institutionError) errors.institution = institutionError
   
-  // Start date is required
-  const startDateError = validateMonthYear(formData.value.startDate, true)
-  if (startDateError) errors.startDate = startDateError
+  // Start date is optional — only validate format if provided
+  if (formData.value.startDate && formData.value.startDate.trim()) {
+    const startDateError = validateMonthYear(formData.value.startDate, false)
+    if (startDateError) errors.startDate = startDateError
+  }
   
-  // Validate end date - only required if degree is completed
+  // Validate end date - required if degree is completed
   if (formData.value.completed) {
     const endDateError = validateMonthYear(formData.value.endDate, true)
     if (endDateError) errors.endDate = endDateError
     else if (formData.value.startDate && formData.value.endDate) {
-      // Validate date range
       const rangeError = validateDateRange(formData.value.startDate, formData.value.endDate, 'End Date')
       if (rangeError) errors.endDate = rangeError
     }
   } else if (formData.value.endDate && formData.value.endDate.trim()) {
-    // If end date is provided for in-progress degree, validate format
     const endDateError = validateMonthYear(formData.value.endDate, false)
     if (endDateError) errors.endDate = endDateError
-    else if (formData.value.startDate) {
-      // Validate date range if provided
+    else if (formData.value.startDate && formData.value.startDate.trim()) {
       const rangeError = validateDateRange(formData.value.startDate, formData.value.endDate, 'End Date')
       if (rangeError) errors.endDate = rangeError
     }
@@ -220,16 +219,18 @@ function validateForm(): boolean {
   return Object.keys(errors).length === 0
 }
 
-// Save education (add or update)
-async function saveEducation(): Promise<boolean> {
+// Save education (add or update). Pass silent=true to suppress per-item toasts (used during bulk save).
+async function saveEducation(silent = false): Promise<boolean> {
   if (!validateForm()) {
-    toast.add({
-      title: 'Validation Error',
-      description: 'Please fix the errors in the form',
-      icon: 'i-lucide-alert-circle',
-      color: 'error'
-    })
-    return false // Return false to indicate validation failure
+    if (!silent) {
+      toast.add({
+        title: 'Validation Error',
+        description: 'Please fix the errors in the form',
+        icon: 'i-lucide-alert-circle',
+        color: 'error'
+      })
+    }
+    return false
   }
   
   isSavingEducation.value = true
@@ -252,47 +253,47 @@ async function saveEducation(): Promise<boolean> {
       minors
     }
     
-    // Check if we're editing an existing education with an ID (UPDATE) or adding/saving extracted (ADD)
     const isUpdating = editingEducationIndex.value !== null && educationList.value[editingEducationIndex.value]?.id
     
     if (isUpdating) {
-      // Update existing education (has ID in database)
       const education = educationList.value[editingEducationIndex.value!]
       if (!education?.id) {
         throw new Error('Cannot update education without ID')
       }
       await careerIDStore.updateEducation(education.id, educationData)
       
-      toast.add({
-        title: 'Success',
-        description: 'Education updated successfully',
-        icon: 'i-lucide-check',
-        color: 'success'
-      })
+      if (!silent) {
+        toast.add({
+          title: 'Success',
+          description: 'Education updated successfully',
+          icon: 'i-lucide-check',
+          color: 'success'
+        })
+      }
     } else {
-      // Add new education (includes: new items, extracted items being saved for first time)
       await careerIDStore.addEducation({
         ...educationData,
         displayOrder: educationList.value.length + 1
       })
       
-      // If we were editing an extracted education (no ID), remove it after successful save
       if (editingEducationRef.value && !editingEducationRef.value.id && editingEducationRef.value.isExtracted) {
         careerIDStore.education = careerIDStore.education.filter(
           edu => edu !== editingEducationRef.value
         )
       }
       
-      toast.add({
-        title: 'Success',
-        description: 'Education added successfully',
-        icon: 'i-lucide-check',
-        color: 'success'
-      })
+      if (!silent) {
+        toast.add({
+          title: 'Success',
+          description: 'Education added successfully',
+          icon: 'i-lucide-check',
+          color: 'success'
+        })
+      }
     }
     
     cancelEdit()
-    return true // Success
+    return true
   } catch (err: any) {
     toast.add({
       title: 'Error',
@@ -300,7 +301,7 @@ async function saveEducation(): Promise<boolean> {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
-    return false // API error
+    return false
   } finally {
     isSavingEducation.value = false
   }
@@ -354,29 +355,38 @@ async function triggerSave() {
   }
 }
 
-// Save all unsaved items (extracted items without IDs)
+// Save any open form + all unsaved extracted items. Shows a single summary toast.
 async function saveAllUnsaved(): Promise<boolean> {
-  const unsavedEducation = educationList.value.filter(edu => !edu.id)
-  
-  if (unsavedEducation.length === 0) {
-    return true // Nothing to save
+  let savedCount = 0
+
+  // Step 1: If user has an open form (adding or editing), save it first
+  if (isAddingEducation.value || editingEducationIndex.value !== null) {
+    const formSuccess = await saveEducation(true)
+    if (!formSuccess) return false
+    savedCount++
   }
-  
+
+  // Step 2: Save remaining unsaved extracted items (no ID)
+  const unsavedEducation = educationList.value.filter(edu => !edu.id)
   for (const education of unsavedEducation) {
-    // Start editing this education to trigger validation
     const index = educationList.value.indexOf(education)
     startEditingEducation(index)
-    
-    // Try to save it
-    const success = await saveEducation()
-    
-    if (!success) {
-      // Validation or save failed - keep the form open with errors visible
-      return false
-    }
+
+    const success = await saveEducation(true)
+    if (!success) return false
+    savedCount++
   }
-  
-  return true // All saved successfully
+
+  if (savedCount > 0) {
+    toast.add({
+      title: 'Saved',
+      description: `${savedCount} education entr${savedCount > 1 ? 'ies' : 'y'} saved successfully`,
+      icon: 'i-lucide-check',
+      color: 'success'
+    })
+  }
+
+  return true
 }
 
 function revertChanges() {
@@ -467,7 +477,7 @@ defineExpose({
         <!-- Dates -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium mb-1">Start Date <span class="text-error">*</span></label>
+            <label class="block text-sm font-medium mb-1">Start Date <span class="text-muted text-xs">(optional)</span></label>
             <UInput
               v-model="formData.startDate"
               v-maska="'##/####'"
@@ -741,7 +751,7 @@ defineExpose({
             <!-- Dates -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium mb-1">Start Date <span class="text-error">*</span></label>
+                <label class="block text-sm font-medium mb-1">Start Date <span class="text-muted text-xs">(optional)</span></label>
                 <UInput
                   v-model="formData.startDate"
                   v-maska="'##/####'"

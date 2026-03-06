@@ -144,16 +144,18 @@ function validateForm(): boolean {
   return Object.keys(errors).length === 0
 }
 
-// Save certification (add or update)
-async function saveCertification(): Promise<boolean> {
+// Save certification (add or update). Pass silent=true to suppress per-item toasts (used during bulk save).
+async function saveCertification(silent = false): Promise<boolean> {
   if (!validateForm()) {
-    toast.add({
-      title: 'Validation Error',
-      description: 'Please fix the errors in the form',
-      icon: 'i-lucide-alert-circle',
-      color: 'error'
-    })
-    return false // Return false to indicate validation failure
+    if (!silent) {
+      toast.add({
+        title: 'Validation Error',
+        description: 'Please fix the errors in the form',
+        icon: 'i-lucide-alert-circle',
+        color: 'error'
+      })
+    }
+    return false
   }
   
   isSavingCertification.value = true
@@ -167,47 +169,47 @@ async function saveCertification(): Promise<boolean> {
       url: formData.value.url || undefined
     }
     
-    // Check if we're editing an existing certification with an ID (UPDATE) or adding/saving extracted (ADD)
     const isUpdating = editingCertificationIndex.value !== null && certificationsList.value[editingCertificationIndex.value]?.id
     
     if (isUpdating) {
-      // Update existing certification (has ID in database)
       const certification = certificationsList.value[editingCertificationIndex.value!]
       if (!certification?.id) {
         throw new Error('Cannot update certification without ID')
       }
       await careerIDStore.updateCertification(certification.id, certificationData)
       
-      toast.add({
-        title: 'Success',
-        description: 'Certification updated successfully',
-        icon: 'i-lucide-check',
-        color: 'success'
-      })
+      if (!silent) {
+        toast.add({
+          title: 'Success',
+          description: 'Certification updated successfully',
+          icon: 'i-lucide-check',
+          color: 'success'
+        })
+      }
     } else {
-      // Add new certification (includes: new items, extracted items being saved for first time)
       await careerIDStore.addCertification({
         ...certificationData,
         displayOrder: certificationsList.value.length + 1
       })
       
-      // If we were editing an extracted certification (no ID), remove it after successful save
       if (editingCertificationRef.value && !editingCertificationRef.value.id && editingCertificationRef.value.isExtracted) {
         careerIDStore.certifications = careerIDStore.certifications.filter(
           cert => cert !== editingCertificationRef.value
         )
       }
       
-      toast.add({
-        title: 'Success',
-        description: 'Certification added successfully',
-        icon: 'i-lucide-check',
-        color: 'success'
-      })
+      if (!silent) {
+        toast.add({
+          title: 'Success',
+          description: 'Certification added successfully',
+          icon: 'i-lucide-check',
+          color: 'success'
+        })
+      }
     }
     
     cancelEdit()
-    return true // Success
+    return true
   } catch (err: any) {
     toast.add({
       title: 'Error',
@@ -215,7 +217,7 @@ async function saveCertification(): Promise<boolean> {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
-    return false // API error
+    return false
   } finally {
     isSavingCertification.value = false
   }
@@ -269,29 +271,38 @@ async function triggerSave() {
   }
 }
 
-// Save all unsaved items (extracted items without IDs)
+// Save any open form + all unsaved extracted items. Shows a single summary toast.
 async function saveAllUnsaved(): Promise<boolean> {
-  const unsavedCertifications = certificationsList.value.filter(cert => !cert.id)
-  
-  if (unsavedCertifications.length === 0) {
-    return true // Nothing to save
+  let savedCount = 0
+
+  // Step 1: If user has an open form (adding or editing), save it first
+  if (isAddingCertification.value || editingCertificationIndex.value !== null) {
+    const formSuccess = await saveCertification(true)
+    if (!formSuccess) return false
+    savedCount++
   }
-  
+
+  // Step 2: Save remaining unsaved extracted items (no ID)
+  const unsavedCertifications = certificationsList.value.filter(cert => !cert.id)
   for (const certification of unsavedCertifications) {
-    // Start editing this certification to trigger validation
     const index = certificationsList.value.indexOf(certification)
     startEditingCertification(index)
-    
-    // Try to save it
-    const success = await saveCertification()
-    
-    if (!success) {
-      // Validation or save failed - keep the form open with errors visible
-      return false
-    }
+
+    const success = await saveCertification(true)
+    if (!success) return false
+    savedCount++
   }
-  
-  return true // All saved successfully
+
+  if (savedCount > 0) {
+    toast.add({
+      title: 'Saved',
+      description: `${savedCount} certification${savedCount > 1 ? 's' : ''} saved successfully`,
+      icon: 'i-lucide-check',
+      color: 'success'
+    })
+  }
+
+  return true
 }
 
 function revertChanges() {

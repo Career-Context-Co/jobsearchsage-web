@@ -244,16 +244,18 @@ function validateForm(): boolean {
   return Object.keys(errors).length === 0
 }
 
-// Save experience (add or update)
-async function saveExperience(): Promise<boolean> {
+// Save experience (add or update). Pass silent=true to suppress per-item toasts (used during bulk save).
+async function saveExperience(silent = false): Promise<boolean> {
   if (!validateForm()) {
-    toast.add({
-      title: 'Validation Error',
-      description: 'Please fix the errors in the form',
-      icon: 'i-lucide-alert-circle',
-      color: 'error'
-    })
-    return false // Return false to indicate validation failure
+    if (!silent) {
+      toast.add({
+        title: 'Validation Error',
+        description: 'Please fix the errors in the form',
+        icon: 'i-lucide-alert-circle',
+        color: 'error'
+      })
+    }
+    return false
   }
   
   isSavingExperience.value = true
@@ -280,21 +282,21 @@ async function saveExperience(): Promise<boolean> {
     const isUpdating = editingExperienceIndex.value !== null && experiences.value[editingExperienceIndex.value]?.id
     
     if (isUpdating) {
-      // Update existing experience (has ID in database)
       const experience = experiences.value[editingExperienceIndex.value!]
       if (!experience?.id) {
         throw new Error('Cannot update experience without ID')
       }
       await careerIDStore.updateExperience(experience.id, experienceData)
       
-      toast.add({
-        title: 'Success',
-        description: 'Work experience updated successfully',
-        icon: 'i-lucide-check',
-        color: 'success'
-      })
+      if (!silent) {
+        toast.add({
+          title: 'Success',
+          description: 'Work experience updated successfully',
+          icon: 'i-lucide-check',
+          color: 'success'
+        })
+      }
     } else {
-      // Add new experience (includes: new items, extracted items being saved for first time)
       await careerIDStore.addExperience({
         ...experienceData,
         displayOrder: experiences.value.length + 1
@@ -307,16 +309,18 @@ async function saveExperience(): Promise<boolean> {
         )
       }
       
-      toast.add({
-        title: 'Success',
-        description: 'Work experience added successfully',
-        icon: 'i-lucide-check',
-        color: 'success'
-      })
+      if (!silent) {
+        toast.add({
+          title: 'Success',
+          description: 'Work experience added successfully',
+          icon: 'i-lucide-check',
+          color: 'success'
+        })
+      }
     }
     
     cancelEdit()
-    return true // Success
+    return true
   } catch (err: any) {
     toast.add({
       title: 'Error',
@@ -324,7 +328,7 @@ async function saveExperience(): Promise<boolean> {
       icon: 'i-lucide-alert-circle',
       color: 'error'
     })
-    return false // API error
+    return false
   } finally {
     isSavingExperience.value = false
   }
@@ -462,29 +466,38 @@ async function triggerSave() {
   }
 }
 
-// Save all unsaved items (extracted items without IDs)
+// Save any open form + all unsaved extracted items. Shows a single summary toast.
 async function saveAllUnsaved(): Promise<boolean> {
-  const unsavedExperiences = experiences.value.filter(exp => !exp.id)
-  
-  if (unsavedExperiences.length === 0) {
-    return true // Nothing to save
+  let savedCount = 0
+
+  // Step 1: If user has an open form (adding or editing), save it first
+  if (isAddingExperience.value || editingExperienceIndex.value !== null) {
+    const formSuccess = await saveExperience(true)
+    if (!formSuccess) return false
+    savedCount++
   }
-  
+
+  // Step 2: Save remaining unsaved extracted items (no ID)
+  const unsavedExperiences = experiences.value.filter(exp => !exp.id)
   for (const experience of unsavedExperiences) {
-    // Start editing this experience to trigger validation
     const index = experiences.value.indexOf(experience)
     startEditingExperience(index)
-    
-    // Try to save it
-    const success = await saveExperience()
-    
-    if (!success) {
-      // Validation or save failed - keep the form open with errors visible
-      return false
-    }
+
+    const success = await saveExperience(true)
+    if (!success) return false
+    savedCount++
   }
-  
-  return true // All saved successfully
+
+  if (savedCount > 0) {
+    toast.add({
+      title: 'Saved',
+      description: `${savedCount} work experience${savedCount > 1 ? 's' : ''} saved successfully`,
+      icon: 'i-lucide-check',
+      color: 'success'
+    })
+  }
+
+  return true
 }
 
 function revertChanges() {

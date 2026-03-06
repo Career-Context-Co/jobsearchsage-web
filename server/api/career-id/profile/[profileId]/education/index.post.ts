@@ -38,10 +38,6 @@ export default eventHandler(async (event) => {
     validationErrors.push(requiredFieldError('institution'))
   }
   
-  if (!isRequired(body.startDate)) {
-    validationErrors.push(requiredFieldError('startDate'))
-  }
-  
   // Validate date range only when both dates are provided
   if (body.startDate && body.endDate) {
     const dateRangeError = validateDateRange(body.startDate, body.endDate)
