@@ -117,49 +117,52 @@ async function onSubmitPassword() {
       <UFormField
         label="Preferred name"
         description="What we'll call you in the app."
-        class="flex max-sm:flex-col justify-between items-start gap-4"
+        class="grid grid-cols-1 sm:grid-cols-[3fr_2fr] gap-x-6 gap-y-1 sm:gap-y-0 sm:items-center"
       >
         <UInput
           v-model="accountStore.user!.preferredName"
           autocomplete="nickname"
           placeholder="e.g. Alex"
+          class="w-full min-w-0"
         />
       </UFormField>
       <USeparator />
       <UFormField
         label="Legal first name"
-        description="Your legal first name as it appears on official documents, used for background checks when applying for jobs."
-        class="flex max-sm:flex-col justify-between items-start gap-4"
+        description="Your legal first name as it appears on official documents."
+        class="grid grid-cols-1 sm:grid-cols-[3fr_2fr] gap-x-6 gap-y-1 sm:gap-y-0 sm:items-center"
       >
         <UInput
           v-model="accountStore.user!.firstName"
           autocomplete="given-name"
           placeholder="e.g. Alexandra"
+          class="w-full min-w-0"
         />
       </UFormField>
       <USeparator />
       <UFormField
         label="Legal last name"
-        description="Your legal last name as it appears on official documents, used for background checks when applying for jobs."
-        class="flex max-sm:flex-col justify-between items-start gap-4"
+        description="Your legal last name as it appears on official documents."
+        class="grid grid-cols-1 sm:grid-cols-[3fr_2fr] gap-x-6 gap-y-1 sm:gap-y-0 sm:items-center"
       >
         <UInput
           v-model="accountStore.user!.lastName"
           autocomplete="family-name"
           placeholder="e.g. Smith"
+          class="w-full min-w-0"
         />
       </UFormField>
       <USeparator />
       <UFormField
         label="Email"
         description="Used to sign in and for account communication. Contact support to change your email."
-        class="flex max-sm:flex-col justify-between items-start gap-4"
+        class="grid grid-cols-1 sm:grid-cols-[3fr_2fr] gap-x-6 gap-y-1 sm:gap-y-0 sm:items-center"
       >
         <UInput
           :model-value="accountStore.user?.email ?? ''"
           type="email"
           disabled
-          class="opacity-60"
+          class="w-full min-w-0 opacity-60"
         />
       </UFormField>
     </UPageCard>
