@@ -39,7 +39,8 @@ BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+SET search_path = public, pg_temp;
 
 -- Add trigger for updated_at
 CREATE TRIGGER update_docs_resumes_updated_at
