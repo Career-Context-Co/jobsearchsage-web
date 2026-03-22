@@ -98,9 +98,9 @@ function handleRetry() {
     </div>
 
     <!-- Help Text -->
-    <div class="flex items-start gap-3 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
-      <UIcon name="i-lucide-info" class="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
-      <p class="text-sm text-green-900 dark:text-green-200">
+    <div class="flex items-start gap-3 p-4 bg-primary-50 dark:bg-primary-950/20 rounded-lg border border-primary-200 dark:border-primary-800">
+      <UIcon name="i-lucide-info" class="w-5 h-5 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
+      <p class="text-sm text-primary-900 dark:text-primary-200">
         AI extraction isn't perfect — some details may be missing or incorrect, but don't worry, you can review and correct everything in the next steps.
         We don't store your resume and only use it to extract info.
       </p>

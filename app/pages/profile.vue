@@ -53,7 +53,7 @@ const links = computed(() => {
       icon: 'i-lucide-arrow-right',
       color: 'primary' as const,
       to: '/profile/onboarding',
-      class: 'bg-gradient-to-r from-indigo-500 to-green-500 cursor-pointer rounded text-white hover:text-white font-semibold'
+      class: 'bg-gradient-to-r from-indigo-500 to-primary-500 cursor-pointer rounded text-white hover:text-white font-semibold'
     }]] : [])
   ] satisfies NavigationMenuItem[][]
 })

@@ -216,14 +216,26 @@ async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col items-center justify-center gap-6 p-6 md:p-10 bg-neutral-50 dark:bg-neutral-950">
+  <div
+    class="min-h-screen flex flex-col items-center justify-center gap-6 p-6 md:p-10"
+    style="background-color: #F7F9FB; background-image: radial-gradient(ellipse 80% 50% at 100% 0%, rgba(87,204,153,0.1) 0%, transparent 70%), radial-gradient(ellipse 70% 55% at 0% 100%, rgba(43,107,94,0.08) 0%, transparent 65%)"
+  >
     <!-- App Logo/Name -->
-    <p class="text-xl text-center font-bold text-primary mb-8">
-      JobSearchSage
-    </p>
+    <div class="flex items-center justify-center gap-2 mb-8">
+      <UIcon
+        name="i-lucide-wand-sparkles"
+        class="size-7 shrink-0 text-primary"
+      />
+      <span class="text-2xl font-bold text-primary">
+        JobSearchSage
+      </span>
+    </div>
 
     <!-- Auth Form Card -->
-    <UCard class="bg-white dark:bg-neutral-900 rounded-2xl shadow-lg max-w-md w-full">
+    <UCard
+      class="bg-white dark:bg-neutral-900 rounded-2xl max-w-md w-full"
+      style="box-shadow: 0 8px 32px rgba(25,79,79,0.08); border: 1px solid rgba(25,79,79,0.06)"
+    >
       <UAuthForm
         :key="mode"
         :fields="fields"
@@ -246,14 +258,14 @@ async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
       >
         <!-- Title -->
         <template #title>
-          <h1 class="text-2xl text-center font-bold text-gray-900 dark:text-white">
+          <h1 class="text-2xl text-center font-bold text-primary-800">
             {{ isSignIn ? 'Welcome back' : 'Hey there 👋' }}
           </h1>
         </template>
 
         <!-- Description -->
         <template #description>
-          <p class="text-gray-600 dark:text-gray-400 text-center">
+          <p class="text-primary-900 text-center">
             {{ isSignIn ? 'Login to get back to your job search!' : 'Sign up to master your job search!' }}
           </p>
         </template>
@@ -292,7 +304,7 @@ async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
         <!-- Footer with mode toggle -->
         <template #footer>
           <div class="text-center">
-            <p class="text-gray-600 dark:text-gray-400">
+            <p class="text-[#4a5568]">
               {{ isSignUp ? 'Already have an account?' : "Don't have an account?" }}
               <UButton
                 variant="link"
@@ -310,7 +322,7 @@ async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
 
     <!-- Legal -->
     <div class="text-center">
-      <p class="text-sm text-gray-500 dark:text-gray-400">
+      <p class="text-sm text-[#4a5568]">
         By clicking continue, you agree to our
         <ULink to="#" class="text-primary font-medium">Terms of Service</ULink>
         and
