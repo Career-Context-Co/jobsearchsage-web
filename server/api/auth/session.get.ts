@@ -29,7 +29,7 @@ export default eventHandler(async (event) => {
   // Look up user record in public.users for name fields and profileId
   const { data: publicUser, error: publicUserError } = await supabase
     .from('users')
-    .select('first_name, last_name, preferred_name, career_id_profile_id')
+    .select('first_name, last_name, preferred_name, career_id_profile_id, onboarding_step, onboarding_completed_at')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -90,7 +90,9 @@ export default eventHandler(async (event) => {
       profileId: publicUser?.career_id_profile_id ?? null,
       firstName,
       lastName,
-      preferredName: publicUser?.preferred_name ?? null
+      preferredName: publicUser?.preferred_name ?? null,
+      onboardingStep: publicUser?.onboarding_step ?? null,
+      onboardingCompletedAt: publicUser?.onboarding_completed_at ?? null
     }
   }
 })

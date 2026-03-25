@@ -39,10 +39,14 @@ export default eventHandler(async (event) => {
   const body = await readBody(event)
 
   // Build update payload from whitelisted fields only
-  const updateData: Record<string, string> = {}
+  const updateData: Record<string, string | null> = {}
   if (typeof body.firstName === 'string') updateData.first_name = body.firstName.trim()
   if (typeof body.lastName === 'string') updateData.last_name = body.lastName.trim()
   if (typeof body.preferredName === 'string') updateData.preferred_name = body.preferredName.trim()
+  if (typeof body.onboardingStep === 'string') updateData.onboarding_step = body.onboardingStep
+  if (body.onboardingStep === null) updateData.onboarding_step = null
+  if (typeof body.onboardingCompletedAt === 'string') updateData.onboarding_completed_at = body.onboardingCompletedAt
+  if (body.onboardingCompletedAt === null) updateData.onboarding_completed_at = null
 
   if (Object.keys(updateData).length === 0) {
     setResponseStatus(event, 400)

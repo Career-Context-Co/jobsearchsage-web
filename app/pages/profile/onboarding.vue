@@ -57,10 +57,20 @@ const toast = useToast()
 const router = useRouter()
 const posthog = usePostHog()
 
-// Check if user is continuing onboarding after taking a break
+// True only when the user has previously saved a step (i.e. they've been here before).
+// null means first-ever visit → no "Welcome back" banner.
 const isContinuingOnboarding = computed(() =>
-  careerIDStore.profile?.completionStatus === 'incomplete' && careerIDStore.isProfileLoaded
+  accountStore.user?.onboardingStep != null && accountStore.user?.onboardingCompletedAt == null
 )
+
+// Silently persist the user's current step — non-blocking, failure is safe to ignore.
+async function saveOnboardingStep(step: string) {
+  try {
+    await accountStore.updateOnboardingProgress(step)
+  } catch {
+    // non-fatal: progress will be re-saved on next action
+  }
+}
 
 // Handle save from ContactSection - diffs against store to determine API calls
 async function handleSaveContact(payload: {
@@ -146,7 +156,7 @@ async function handleSaveContact(payload: {
 }
 
 // Handle skip or successful upload from ResumeUploadSection
-function handleUploadComplete(extracted: boolean) {
+async function handleUploadComplete(extracted: boolean) {
   if (extracted) {
     // Show success toast with extraction stats
     const counts = careerIDStore.sectionCounts
@@ -170,6 +180,7 @@ function handleUploadComplete(extracted: boolean) {
 
   // Advance to Contact step
   stepper.value?.next()
+  await saveOnboardingStep(activeStep.value)
 }
 
 // Save and validate current step before navigation
@@ -221,8 +232,10 @@ async function saveAndValidateCurrentStep(): Promise<boolean> {
   }
 }
 
-// Take a break - clear extracted data and navigate to profile
-function takeABreak() {
+// Take a break - save current step, clear extracted data, and navigate to profile
+async function takeABreak() {
+  await saveOnboardingStep(activeStep.value)
+
   // Clear all extracted and unsaved data
   careerIDStore.clearExtractedData()
 
@@ -259,6 +272,9 @@ async function completeProfile() {
       })
     }
 
+    // Stamp onboarding as completed in public.users
+    await accountStore.updateOnboardingProgress(null, new Date().toISOString())
+
     posthog?.capture('onboarding_completed', {
       experience_count: careerIDStore.sectionCounts.experience,
       education_count: careerIDStore.sectionCounts.education,
@@ -294,24 +310,38 @@ async function completeProfile() {
 // app.vue loads the profile for authenticated users before any page renders.
 // Here we only need to create a profile if none was found (new user).
 onMounted(async () => {
-  if (careerIDStore.profile) return
+  // Ensure user data (including onboardingStep) is hydrated.
+  // The global middleware skips hydration when navigating from /signin or /confirm,
+  // so we catch that gap here.
+  if (!accountStore.isAuthenticated) {
+    await accountStore.hydrateFromSession()
+  }
 
-  try {
-    await careerIDStore.createProfile()
-    toast.add({
-      title: 'Welcome!',
-      description: 'Your profile has been initialized',
-      icon: 'i-lucide-sparkles',
-      color: 'success'
-    })
-  } catch (error: any) {
-    console.error('Failed to create profile:', error)
-    toast.add({
-      title: 'Error',
-      description: error?.data?.error?.message || 'Failed to create your profile. Please refresh the page.',
-      icon: 'i-lucide-alert-circle',
-      color: 'error'
-    })
+  if (!careerIDStore.profile) {
+    try {
+      await careerIDStore.createProfile()
+      toast.add({
+        title: 'Welcome!',
+        description: 'Your profile has been initialized',
+        icon: 'i-lucide-sparkles',
+        color: 'success'
+      })
+    } catch (error: unknown) {
+      console.error('Failed to create profile:', error)
+      const e = error as Record<string, unknown>
+      toast.add({
+        title: 'Error',
+        description: (e?.data as Record<string, unknown>)?.error as string || 'Failed to create your profile. Please refresh the page.',
+        icon: 'i-lucide-alert-circle',
+        color: 'error'
+      })
+    }
+  }
+
+  // Resume from last saved step (return visitor), skipping if onboarding was already completed
+  const savedStep = accountStore.user?.onboardingStep
+  if (savedStep && !accountStore.user?.onboardingCompletedAt) {
+    activeStep.value = savedStep
   }
 })
 </script>
@@ -428,6 +458,7 @@ onMounted(async () => {
                 if (success) {
                   posthog?.capture('onboarding_step_completed', { step: activeStep })
                   stepper?.next()
+                  await saveOnboardingStep(activeStep)
                 }
               }"
             />

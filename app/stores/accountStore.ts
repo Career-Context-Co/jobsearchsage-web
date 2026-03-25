@@ -9,6 +9,8 @@ interface User {
   firstName?: string | null
   lastName?: string | null
   preferredName?: string | null
+  onboardingStep?: string | null
+  onboardingCompletedAt?: string | null
 }
 
 interface AccountState {
@@ -91,7 +93,9 @@ export const useAccountStore = defineStore('account', {
             email: userEmail || '',
             firstName: response.data.firstName ?? null,
             lastName: response.data.lastName ?? null,
-            preferredName: response.data.preferredName ?? null
+            preferredName: response.data.preferredName ?? null,
+            onboardingStep: response.data.onboardingStep ?? null,
+            onboardingCompletedAt: response.data.onboardingCompletedAt ?? null
           }
           this.profileId = response.data.profileId ?? null
           return
@@ -170,6 +174,23 @@ export const useAccountStore = defineStore('account', {
           || error?.message
           || 'Sign up failed'
         throw new Error(errorMessage)
+      }
+    },
+
+    /**
+     * Persist the user's current onboarding step (and optionally completedAt) to public.users.
+     * Pass step=null + completedAt=ISO string when onboarding is finished.
+     * Fire-and-forget safe: callers should await but failure is non-fatal.
+     */
+    async updateOnboardingProgress(step: string | null, completedAt?: string | null) {
+      const body: Record<string, string | null> = { onboardingStep: step }
+      if (completedAt !== undefined) body.onboardingCompletedAt = completedAt ?? null
+
+      await $fetch('/api/auth/user', { method: 'PATCH', body })
+
+      if (this.user) {
+        this.user.onboardingStep = step
+        if (completedAt !== undefined) this.user.onboardingCompletedAt = completedAt ?? null
       }
     },
 
