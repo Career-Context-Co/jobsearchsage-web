@@ -48,6 +48,54 @@ onMounted(() => {
 const isSignIn = computed(() => mode.value === 'signin')
 const isSignUp = computed(() => mode.value === 'signup')
 
+/** Map missing/empty form values so z.string() never sees undefined (avoids Zod's "expected string, received undefined"). */
+function formOptionalTrimmedName() {
+  return z.preprocess((v: unknown) => {
+    if (v === undefined || v === null || v === '') return undefined
+    const t = String(v).trim()
+    return t === '' ? undefined : t
+  }, z.string().max(120, 'Please use a shorter name').optional())
+}
+
+function formRequiredTrimmed(messageWhenEmpty: string) {
+  return z.preprocess((v: unknown) => {
+    if (v === undefined || v === null) return ''
+    return String(v).trim()
+  }, z.string().min(1, messageWhenEmpty))
+}
+
+function formEmail() {
+  return z.preprocess((v: unknown) => {
+    if (v === undefined || v === null) return ''
+    return String(v).trim()
+  }, z
+    .string()
+    .min(1, 'Please enter your email address')
+    .email('Please enter a valid email address'))
+}
+
+function formPassword() {
+  return z.preprocess((v: unknown) => {
+    if (v === undefined || v === null) return ''
+    return String(v)
+  }, z.string().min(6, 'Password must be at least 6 characters'))
+}
+
+const signUpAuthSchema = z.object({
+  preferredName: formOptionalTrimmedName(),
+  firstName: formRequiredTrimmed('Please enter your legal first name'),
+  lastName: formRequiredTrimmed('Please enter your legal last name'),
+  email: formEmail(),
+  password: formPassword()
+})
+
+const signInAuthSchema = z.object({
+  email: formEmail(),
+  password: formPassword()
+})
+
+type AuthFormPayload = z.infer<typeof signUpAuthSchema> | z.infer<typeof signInAuthSchema>
+
 // Define fields based on mode
 const fields = computed<AuthFormField[]>(() => {
   const baseFields: AuthFormField[] = []
@@ -107,24 +155,7 @@ const fields = computed<AuthFormField[]>(() => {
 })
 
 // Define schema based on mode
-const schema = computed(() => {
-  if (isSignUp.value) {
-    return z.object({
-      preferredName: z.string().optional(),
-      firstName: z.string().min(1, 'Legal first name is required'),
-      lastName: z.string().min(1, 'Legal last name is required'),
-      email: z.string().email('Invalid email'),
-      password: z.string().min(6, 'Password must be at least 6 characters')
-    })
-  }
-
-  return z.object({
-    email: z.string().email('Invalid email'),
-    password: z.string().min(6, 'Password must be at least 6 characters')
-  })
-})
-
-type SignInSchema = z.output<typeof schema.value>
+const schema = computed(() => (isSignUp.value ? signUpAuthSchema : signInAuthSchema))
 
 const providers = [{
   label: 'Continue with Google',
@@ -157,55 +188,63 @@ async function handleGoogleSignIn() {
   else error.value = 'Failed to start Google sign-in'
 }
 
-async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
+function submitAuthForm(payload: FormSubmitEvent<Record<string, unknown>>) {
+  void onSubmit(payload as FormSubmitEvent<AuthFormPayload>)
+}
+
+async function onSubmit(event: FormSubmitEvent<AuthFormPayload>) {
   error.value = null
   successMessage.value = null
   loading.value = true
 
+  const data = event.data
+
   try {
     if (isSignIn.value) {
-      await accountStore.signIn(event.data.email, event.data.password)
+      await accountStore.signIn(data.email, data.password)
       // Identify user on successful sign-in
-      posthog?.identify(event.data.email)
-      Sentry.setUser({ email: event.data.email })
+      posthog?.identify(data.email)
+      Sentry.setUser({ email: data.email })
       posthog?.capture('user_signed_in', { method: 'email' })
       await navigateTo('/')
     } else {
+      const signupData = data as z.infer<typeof signUpAuthSchema>
       const response = await accountStore.signUp(
-        event.data.email,
-        event.data.password,
-        (event.data as any).firstName,
-        (event.data as any).lastName,
-        (event.data as any).preferredName
+        signupData.email,
+        signupData.password,
+        signupData.firstName,
+        signupData.lastName,
+        signupData.preferredName
       )
       // On success, show confirmation message (don't redirect)
       if (response.success) {
         posthog?.capture('user_signed_up', {
           method: 'email',
-          has_preferred_name: !!((event.data as any).preferredName)
+          has_preferred_name: !!signupData.preferredName
         })
         successMessage.value = response.message
       }
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Auth error:', err)
     Sentry.captureException(err)
 
     // Extract user-friendly error message from various possible error structures
     let errorMessage = `Failed to ${isSignIn.value ? 'sign in' : 'sign up'}`
 
-    if (err?.data?.error?.message) {
-      // Structured error from our API
-      errorMessage = err.data.error.message
-    } else if (err?.data?.message) {
-      // Alternative structure
-      errorMessage = err.data.message
-    } else if (err?.message) {
-      // Direct error message
-      errorMessage = err.message
-    } else if (err?.statusMessage) {
-      // HTTP status message
-      errorMessage = err.statusMessage
+    if (typeof err === 'object' && err !== null) {
+      const o = err as Record<string, unknown>
+      const data = o.data as Record<string, unknown> | undefined
+      const nested = data?.error as Record<string, unknown> | undefined
+      if (typeof nested?.message === 'string') {
+        errorMessage = nested.message
+      } else if (typeof data?.message === 'string') {
+        errorMessage = data.message
+      } else if (typeof o.message === 'string') {
+        errorMessage = o.message
+      } else if (typeof o.statusMessage === 'string') {
+        errorMessage = o.statusMessage
+      }
     }
 
     error.value = errorMessage
@@ -254,7 +293,7 @@ async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
           form: 'space-y-4',
           providers: 'mb-4'
         }"
-        @submit="onSubmit"
+        @submit="submitAuthForm"
       >
         <!-- Title -->
         <template #title>
@@ -270,9 +309,10 @@ async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
           </p>
         </template>
 
-        <!-- Success message -->
-        <template v-if="successMessage" #validation>
+        <!-- Success / error (single #validation slot for vue/valid-v-slot) -->
+        <template #validation>
           <UAlert
+            v-if="successMessage"
             color="success"
             variant="soft"
             icon="i-lucide-check-circle"
@@ -280,11 +320,8 @@ async function onSubmit(event: FormSubmitEvent<SignInSchema>) {
             :close-button="{ icon: 'i-lucide-x', color: 'gray', variant: 'link', padded: false }"
             @close="successMessage = null"
           />
-        </template>
-
-        <!-- Error message -->
-        <template v-if="error" #validation>
           <UAlert
+            v-else-if="error"
             color="error"
             variant="soft"
             icon="i-lucide-alert-circle"
