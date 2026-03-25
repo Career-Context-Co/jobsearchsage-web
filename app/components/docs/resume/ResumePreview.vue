@@ -65,9 +65,9 @@ function isEditing(type: string, id?: string | number | null): boolean {
 
 // Highlight style for editing items
 const editingHighlightStyle = {
-  outline: '2px solid #0d9488',
-  outlineOffset: '4px',
-  borderRadius: '4px',
+  outline: '2px solid #4FCC9C',
+  outlineOffset: '6px',
+  borderRadius: '2px',
   transition: 'outline 0.2s ease-in-out'
 }
 

@@ -13,7 +13,6 @@ const emit = defineEmits<Emits>()
 const presetColors = [
   { name: 'Teal', value: '#0d9488' },
   { name: 'Navy', value: '#1e3a5f' },
-  { name: 'Slate', value: '#475569' },
   { name: 'Charcoal', value: '#374151' },
   { name: 'Forest', value: '#15803d' },
   { name: 'Indigo', value: '#4f46e5' },
@@ -41,8 +40,8 @@ function selectColor(color: string) {
     <!-- Accent Color Section -->
     <div class="space-y-3">
       <div>
-        <h3 class="text-sm font-medium mb-1">Accent Color</h3>
-        <p class="text-xs text-muted">Choose a color for section headers and your name</p>
+        <h3 class="text-md font-medium mb-1">Accent Color</h3>
+        <p class="text-sm text-muted">Choose a color for section headers and your name</p>
       </div>
 
       <!-- Color Swatches -->
@@ -68,12 +67,12 @@ function selectColor(color: string) {
     </div>
 
     <!-- Future Features Placeholder -->
-    <div class="p-4 rounded-lg border border-default bg-muted/20">
+    <div class="p-4 rounded-lg border border-primary-500 bg-primary-50">
       <div class="flex items-start gap-3">
-        <UIcon name="i-lucide-sparkles" class="w-5 h-5 text-muted mt-0.5" />
+        <UIcon name="i-lucide-sparkles" class="w-5 h-5 text-primary-500 mt-0.5" />
         <div>
-          <p class="text-sm font-medium text-muted">More Design Options Coming Soon</p>
-          <p class="text-xs text-muted mt-1">
+          <p class="text-md font-medium text-primary-500">More Design Options Coming Soon</p>
+          <p class="text-sm text-muted mt-1">
             Additional customization options like fonts, layouts, and spacing will be available in future updates.
           </p>
         </div>

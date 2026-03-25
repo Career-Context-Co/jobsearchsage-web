@@ -302,6 +302,7 @@ async function downloadResume() {
               <div class="hidden lg:flex gap-1">
                 <UButton
                   v-for="tab in tabs"
+                  class="cursor-pointer"
                   :key="tab.value"
                   :label="tab.label"
                   :icon="tab.icon"
@@ -314,6 +315,7 @@ async function downloadResume() {
             </div>
             <div class="flex items-center gap-2">
               <UButton
+                class="cursor-pointer"
                 label="Save"
                 icon="i-lucide-save"
                 color="neutral"
@@ -327,9 +329,10 @@ async function downloadResume() {
                 :items="formatOptions"
                 value-key="value"
                 size="sm"
-                class="w-32"
+                class="w-32 cursor-pointer"
               />
               <UButton
+                class="cursor-pointer"
                 label="Download"
                 icon="i-lucide-download"
                 color="primary"
