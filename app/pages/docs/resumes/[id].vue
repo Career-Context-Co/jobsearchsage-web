@@ -34,10 +34,10 @@ const tabs = [
 const accentColor = ref('#0d9488')
 const editingItem = ref<{ type: string; id: string | number | null }>({ type: '', id: null })
 
-const previewZoom = ref(85)
-const ZOOM_STEP = 10
-const ZOOM_MIN = 40
-const ZOOM_MAX = 100
+const previewZoom = ref(100)
+const ZOOM_STEP = 25
+const ZOOM_MIN = 75
+const ZOOM_MAX = 200
 function zoomIn() { previewZoom.value = Math.min(ZOOM_MAX, previewZoom.value + ZOOM_STEP) }
 function zoomOut() { previewZoom.value = Math.max(ZOOM_MIN, previewZoom.value - ZOOM_STEP) }
 
@@ -420,7 +420,7 @@ async function downloadResume() {
               :disabled="previewZoom <= ZOOM_MIN"
               @click="zoomOut"
             />
-            <span class="text-xs text-muted tabular-nums w-8 text-center">{{ previewZoom }}%</span>
+            <span class="text-xs text-muted tabular-nums min-w-10 text-center inline-block">{{ previewZoom }}%</span>
             <UButton
               icon="i-lucide-zoom-in"
               color="neutral"
