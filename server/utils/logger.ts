@@ -67,12 +67,28 @@ export function logError(
 ): void {
   const errorCode = error?.code || error?.statusCode || 'UNKNOWN'
   const errorMsg = error?.message || String(error)
-  
+
+  // Capture all enumerable fields from the error so Supabase auth errors
+  // (which carry status, name, __isAuthError, cause, etc.) are fully visible.
+  let errorDetail: Record<string, any> | undefined
+  if (error && typeof error === 'object') {
+    const { message: _msg, code: _code, statusCode: _sc, ...rest } = error
+    const restKeys = Object.keys(rest)
+    if (restKeys.length > 0) {
+      errorDetail = rest
+    }
+    // Also pick up non-enumerable own properties (e.g. Error.stack)
+    if (error.stack && !errorDetail?.stack) {
+      errorDetail = { ...errorDetail, stack: error.stack }
+    }
+  }
+
   const message = `[${method} ${path}] Error`
-  const fullContext = {
+  const fullContext: LogContext = {
     ...context,
     errorCode,
     errorMessage: errorMsg,
+    ...(errorDetail ? { errorDetail } : {})
   }
   
   console.error(formatLog('ERROR', message, fullContext))
