@@ -33,21 +33,23 @@ const nextSteps = computed(() => {
     })
   }
 
-  steps.push({
-    title: 'Build your resume',
-    description: 'Turn your profile into a polished resume. Customize content and design, then export to PDF or Word for applications.',
-    to: '/docs/resumes',
-    icon: 'i-lucide-file-text',
-    label: 'Go to resumes'
-  })
+  if (hasProfile.value) {
+    steps.push({
+      title: 'Build your resume',
+      description: 'Turn your profile into a polished resume. Customize content and design, then export to PDF or Word for applications.',
+      to: '/docs/resumes',
+      icon: 'i-lucide-file-text',
+      label: 'Go to resumes'
+    })
 
-  steps.push({
-    title: 'Review experience & skills',
-    description: 'Keep your experience and skills up to date so your resume and applications stay strong and relevant.',
-    to: '/profile/experience',
-    icon: 'i-lucide-briefcase',
-    label: 'Edit profile'
-  })
+    steps.push({
+      title: 'Review experience & skills',
+      description: 'Keep your experience and skills up to date so your resume and applications stay strong and relevant.',
+      to: '/profile/experience',
+      icon: 'i-lucide-briefcase',
+      label: 'Edit profile'
+    })
+  }
 
   return steps
 })
@@ -106,6 +108,20 @@ const items = [[{
           </p>
         </div>
 
+        <UCard variant="subtle" class="border-l-4 border-l-primary">
+          <div class="flex gap-3">
+            <UIcon name="i-lucide-quote" class="size-6 shrink-0 text-primary/70" />
+            <div>
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                Quote of the day
+              </p>
+              <p class="text-gray-900 dark:text-white italic">
+                "{{ quoteOfTheDay }}"
+              </p>
+            </div>
+          </div>
+        </UCard>
+
         <section>
           <h2 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
             Next steps
@@ -140,20 +156,6 @@ const items = [[{
             </li>
           </ul>
         </section>
-
-        <UCard variant="subtle" class="border-l-4 border-l-primary">
-          <div class="flex gap-3">
-            <UIcon name="i-lucide-quote" class="size-6 shrink-0 text-primary/70" />
-            <div>
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                Quote of the day
-              </p>
-              <p class="text-gray-900 dark:text-white italic">
-                "{{ quoteOfTheDay }}"
-              </p>
-            </div>
-          </div>
-        </UCard>
       </div>
     </template>
   </UDashboardPanel>
