@@ -260,14 +260,12 @@ async function onSubmit(event: FormSubmitEvent<AuthFormPayload>) {
     style="background-color: #F7F9FB; background-image: radial-gradient(ellipse 80% 50% at 100% 0%, rgba(87,204,153,0.1) 0%, transparent 70%), radial-gradient(ellipse 70% 55% at 0% 100%, rgba(43,107,94,0.08) 0%, transparent 65%)"
   >
     <!-- App Logo/Name -->
-    <div class="flex items-center justify-center gap-2 mb-8">
-      <UIcon
-        name="i-lucide-wand-sparkles"
-        class="size-7 shrink-0 text-primary"
-      />
-      <span class="text-2xl font-bold text-primary">
-        JobSearchSage
-      </span>
+    <div class="flex items-center justify-center mb-8">
+      <img
+        src="/brand/wordmark.svg"
+        class="h-10 w-auto"
+        alt="JobSearchSage"
+      >
     </div>
 
     <!-- Auth Form Card -->

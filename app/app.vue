@@ -2,6 +2,13 @@
 const colorMode = useColorMode()
 const color = computed(() => colorMode.value === 'dark' ? '#1b1718' : 'white')
 
+const config = useRuntimeConfig()
+const ogImageUrl = computed(() => {
+  const base = config.public.appUrl || 'https://jobsearchsage.com'
+  const normalized = String(base).replace(/\/$/, '')
+  return `${normalized}/og.jpg`
+})
+
 useHead({
   meta: [
     { charset: 'utf-8' },
@@ -9,7 +16,11 @@ useHead({
     { key: 'theme-color', name: 'theme-color', content: color }
   ],
   link: [
-    { rel: 'icon', href: '/favicon.ico' }
+    { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+    { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png' },
+    { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
+    { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+    { rel: 'manifest', href: '/site.webmanifest' }
   ],
   htmlAttrs: {
     lang: 'en'
@@ -24,8 +35,8 @@ useSeoMeta({
   description,
   ogTitle: title,
   ogDescription: description,
-  ogImage: 'https://ui.nuxt.com/assets/templates/nuxt/dashboard-light.png',
-  twitterImage: 'https://ui.nuxt.com/assets/templates/nuxt/dashboard-light.png',
+  ogImage: ogImageUrl,
+  twitterImage: ogImageUrl,
   twitterCard: 'summary_large_image'
 })
 </script>

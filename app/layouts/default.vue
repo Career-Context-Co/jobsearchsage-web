@@ -54,42 +54,42 @@ const profileChildren = computed(() => {
 })
 
 const links = computed(() => [[
-{
-  label: 'Home',
-  icon: 'i-lucide-house',
-  to: '/',
-  onSelect: () => {
-    open.value = false
-  }
-}, 
-{
-  label: 'Profile',
-  icon: 'i-lucide-user',
-  to: '/profile',
-  type: 'trigger',
-  defaultOpen: true,
-  children: profileChildren.value
-},
-{
-  label: 'Docs',
-  icon: 'i-lucide-file-text',
-  to: '/docs/resumes',
-  type: 'trigger',
-  defaultOpen: false,
-  children: [{
-    label: 'Resumes',
+  {
+    label: 'Home',
+    icon: 'i-lucide-house',
+    to: '/',
+    onSelect: () => {
+      open.value = false
+    }
+  },
+  {
+    label: 'Profile',
+    icon: 'i-lucide-user',
+    to: '/profile',
+    type: 'trigger',
+    defaultOpen: true,
+    children: profileChildren.value
+  },
+  {
+    label: 'Docs',
+    icon: 'i-lucide-file-text',
     to: '/docs/resumes',
-    onSelect: () => {
-      open.value = false
-    }
-  }, {
-    label: 'Cover Letters',
-    to: '/docs/cover-letters',
-    onSelect: () => {
-      open.value = false
-    }
-  }]
-}],
+    type: 'trigger',
+    defaultOpen: false,
+    children: [{
+      label: 'Resumes',
+      to: '/docs/resumes',
+      onSelect: () => {
+        open.value = false
+      }
+    }, {
+      label: 'Cover Letters',
+      to: '/docs/cover-letters',
+      onSelect: () => {
+        open.value = false
+      }
+    }]
+  }],
 [
 // {
 //   label: 'Feedback',
@@ -97,12 +97,12 @@ const links = computed(() => [[
 //   to: 'https://github.com/nuxt-ui-templates/dashboard',
 //   target: '_blank'
 // },
-{
-  label: 'Help & Support',
-  icon: 'i-lucide-info',
-  to: 'mailto:hello@jobsearchsage.com',
-  target: '_blank'
-}]] satisfies NavigationMenuItem[][])
+  {
+    label: 'Help & Support',
+    icon: 'i-lucide-info',
+    to: 'mailto:hello@jobsearchsage.com',
+    target: '_blank'
+  }]] satisfies NavigationMenuItem[][])
 
 const groups = computed(() => [{
   id: 'links',
@@ -119,7 +119,6 @@ const groups = computed(() => [{
     target: '_blank'
   }]
 }])
-
 </script>
 
 <template>
@@ -134,14 +133,24 @@ const groups = computed(() => [{
     >
       <template #header="{ collapsed }">
         <div class="flex items-center gap-2 px-1 min-w-0">
-          <UIcon name="i-lucide-briefcase-business" class="size-5 shrink-0 text-primary" />
-          <span v-if="!collapsed" class="font-semibold text-md truncate">JobSearchSage</span>
+          <img
+            v-if="collapsed"
+            src="/brand/icon.svg"
+            class="size-6 shrink-0"
+            alt="JobSearchSage"
+          >
+          <img
+            v-else
+            src="/brand/wordmark.svg"
+            class="h-7 w-auto max-w-full"
+            alt="JobSearchSage"
+          >
         </div>
       </template>
 
       <template #default="{ collapsed }">
         <UNavigationMenu
-          :collapsed="collapsed" 
+          :collapsed="collapsed"
           :items="links[0]"
           orientation="vertical"
           tooltip
