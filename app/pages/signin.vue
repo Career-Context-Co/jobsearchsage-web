@@ -256,11 +256,15 @@ async function onSubmit(event: FormSubmitEvent<AuthFormPayload>) {
 
 <template>
   <div
-    class="min-h-screen flex flex-col items-center justify-center gap-6 p-6 md:p-10"
-    style="background-color: #F7F9FB; background-image: radial-gradient(ellipse 80% 50% at 100% 0%, rgba(87,204,153,0.1) 0%, transparent 70%), radial-gradient(ellipse 70% 55% at 0% 100%, rgba(43,107,94,0.08) 0%, transparent 65%)"
+    class="relative isolate flex min-h-screen flex-col items-center justify-center gap-6 overflow-hidden bg-neutral-50 p-6 md:p-10 dark:bg-neutral-950"
   >
+    <div
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_100%_0%,rgba(87,204,153,0.1)_0%,transparent_70%),radial-gradient(ellipse_70%_55%_at_0%_100%,rgba(43,107,94,0.08)_0%,transparent_65%)] dark:hidden"
+    />
+
     <!-- App Logo/Name -->
-    <div class="flex items-center justify-center mb-8">
+    <div class="relative z-10 mb-8 flex items-center justify-center">
       <img
         src="/brand/wordmark.svg"
         class="h-10 w-auto"
@@ -270,8 +274,7 @@ async function onSubmit(event: FormSubmitEvent<AuthFormPayload>) {
 
     <!-- Auth Form Card -->
     <UCard
-      class="bg-white dark:bg-neutral-900 rounded-2xl max-w-md w-full"
-      style="box-shadow: 0 8px 32px rgba(25,79,79,0.08); border: 1px solid rgba(25,79,79,0.06)"
+      class="relative z-10 w-full max-w-md rounded-2xl border border-neutral-200/80 bg-white shadow-[0_8px_32px_rgba(25,79,79,0.08)] dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-[0_8px_32px_rgba(0,0,0,0.35)]"
     >
       <UAuthForm
         :key="mode"
@@ -295,14 +298,14 @@ async function onSubmit(event: FormSubmitEvent<AuthFormPayload>) {
       >
         <!-- Title -->
         <template #title>
-          <h1 class="text-2xl text-center font-bold text-primary-800">
+          <h1 class="text-center text-2xl font-bold text-gray-900 dark:text-white">
             {{ isSignIn ? 'Welcome back' : 'Hey there 👋' }}
           </h1>
         </template>
 
         <!-- Description -->
         <template #description>
-          <p class="text-primary-900 text-center">
+          <p class="text-center text-gray-600 dark:text-gray-400">
             {{ isSignIn ? 'Login to get back to your job search!' : 'Sign up to master your job search!' }}
           </p>
         </template>
@@ -339,7 +342,7 @@ async function onSubmit(event: FormSubmitEvent<AuthFormPayload>) {
         <!-- Footer with mode toggle -->
         <template #footer>
           <div class="text-center">
-            <p class="text-[#4a5568]">
+            <p class="text-gray-600 dark:text-gray-400">
               {{ isSignUp ? 'Already have an account?' : "Don't have an account?" }}
               <UButton
                 variant="link"
@@ -356,8 +359,8 @@ async function onSubmit(event: FormSubmitEvent<AuthFormPayload>) {
     </UCard>
 
     <!-- Legal -->
-    <div class="text-center">
-      <p class="text-sm text-[#4a5568]">
+    <div class="relative z-10 text-center">
+      <p class="text-sm text-gray-600 dark:text-gray-400">
         By clicking continue, you agree to our
         <ULink to="#" class="text-primary font-medium">Terms of Service</ULink>
         and
