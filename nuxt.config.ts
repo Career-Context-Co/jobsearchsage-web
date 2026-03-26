@@ -25,6 +25,8 @@ export default defineNuxtConfig({
     public: {
       appUrl: process.env.NUXT_PUBLIC_APP_URL,
       appRedirectUrl: process.env.NUXT_PUBLIC_APP_REDIRECT_URL,
+      // Feature flags — seeded here, overridable via PostHog at runtime
+      signupEmailConfirmation: process.env.NUXT_PUBLIC_SIGNUP_EMAIL_CONFIRMATION !== 'false',
       posthog: {
         publicKey: process.env.NUXT_PUBLIC_POSTHOG_KEY || '',
         host: process.env.NUXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com'

@@ -178,6 +178,47 @@ export const useAccountStore = defineStore('account', {
     },
 
     /**
+     * Sign up without email confirmation (used when Supabase confirmation is disabled).
+     * Calls /api/auth/sign-up-immediate which returns session tokens directly.
+     * To revert to confirmation flow: use signUp() instead.
+     */
+    async signUpImmediate(
+      email: string,
+      password: string,
+      firstName?: string,
+      lastName?: string,
+      preferredName?: string
+    ) {
+      try {
+        const response: any = await $fetch('/api/auth/sign-up-immediate', {
+          method: 'POST',
+          body: { email, password, firstName, lastName, preferredName }
+        })
+
+        if (!response.success || response.error) {
+          throw new Error(response.error?.message || 'Sign up failed')
+        }
+
+        if (response.data?.session) {
+          const supabaseClient = useSupabaseClient()
+          await supabaseClient.auth.setSession({
+            access_token: response.data.session.accessToken,
+            refresh_token: response.data.session.refreshToken
+          })
+          await this.hydrateFromSession()
+        }
+
+        return response
+      } catch (error: any) {
+        const errorMessage = error?.data?.error?.message
+          || error?.data?.message
+          || error?.message
+          || 'Sign up failed'
+        throw new Error(errorMessage)
+      }
+    },
+
+    /**
      * Persist the user's current onboarding step (and optionally completedAt) to public.users.
      * Pass step=null + completedAt=ISO string when onboarding is finished.
      * Fire-and-forget safe: callers should await but failure is non-fatal.

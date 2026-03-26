@@ -9,6 +9,7 @@ definePageMeta({
 
 const route = useRoute()
 const accountStore = useAccountStore()
+const globalStore = useGlobalStore()
 const supabaseClient = useSupabaseClient()
 const toast = useToast()
 const posthog = usePostHog()
@@ -209,20 +210,41 @@ async function onSubmit(event: FormSubmitEvent<AuthFormPayload>) {
       await navigateTo('/')
     } else {
       const signupData = data as z.infer<typeof signUpAuthSchema>
-      const response = await accountStore.signUp(
-        signupData.email,
-        signupData.password,
-        signupData.firstName,
-        signupData.lastName,
-        signupData.preferredName
-      )
-      // On success, show confirmation message (don't redirect)
-      if (response.success) {
-        posthog?.capture('user_signed_up', {
-          method: 'email',
-          has_preferred_name: !!signupData.preferredName
-        })
-        successMessage.value = response.message
+
+      if (globalStore.features.signupEmailConfirmation) {
+        // Confirmation-required path — user must click the email link before signing in
+        const response = await accountStore.signUp(
+          signupData.email,
+          signupData.password,
+          signupData.firstName,
+          signupData.lastName,
+          signupData.preferredName
+        )
+        if (response.success) {
+          posthog?.capture('user_signed_up', {
+            method: 'email',
+            has_preferred_name: !!signupData.preferredName
+          })
+          successMessage.value = response.message
+        }
+      } else {
+        // Immediate path — user is signed in right after account creation
+        const response = await accountStore.signUpImmediate(
+          signupData.email,
+          signupData.password,
+          signupData.firstName,
+          signupData.lastName,
+          signupData.preferredName
+        )
+        if (response.success) {
+          posthog?.identify(signupData.email)
+          Sentry.setUser({ email: signupData.email })
+          posthog?.capture('user_signed_up', {
+            method: 'email',
+            has_preferred_name: !!signupData.preferredName
+          })
+          await navigateTo('/')
+        }
       }
     }
   } catch (err: unknown) {
