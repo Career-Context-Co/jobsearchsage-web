@@ -2,26 +2,22 @@
 const router = useRouter()
 const careerIDStore = useCareerIDStore()
 const accountStore = useAccountStore()
+const docsStore = useDocsStore()
 
-interface ResumeRecord {
-  id: string
-  title: string
-  createdAt: string
-  updatedAt: string
-}
-
-const resumes = ref<ResumeRecord[]>([])
-const isLoading = ref(true)
 const isCreating = ref(false)
 const loadError = ref(false)
 const noProfile = ref(false)
+const confirmingDeleteId = ref<string | null>(null)
+const deleteError = ref<string | null>(null)
+
+const resumes = computed(() => docsStore.resumes)
+const isLoading = computed(() => docsStore.isLoading)
 
 onMounted(async () => {
   const profileId = careerIDStore.profileId || accountStore.profileId
 
   if (!profileId) {
     noProfile.value = true
-    isLoading.value = false
     return
   }
 
@@ -32,7 +28,6 @@ onMounted(async () => {
 
     if (!careerIDStore.profile) {
       noProfile.value = true
-      isLoading.value = false
       return
     }
   } catch (err: unknown) {
@@ -42,7 +37,6 @@ onMounted(async () => {
 
     noProfile.value = true
     if (!is404) console.error('Failed to load profile:', err)
-    isLoading.value = false
     return
   }
 
@@ -50,15 +44,11 @@ onMounted(async () => {
 })
 
 async function loadResumes() {
-  isLoading.value = true
   loadError.value = false
   try {
-    const result = await $fetch<{ success: boolean, data: ResumeRecord[] }>('/api/docs/resumes')
-    if (result.success) resumes.value = result.data
+    await docsStore.listResumes()
   } catch {
     loadError.value = true
-  } finally {
-    isLoading.value = false
   }
 }
 
@@ -135,20 +125,28 @@ async function createNewResume() {
   isCreating.value = true
   try {
     const contact = careerIDStore.contactInfo
-    const result = await $fetch<{ success: boolean, data: ResumeRecord }>('/api/docs/resumes', {
-      method: 'POST',
-      body: {
-        firstName: contact?.firstName || '',
-        lastName: contact?.lastName || '',
-        content: buildSnapshot(),
-        designSettings: { accentColor: '#0d9488' }
-      }
+    const resume = await docsStore.createResume({
+      firstName: contact?.firstName || '',
+      lastName: contact?.lastName || '',
+      content: buildSnapshot(),
+      designSettings: { accentColor: '#0d9488' }
     })
-    if (result.success && result.data) {
-      await router.push(`/docs/resumes/${result.data.id}`)
-    }
+    await router.push(`/docs/resumes/${resume.id}`)
+  } catch (err) {
+    loadError.value = true
+    console.error('Failed to create resume:', err)
   } finally {
     isCreating.value = false
+  }
+}
+
+async function deleteResume(id: string) {
+  deleteError.value = null
+  try {
+    await docsStore.deleteResume(id)
+    confirmingDeleteId.value = null
+  } catch {
+    deleteError.value = 'Failed to delete resume. Please try again.'
   }
 }
 
@@ -223,13 +221,17 @@ function formatDate(dateString: string): string {
         @click="createNewResume"
       />
     </div>
+    <p v-if="deleteError" class="text-sm text-red-500 mb-4">
+      {{ deleteError }}
+    </p>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <UCard
         v-for="resume in resumes"
         :key="resume.id"
         variant="subtle"
-        class="group cursor-pointer hover:ring-1 hover:ring-primary/50 transition-all"
-        @click="router.push(`/docs/resumes/${resume.id}`)"
+        class="group transition-all"
+        :class="confirmingDeleteId !== resume.id && 'cursor-pointer hover:ring-1 hover:ring-primary/50'"
+        @click="confirmingDeleteId !== resume.id && router.push(`/docs/resumes/${resume.id}`)"
       >
         <div class="flex flex-col gap-3">
           <div class="flex items-start justify-between gap-2">
@@ -239,16 +241,59 @@ function formatDate(dateString: string): string {
                 {{ resume.title }}
               </h3>
             </div>
-            <UButton
-              icon="i-lucide-arrow-right"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-            />
+            <div class="flex items-center gap-1 shrink-0">
+              <UButton
+                v-if="confirmingDeleteId !== resume.id"
+                icon="i-lucide-trash-2"
+                color="error"
+                variant="ghost"
+                size="xs"
+                class="opacity-0 group-hover:opacity-100 transition-opacity"
+                @click.stop="confirmingDeleteId = resume.id; deleteError = null"
+              />
+              <UButton
+                v-if="confirmingDeleteId !== resume.id"
+                icon="i-lucide-arrow-right"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                class="opacity-0 group-hover:opacity-100 transition-opacity"
+              />
+            </div>
           </div>
-          <div class="space-y-1 text-xs text-muted">
-            <p>Created {{ formatDate(resume.createdAt) }}</p>
+
+          <!-- Inline delete confirmation -->
+          <div
+            v-if="confirmingDeleteId === resume.id"
+            class="flex items-center justify-between gap-2 pt-1 border-t border-default"
+            @click.stop
+          >
+            <p class="text-sm text-muted">
+              Delete this resume?
+            </p>
+            <div class="flex gap-2">
+              <UButton
+                label="Cancel"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                @click="confirmingDeleteId = null"
+              />
+              <UButton
+                label="Delete"
+                color="error"
+                variant="solid"
+                size="xs"
+                :loading="docsStore.isSaving"
+                @click="deleteResume(resume.id)"
+              />
+            </div>
+          </div>
+
+          <div v-else class="space-y-1 text-xs text-muted">
+            <p v-if="resume.createdAt">
+              Created {{ formatDate(resume.createdAt) }}
+            </p>
             <p>Updated {{ formatDate(resume.updatedAt) }}</p>
           </div>
         </div>

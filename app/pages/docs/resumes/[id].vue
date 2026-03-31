@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import type { ResumeContent } from '#shared/types/docs'
+
 const route = useRoute()
 const router = useRouter()
 const careerIDStore = useCareerIDStore()
+const docsStore = useDocsStore()
 const { generatePdf, isGenerating: isPdfExporting } = usePdfLibResume()
 const { generateDocx, isGenerating: isDocxExporting } = useDocxResume()
 
@@ -10,9 +13,7 @@ const resumeId = route.params.id as string
 const resumeTitle = ref('')
 const isEditingTitle = ref(false)
 const editingTitleValue = ref('')
-const isLoading = ref(true)
 const showEmptyState = ref(false)
-const isSaving = ref(false)
 
 type DownloadFormat = 'pdf' | 'docx'
 const downloadFormat = ref<DownloadFormat>('pdf')
@@ -21,6 +22,8 @@ const formatOptions = [
   { label: 'Word (DOCX)', value: 'docx' }
 ]
 
+const isLoading = computed(() => docsStore.isLoading)
+const isSaving = computed(() => docsStore.isSaving)
 const isExporting = computed(() => isPdfExporting.value || isDocxExporting.value)
 
 const activeTab = ref('content')
@@ -56,60 +59,8 @@ const linkedInUsername = computed(() => {
   return match ? match[1] : link.url
 })
 
-interface EditableHighlight {
-  id: string
-  text: string
-  selected: boolean
-}
-
-interface EditableExperience {
-  id: string | number
-  employer: string
-  jobTitle: string
-  employmentType: string
-  locationType: string
-  startDate: string | null | undefined
-  endDate: string | null | undefined
-  currentPosition?: boolean
-  highlights: EditableHighlight[]
-  selected: boolean
-}
-
-interface EditableEducation {
-  id: string | number
-  institution: string
-  degree: string
-  areaOfStudy: string
-  startDate: string | null | undefined
-  endDate: string | null | undefined
-  selected: boolean
-}
-
-interface EditableSkill {
-  id: string | number
-  name: string
-  group?: string
-  selected: boolean
-}
-
-interface EditableCertification {
-  id: string | number
-  name: string
-  issuer: string
-  issueDate: string
-  selected: boolean
-}
-
-interface EditableData {
-  summary: { text: string; enabled: boolean }
-  workExperience: EditableExperience[]
-  education: EditableEducation[]
-  skills: EditableSkill[]
-  certifications: EditableCertification[]
-}
-
 // Safe defaults prevent null/undefined from reaching child components
-const emptyEditableData = (): EditableData => ({
+const emptyEditableData = (): ResumeContent => ({
   summary: { text: '', enabled: false },
   workExperience: [],
   education: [],
@@ -117,7 +68,7 @@ const emptyEditableData = (): EditableData => ({
   certifications: []
 })
 
-const editableData = ref<EditableData>(emptyEditableData())
+const editableData = ref<ResumeContent>(emptyEditableData())
 
 onMounted(async () => {
   // Redirect bare /docs/resumes/new to the list — new resumes are created from there
@@ -133,35 +84,24 @@ onMounted(async () => {
   }
 
   try {
-    const result = await $fetch<{
-      success: boolean
-      data: {
-        id: string
-        title: string
-        content: EditableData
-        designSettings: { accentColor?: string }
-      }
-    }>(`/api/docs/resumes/${resumeId}`)
-
-    if (result.success && result.data) {
-      resumeTitle.value = result.data.title
+    const resume = await docsStore.getResume(resumeId)
+    if (resume) {
+      resumeTitle.value = resume.title
       // Merge with defaults to guard against missing fields from older snapshots
-      const c = result.data.content || {}
+      const c = resume.content
       editableData.value = {
-        summary: c.summary ?? { text: '', enabled: false },
-        workExperience: c.workExperience ?? [],
-        education: c.education ?? [],
-        skills: c.skills ?? [],
-        certifications: c.certifications ?? []
+        summary: c?.summary ?? { text: '', enabled: false },
+        workExperience: c?.workExperience ?? [],
+        education: c?.education ?? [],
+        skills: c?.skills ?? [],
+        certifications: c?.certifications ?? []
       }
-      accentColor.value = result.data.designSettings?.accentColor ?? '#0d9488'
+      accentColor.value = resume.designSettings?.accentColor ?? '#0d9488'
     } else {
       showEmptyState.value = true
     }
   } catch {
     showEmptyState.value = true
-  } finally {
-    isLoading.value = false
   }
 })
 
@@ -184,10 +124,7 @@ async function commitTitleRename() {
   if (!newTitle || newTitle === resumeTitle.value) return
   resumeTitle.value = newTitle
   try {
-    await $fetch(`/api/docs/resumes/${resumeId}`, {
-      method: 'PUT',
-      body: { title: newTitle }
-    })
+    await docsStore.updateResume(resumeId, { title: newTitle })
   } catch {
     // non-critical — title shown locally even if server save fails
   }
@@ -199,18 +136,14 @@ function cancelTitleRename() {
 }
 
 async function saveResume() {
-  if (isSaving.value) return
-  isSaving.value = true
+  if (docsStore.isSaving) return
   try {
-    await $fetch(`/api/docs/resumes/${resumeId}`, {
-      method: 'PUT',
-      body: {
-        content: editableData.value,
-        designSettings: { accentColor: accentColor.value }
-      }
+    await docsStore.updateResume(resumeId, {
+      content: editableData.value,
+      designSettings: { accentColor: accentColor.value }
     })
-  } finally {
-    isSaving.value = false
+  } catch {
+    // non-critical — local editor state is unaffected
   }
 }
 

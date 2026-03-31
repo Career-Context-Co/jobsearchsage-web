@@ -5,7 +5,7 @@ Resume content and design settings are persisted to the database. Users manage m
 ## Requirements
 
 ### Requirement: Resume List Page
-The application SHALL provide a resume list page at `/docs/resumes` showing all saved resumes for the profile.
+The application SHALL provide a resume list page at `/docs/resumes` showing all saved resumes for the profile. The page SHALL read resume data exclusively from `docsStore` rather than calling the API directly.
 
 #### Scenario: Display saved resumes
 - **GIVEN** the user has one or more saved resumes
@@ -22,12 +22,12 @@ The application SHALL provide a resume list page at `/docs/resumes` showing all 
 
 #### Scenario: Create new resume from list page
 - **WHEN** the user clicks "New Resume" on the list page
-- **THEN** the system SHALL create a new `docs.resumes` record with a snapshot of the current profile data
+- **THEN** the system SHALL call `docsStore.createResume()` which calls `POST /api/docs/resumes`
 - **AND** the title SHALL be auto-generated as "[FirstName] [LastName] Resume [id]" using the profile's contact info
 - **AND** the system SHALL navigate to `/docs/resumes/[id]` for the newly created record
 
 ### Requirement: Resume Snapshot Persistence
-The application SHALL persist resume content and design settings to the `docs.resumes` database table.
+The application SHALL persist resume content and design settings to the `docs.resumes` database table. The editor page SHALL read and write resume data exclusively through `docsStore` rather than calling the API directly.
 
 #### Scenario: Resume snapshot stored on creation
 - **WHEN** a new resume is created
@@ -38,13 +38,15 @@ The application SHALL persist resume content and design settings to the `docs.re
 #### Scenario: Resume snapshot replaced on save
 - **GIVEN** the user has opened a saved resume at `/docs/resumes/[id]` and made edits
 - **WHEN** the user saves the resume
-- **THEN** the system SHALL replace the existing `content` and `design_settings` in the `docs.resumes` record
+- **THEN** the system SHALL call `docsStore.updateResume(id, patch)` which calls `PUT /api/docs/resumes/:id`
+- **AND** the system SHALL replace the existing `content` and `design_settings` in the `docs.resumes` record
 - **AND** the `updated_at` timestamp SHALL be updated
 - **AND** the previous snapshot SHALL be discarded (no versioning)
 
 #### Scenario: Resume loads from snapshot
 - **WHEN** the user navigates to `/docs/resumes/[id]`
-- **THEN** the system SHALL load the `content` and `design_settings` from the database
+- **THEN** the system SHALL call `docsStore.getResume(id)` to retrieve the record
+- **AND** if the record is already cached in the store, no network request SHALL be made
 - **AND** the editor SHALL initialize with the saved content and design settings
 - **AND** the live preview SHALL reflect the saved state
 
