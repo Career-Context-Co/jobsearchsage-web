@@ -411,12 +411,6 @@ function updateSkillTags(groupName: string, newTags: string[]) {
     if (skill.selected && (skill.group || 'Skills') === groupName && removedNames.includes(skill.name)) {
       return { ...skill, selected: false }
     }
-    // Update existing skill name if it was renamed (same position)
-    const skillIndex = existingSkillsInGroup.findIndex(s => s.id === skill.id)
-    const newName = newTags[skillIndex]
-    if (skillIndex !== -1 && newName && !removedNames.includes(skill.name)) {
-      return { ...skill, name: newName }
-    }
     return skill
   })
   
