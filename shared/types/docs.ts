@@ -1,10 +1,14 @@
 export interface ResumeDesignSettings {
   accentColor?: string
+  headerStyle?: 'classic' | 'bold' | 'minimal'
+  profileSnapshotAt?: string
 }
 
 export interface ResumeContentSummary {
+  id: string
   text: string
   enabled: boolean
+  isNew?: boolean
 }
 
 export interface ResumeContentHighlight {
@@ -52,11 +56,12 @@ export interface ResumeContentCertificationItem {
 }
 
 export interface ResumeContent {
-  summary: ResumeContentSummary
+  summaries: ResumeContentSummary[]
   workExperience: ResumeContentWorkExperienceItem[]
   education: ResumeContentEducationItem[]
   skills: ResumeContentSkillItem[]
   certifications: ResumeContentCertificationItem[]
+  sectionOrder?: string[]
 }
 
 export interface ResumeListItem {
@@ -67,4 +72,3 @@ export interface ResumeListItem {
   content?: ResumeContent
   designSettings?: ResumeDesignSettings
 }
-

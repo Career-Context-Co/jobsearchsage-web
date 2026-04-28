@@ -31,10 +31,13 @@ const mobilePanel = ref('edit')
 
 const tabs = [
   { label: 'Content', value: 'content', icon: 'i-lucide-file-text' },
+  { label: 'Edit', value: 'edit', icon: 'i-lucide-pencil' },
   { label: 'Design', value: 'design', icon: 'i-lucide-palette' }
 ]
 
 const accentColor = ref('#0d9488')
+const headerStyle = ref<'classic' | 'bold' | 'minimal'>('classic')
+const profileSnapshotAt = ref<string | undefined>(undefined)
 const editingItem = ref<{ type: string; id: string | number | null }>({ type: '', id: null })
 
 const previewZoom = ref(100)
@@ -59,13 +62,43 @@ const linkedInUsername = computed(() => {
   return match ? match[1] : link.url
 })
 
-// Safe defaults prevent null/undefined from reaching child components
+const DEFAULT_SECTION_ORDER = ['summary', 'workExperience', 'education', 'skills', 'certifications']
+
+// Strip UI-only flags before persisting to the database
+function cleanForSave(data: ResumeContent): ResumeContent {
+  return {
+    ...data,
+    summaries: data.summaries.map(({ isNew: _, ...s }) => s),
+    workExperience: data.workExperience.map(e => {
+      const { ...rest } = e as any
+      delete rest.isNew
+      return rest
+    }),
+    education: data.education.map(e => {
+      const { ...rest } = e as any
+      delete rest.isNew
+      return rest
+    }),
+    skills: data.skills.map(s => {
+      const { ...rest } = s as any
+      delete rest.isNew
+      return rest
+    }),
+    certifications: data.certifications.map(c => {
+      const { ...rest } = c as any
+      delete rest.isNew
+      return rest
+    })
+  }
+}
+
 const emptyEditableData = (): ResumeContent => ({
-  summary: { text: '', enabled: false },
+  summaries: [],
   workExperience: [],
   education: [],
   skills: [],
-  certifications: []
+  certifications: [],
+  sectionOrder: [...DEFAULT_SECTION_ORDER]
 })
 
 const editableData = ref<ResumeContent>(emptyEditableData())
@@ -88,15 +121,21 @@ onMounted(async () => {
     if (resume) {
       resumeTitle.value = resume.title
       // Merge with defaults to guard against missing fields from older snapshots
-      const c = resume.content
+      const c = resume.content as any
       editableData.value = {
-        summary: c?.summary ?? { text: '', enabled: false },
+        // Backward compat: old resumes have `summary` (single object), new ones have `summaries[]`
+        summaries: c?.summaries ?? (c?.summary
+          ? [{ id: 'summary-0', text: c.summary.text ?? '', enabled: c.summary.enabled ?? false }]
+          : []),
         workExperience: c?.workExperience ?? [],
         education: c?.education ?? [],
         skills: c?.skills ?? [],
-        certifications: c?.certifications ?? []
+        certifications: c?.certifications ?? [],
+        sectionOrder: c?.sectionOrder ?? [...DEFAULT_SECTION_ORDER]
       }
       accentColor.value = resume.designSettings?.accentColor ?? '#0d9488'
+      headerStyle.value = resume.designSettings?.headerStyle ?? 'classic'
+      profileSnapshotAt.value = resume.designSettings?.profileSnapshotAt
     } else {
       showEmptyState.value = true
     }
@@ -106,7 +145,7 @@ onMounted(async () => {
 })
 
 const hasSelectedContent = computed(() =>
-  editableData.value.summary.enabled ||
+  editableData.value.summaries.some(s => s.enabled) ||
   editableData.value.workExperience.some(e => e.selected) ||
   editableData.value.education.some(e => e.selected) ||
   editableData.value.skills.some(s => s.selected) ||
@@ -135,15 +174,101 @@ function cancelTitleRename() {
   editingTitleValue.value = ''
 }
 
+const { buildSnapshot } = useResumeSnapshot()
+
+// ---- Sync from Profile ----
+
+const toast = useToast()
+const syncAddedCount = ref<number | null>(null)
+
+async function handleSync() {
+  const careerIDStore = useCareerIDStore()
+  const accountStore = useAccountStore()
+  const profileId = careerIDStore.profileId || accountStore.profileId
+
+  if (profileId && !careerIDStore.isProfileLoaded) {
+    await careerIDStore.fetchProfile(profileId)
+  }
+
+  const fresh: ResumeContent = buildSnapshot()
+  const current = editableData.value
+  let addedCount = 0
+
+  function getId(item: { id: string | number }) { return String(item.id) }
+
+  // Summary: additive — add profile summary if not already present as text
+  const existingSummaryTexts = new Set(current.summaries.map(s => s.text.trim()))
+  const newSummaries = fresh.summaries
+    .filter(s => !existingSummaryTexts.has(s.text.trim()))
+    .map(s => ({ ...s, id: `summary-${Date.now()}`, isNew: true, enabled: false }))
+
+  // Diff and append per section — additive only, never overwrite
+  const existingExpIds = new Set(current.workExperience.map(getId))
+  const newExps = fresh.workExperience
+    .filter((e) => !existingExpIds.has(getId(e)))
+    .map((e) => ({ ...e, selected: false, isNew: true }))
+
+  const existingEduIds = new Set(current.education.map(getId))
+  const newEdus = fresh.education
+    .filter((e) => !existingEduIds.has(getId(e)))
+    .map((e) => ({ ...e, selected: false, isNew: true }))
+
+  const existingSkillIds = new Set(current.skills.map(getId))
+  const newSkills = fresh.skills
+    .filter((s) => !existingSkillIds.has(getId(s)))
+    .map((s) => ({ ...s, selected: false, isNew: true }))
+
+  const existingCertIds = new Set(current.certifications.map(getId))
+  const newCerts = fresh.certifications
+    .filter((c) => !existingCertIds.has(getId(c)))
+    .map((c) => ({ ...c, selected: false, isNew: true }))
+
+  addedCount = newSummaries.length + newExps.length + newEdus.length + newSkills.length + newCerts.length
+
+  editableData.value = {
+    ...current,
+    summaries: [...current.summaries, ...newSummaries],
+    workExperience: [...current.workExperience, ...newExps],
+    education: [...current.education, ...newEdus],
+    skills: [...current.skills, ...newSkills],
+    certifications: [...current.certifications, ...newCerts]
+  }
+
+  profileSnapshotAt.value = new Date().toISOString()
+  syncAddedCount.value = addedCount
+
+  if (addedCount > 0) {
+    toast.add({
+      title: 'Profile synced',
+      description: `${addedCount} new item${addedCount > 1 ? 's' : ''} added — highlighted in each section.`,
+      color: 'success',
+      icon: 'i-lucide-check-circle'
+    })
+  } else {
+    toast.add({
+      title: 'Already up to date',
+      description: 'No new items found in your profile.',
+      color: 'neutral',
+      icon: 'i-lucide-check'
+    })
+  }
+
+  await saveResume()
+}
+
 async function saveResume() {
   if (docsStore.isSaving) return
   try {
     await docsStore.updateResume(resumeId, {
-      content: editableData.value,
-      designSettings: { accentColor: accentColor.value }
+      content: cleanForSave(editableData.value),
+      designSettings: {
+        accentColor: accentColor.value,
+        headerStyle: headerStyle.value,
+        profileSnapshotAt: profileSnapshotAt.value
+      }
     })
-  } catch {
-    // non-critical — local editor state is unaffected
+  } catch (err) {
+    console.error('[Resume] Save failed:', err)
   }
 }
 
@@ -329,8 +454,17 @@ async function downloadResume() {
             />
           </div>
 
-          <DocsResumeContentEditorForm
+          <DocsResumeContentSelector
             v-if="activeTab === 'content'"
+            :editable-data="editableData"
+            :profile-snapshot-at="profileSnapshotAt"
+            :sync-added-count="syncAddedCount"
+            @update:editable-data="editableData = $event"
+            @sync="handleSync"
+          />
+
+          <DocsResumeContentEditorForm
+            v-if="activeTab === 'edit'"
             :editable-data="editableData"
             @update:editable-data="editableData = $event"
             @update:editing-item="editingItem = $event"
@@ -338,7 +472,8 @@ async function downloadResume() {
 
           <DocsResumeDesigner
             v-if="activeTab === 'design'"
-            v-model="accentColor"
+            v-model:accent-color="accentColor"
+            v-model:header-style="headerStyle"
           />
         </div>
 
@@ -377,6 +512,7 @@ async function downloadResume() {
             >
               <DocsResumePreview
                 :accent-color="accentColor"
+                :header-style="headerStyle"
                 :contact-info="contactInfoForPreview"
                 :linked-in-username="linkedInUsername"
                 :job-title="careerIDStore.contactInfo?.jobTitle || ''"
