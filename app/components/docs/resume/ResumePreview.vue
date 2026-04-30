@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import {
+  sortCertificationsForResumePreview,
+  sortEducationForResumePreview,
+  sortWorkExperienceForResumePreview
+} from '#shared/utils/resumeDisplayOrder'
+
 interface Props {
   accentColor?: string
   headerStyle?: 'classic' | 'bold' | 'minimal'
@@ -114,30 +120,17 @@ function formatMonthYear(dateStr: string | null | undefined) {
   return formatDateForDisplay(dateStr)
 }
 
-// Filter selected items and sort by date (most recent first)
-const selectedExperiences = computed(() => 
-  (props.selectedContent.workExperience?.filter(exp => exp.selected) || [])
-    .sort((a, b) => {
-      // Sort by end date descending — current positions first
-      const dateA = a.currentPosition || !a.endDate ? Infinity : new Date(a.endDate).getTime()
-      const dateB = b.currentPosition || !b.endDate ? Infinity : new Date(b.endDate).getTime()
-      const diff = dateB - dateA
-      if (diff !== 0) return diff
-      // Tiebreaker: sort by start date descending
-      const startA = a.startDate ? new Date(a.startDate).getTime() : 0
-      const startB = b.startDate ? new Date(b.startDate).getTime() : 0
-      return startB - startA
-    })
+// Filter selected items and sort (same order as PDF/DOCX — shared helpers)
+const selectedExperiences = computed(() =>
+  sortWorkExperienceForResumePreview(
+    props.selectedContent.workExperience?.filter(exp => exp.selected) || []
+  )
 )
 
-const selectedEducation = computed(() => 
-  (props.selectedContent.education?.filter(edu => edu.selected) || [])
-    .sort((a, b) => {
-      // Sort by end date descending (most recent first)
-      const dateA = a.endDate ? new Date(a.endDate).getTime() : 0
-      const dateB = b.endDate ? new Date(b.endDate).getTime() : 0
-      return dateB - dateA
-    })
+const selectedEducation = computed(() =>
+  sortEducationForResumePreview(
+    props.selectedContent.education?.filter(edu => edu.selected) || []
+  )
 )
 
 const selectedSkills = computed(() => 
@@ -163,14 +156,10 @@ const groupedSkills = computed(() => {
   }))
 })
 
-const selectedCertifications = computed(() => 
-  (props.selectedContent.certifications?.filter(cert => cert.selected) || [])
-    .sort((a, b) => {
-      // Sort by issue date descending (most recent first)
-      const dateA = a.issueDate ? new Date(a.issueDate).getTime() : 0
-      const dateB = b.issueDate ? new Date(b.issueDate).getTime() : 0
-      return dateB - dateA
-    })
+const selectedCertifications = computed(() =>
+  sortCertificationsForResumePreview(
+    props.selectedContent.certifications?.filter(cert => cert.selected) || []
+  )
 )
 
 const hasSummary = computed(() => !!activeSummary.value)

@@ -180,9 +180,19 @@ function toggleSkill(id: string | number, selected: boolean) {
 
 // ---- Edit draft state ----
 // Only one item edits at a time. editDraft holds a deep copy of the item.
-// Changes mutate the draft; only Save emits the update; Cancel discards the draft.
+// Most changes mutate the draft and only Save emits; achievement reorder also emits
+// immediately so the preview stays in sync. Cancel restores work experience from baseline when set.
+
+function cloneWorkExperience(exp: WorkExperience): WorkExperience {
+  return {
+    ...exp,
+    highlights: exp.highlights.map(h => ({ ...h }))
+  }
+}
 
 const editDraft = ref<any>(null)
+/** Snapshot when opening work-experience edit — used to revert parent on Cancel after live highlight reorder. */
+const experienceEditBaseline = ref<WorkExperience | null>(null)
 
 const editingSummary = ref<string | null>(null)
 const editingExperienceId = ref<string | number | null>(null)
@@ -191,24 +201,28 @@ const editingCertificationId = ref<string | number | null>(null)
 const editingSkills = ref(false)
 
 function startEditSummary(summary: Summary) {
+  experienceEditBaseline.value = null
   editDraft.value = { ...summary }
   editingSummary.value = summary.id
   emit('update:editingItem', { type: 'summary', id: summary.id })
 }
 
 function startEditExperience(exp: WorkExperience) {
+  experienceEditBaseline.value = cloneWorkExperience(exp)
   editDraft.value = { ...exp, highlights: exp.highlights.map(h => ({ ...h })) }
   editingExperienceId.value = exp.id
   emit('update:editingItem', { type: 'experience', id: exp.id })
 }
 
 function startEditEducation(edu: Education) {
+  experienceEditBaseline.value = null
   editDraft.value = { ...edu }
   editingEducationId.value = edu.id
   emit('update:editingItem', { type: 'education', id: edu.id })
 }
 
 function startEditCertification(cert: Certification) {
+  experienceEditBaseline.value = null
   editDraft.value = { ...cert }
   editingCertificationId.value = cert.id
   emit('update:editingItem', { type: 'certification', id: cert.id })
@@ -224,6 +238,7 @@ function saveEdit() {
     if (idx !== -1) items[idx] = editDraft.value
     newData.workExperience = items
     editingExperienceId.value = null
+    experienceEditBaseline.value = null
   } else if (editingEducationId.value !== null) {
     const items = [...newData.education]
     const idx = items.findIndex(i => i.id === editingEducationId.value)
@@ -250,6 +265,14 @@ function saveEdit() {
 }
 
 function cancelEdit() {
+  if (editingExperienceId.value !== null && experienceEditBaseline.value !== null) {
+    const baseline = experienceEditBaseline.value
+    const restored = props.editableData.workExperience.map(e =>
+      e.id === baseline.id ? cloneWorkExperience(baseline) : e
+    )
+    emit('update:editableData', { ...props.editableData, workExperience: restored })
+  }
+  experienceEditBaseline.value = null
   editDraft.value = null
   editingSummary.value = null
   editingExperienceId.value = null
@@ -299,6 +322,13 @@ function moveHighlight(selectedIdx: number, dir: 'up' | 'down') {
   newHighlights[idxA] = newHighlights[idxB]!
   newHighlights[idxB] = tmp
   editDraft.value = { ...editDraft.value, highlights: newHighlights }
+
+  const expId = editingExperienceId.value
+  if (expId === null) return
+  const workExperience = props.editableData.workExperience.map(e =>
+    e.id === expId ? { ...e, highlights: newHighlights } : e
+  )
+  emit('update:editableData', { ...props.editableData, workExperience })
 }
 
 // ---- Skills tag editing (live — no draft, different interaction pattern) ----

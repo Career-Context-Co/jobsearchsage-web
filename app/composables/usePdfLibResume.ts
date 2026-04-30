@@ -1,4 +1,9 @@
 import { PDFDocument, rgb, StandardFonts, PDFString, PDFName } from 'pdf-lib'
+import {
+  sortCertificationsForResumePreview,
+  sortEducationForResumePreview,
+  sortWorkExperienceForResumePreview
+} from '#shared/utils/resumeDisplayOrder'
 
 interface ContactInfo {
   firstName?: string | null
@@ -213,11 +218,17 @@ export function usePdfLibResume() {
       const linkedInLink = socialLinks.find(link => link.platformId === 1)
       const linkedInUsername = linkedInLink ? extractLinkedInUsername(linkedInLink.url) : null
 
-      // Filter selected items
-      const selectedExperiences = selectedContent.workExperience?.filter(exp => exp.selected) || []
-      const selectedEducation = selectedContent.education?.filter(edu => edu.selected) || []
+      // Filter selected items (order matches ResumePreview / DOCX)
+      const selectedExperiences = sortWorkExperienceForResumePreview(
+        selectedContent.workExperience?.filter(exp => exp.selected) || []
+      )
+      const selectedEducation = sortEducationForResumePreview(
+        selectedContent.education?.filter(edu => edu.selected) || []
+      )
       const selectedSkills = selectedContent.skills?.filter(skill => skill.selected) || []
-      const selectedCertifications = selectedContent.certifications?.filter(cert => cert.selected) || []
+      const selectedCertifications = sortCertificationsForResumePreview(
+        selectedContent.certifications?.filter(cert => cert.selected) || []
+      )
       const hasSummary = selectedContent.summary?.enabled && selectedContent.summary?.text
 
       // Create PDF document
