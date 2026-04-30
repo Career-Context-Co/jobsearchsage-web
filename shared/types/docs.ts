@@ -62,6 +62,7 @@ export interface ResumeContent {
   skills: ResumeContentSkillItem[]
   certifications: ResumeContentCertificationItem[]
   sectionOrder?: string[]
+  sectionLabels?: Record<string, string>
 }
 
 export interface ResumeListItem {

@@ -5,6 +5,7 @@ import {
   TextRun,
   AlignmentType,
   BorderStyle,
+  ShadingType,
   ExternalHyperlink,
   TabStopPosition,
   TabStopType,
@@ -80,6 +81,7 @@ interface SelectedContent {
 
 interface DocxResumeOptions {
   accentColor?: string
+  headerStyle?: 'classic' | 'bold' | 'minimal'
   contactInfo?: ContactInfo
   jobTitle?: string
   selectedContent?: SelectedContent
@@ -165,10 +167,48 @@ function groupSkills(skills: Skill[]): Array<{ group: string, skills: string[] }
 }
 
 /**
- * Create a section header paragraph with accent color and bottom border
- * Using medium weight (not bold) to match preview
+ * Create a section header paragraph — appearance varies by headerStyle
  */
-function createSectionHeader(title: string, accentColor: string): Paragraph {
+function createSectionHeader(title: string, accentColor: string, headerStyle: 'classic' | 'bold' | 'minimal' = 'classic'): Paragraph {
+  if (headerStyle === 'bold') {
+    return new Paragraph({
+      children: [
+        new TextRun({
+          text: title.toUpperCase(),
+          bold: true,
+          size: FONT_SIZES.sectionHeader,
+          color: 'FFFFFF'
+        })
+      ],
+      alignment: AlignmentType.LEFT,
+      shading: {
+        type: ShadingType.SOLID,
+        fill: hexToDocxColor(accentColor),
+        color: hexToDocxColor(accentColor)
+      },
+      spacing: { before: 240, after: 160 }
+    })
+  }
+
+  if (headerStyle === 'minimal') {
+    return new Paragraph({
+      children: [
+        new TextRun({
+          text: title.toUpperCase(),
+          bold: false,
+          size: FONT_SIZES.sectionHeader,
+          color: COLORS.gray
+        })
+      ],
+      alignment: AlignmentType.LEFT,
+      border: {
+        bottom: { color: COLORS.ruleGray, style: BorderStyle.SINGLE, size: 4 }
+      },
+      spacing: { before: 240, after: 160 }
+    })
+  }
+
+  // classic (default): centered, accent color, rule below
   return new Paragraph({
     children: [
       new TextRun({
@@ -180,16 +220,9 @@ function createSectionHeader(title: string, accentColor: string): Paragraph {
     ],
     alignment: AlignmentType.CENTER,
     border: {
-      bottom: {
-        color: COLORS.ruleGray,
-        style: BorderStyle.SINGLE,
-        size: 4 // 0.5pt in eighths of a point
-      }
+      bottom: { color: COLORS.ruleGray, style: BorderStyle.SINGLE, size: 4 }
     },
-    spacing: {
-      before: 240, // 12pt
-      after: 160 // 8pt
-    }
+    spacing: { before: 240, after: 160 }
   })
 }
 
@@ -278,6 +311,7 @@ export function useDocxResume() {
     try {
       const {
         accentColor = '#0d9488',
+        headerStyle = 'classic',
         contactInfo = {},
         selectedContent = {},
         socialLinks = []
@@ -388,7 +422,7 @@ export function useDocxResume() {
 
       // === PROFESSIONAL SUMMARY ===
       if (hasSummary) {
-        children.push(createSectionHeader('Summary', accentColor))
+        children.push(createSectionHeader('Summary', accentColor, headerStyle))
         children.push(
           new Paragraph({
             children: [
@@ -407,7 +441,7 @@ export function useDocxResume() {
 
       // === WORK EXPERIENCE ===
       if (selectedExperiences.length > 0) {
-        children.push(createSectionHeader('Professional Experience', accentColor))
+        children.push(createSectionHeader('Professional Experience', accentColor, headerStyle))
 
         for (let i = 0; i < selectedExperiences.length; i++) {
           const exp = selectedExperiences[i]
@@ -450,7 +484,7 @@ export function useDocxResume() {
 
       // === EDUCATION ===
       if (selectedEducation.length > 0) {
-        children.push(createSectionHeader('Education', accentColor))
+        children.push(createSectionHeader('Education', accentColor, headerStyle))
 
         for (let i = 0; i < selectedEducation.length; i++) {
           const edu = selectedEducation[i]
@@ -491,7 +525,7 @@ export function useDocxResume() {
 
       // === SKILLS ===
       if (selectedSkills.length > 0) {
-        children.push(createSectionHeader('Skills', accentColor))
+        children.push(createSectionHeader('Skills', accentColor, headerStyle))
 
         const groupedSkillsList = groupSkills(selectedSkills)
         const showGroupLabels = groupedSkillsList.length > 1
@@ -524,7 +558,7 @@ export function useDocxResume() {
 
       // === CERTIFICATIONS ===
       if (selectedCertifications.length > 0) {
-        children.push(createSectionHeader('Certifications', accentColor))
+        children.push(createSectionHeader('Certifications', accentColor, headerStyle))
 
         for (let i = 0; i < selectedCertifications.length; i++) {
           const cert = selectedCertifications[i]

@@ -31,7 +31,6 @@ const mobilePanel = ref('edit')
 
 const tabs = [
   { label: 'Content', value: 'content', icon: 'i-lucide-file-text' },
-  { label: 'Edit', value: 'edit', icon: 'i-lucide-pencil' },
   { label: 'Design', value: 'design', icon: 'i-lucide-palette' }
 ]
 
@@ -131,7 +130,8 @@ onMounted(async () => {
         education: c?.education ?? [],
         skills: c?.skills ?? [],
         certifications: c?.certifications ?? [],
-        sectionOrder: c?.sectionOrder ?? [...DEFAULT_SECTION_ORDER]
+        sectionOrder: c?.sectionOrder ?? [...DEFAULT_SECTION_ORDER],
+        sectionLabels: c?.sectionLabels ?? undefined
       }
       accentColor.value = resume.designSettings?.accentColor ?? '#0d9488'
       headerStyle.value = resume.designSettings?.headerStyle ?? 'classic'
@@ -182,13 +182,8 @@ const toast = useToast()
 const syncAddedCount = ref<number | null>(null)
 
 async function handleSync() {
-  const careerIDStore = useCareerIDStore()
-  const accountStore = useAccountStore()
-  const profileId = careerIDStore.profileId || accountStore.profileId
-
-  if (profileId && !careerIDStore.isProfileLoaded) {
-    await careerIDStore.fetchProfile(profileId)
-  }
+  // Always force a fresh fetch so any profile edits since page load are picked up
+  await careerIDStore.fetchProfileByUser()
 
   const fresh: ResumeContent = buildSnapshot()
   const current = editableData.value
@@ -196,58 +191,102 @@ async function handleSync() {
 
   function getId(item: { id: string | number }) { return String(item.id) }
 
-  // Summary: additive — add profile summary if not already present as text
+  // Does the fresh profile version differ from the resume version on key fields?
+  function contentDiffers(existingItem: any, freshItem: any, keys: string[]): boolean {
+    return keys.some(k => existingItem[k] !== freshItem[k])
+  }
+
+  // Is there already a synced copy (id = `${baseId}-sync-*`) whose content matches the fresh item?
+  // Prevents duplicate copies from being added on repeated syncs.
+  function syncedCopyExists(section: any[], freshItem: any, keys: string[], baseId: string): boolean {
+    const prefix = `${baseId}-sync-`
+    return section.some(existing => String(existing.id).startsWith(prefix) && !contentDiffers(existing, freshItem, keys))
+  }
+
+  // Build a lookup of existing resume items by ID for content comparison
+  const existingExpById = Object.fromEntries(current.workExperience.map(e => [getId(e), e]))
+  const existingEduById = Object.fromEntries(current.education.map(e => [getId(e), e]))
+  const existingCertById = Object.fromEntries(current.certifications.map(c => [getId(c), c]))
+
+  // Summary: add if text not already present
   const existingSummaryTexts = new Set(current.summaries.map(s => s.text.trim()))
   const newSummaries = fresh.summaries
     .filter(s => !existingSummaryTexts.has(s.text.trim()))
     .map(s => ({ ...s, id: `summary-${Date.now()}`, isNew: true, enabled: false }))
 
-  // Diff and append per section — additive only, never overwrite
+  const EXP_KEYS = ['employer', 'jobTitle', 'startDate', 'endDate', 'currentPosition']
+  const EDU_KEYS = ['institution', 'degree', 'areaOfStudy']
+  const CERT_KEYS = ['name', 'issuer', 'issueDate']
+
+  // Experiences: add new IDs + add synced copies of changed existing items (once only)
   const existingExpIds = new Set(current.workExperience.map(getId))
   const newExps = fresh.workExperience
-    .filter((e) => !existingExpIds.has(getId(e)))
-    .map((e) => ({ ...e, selected: false, isNew: true }))
+    .filter(e => !existingExpIds.has(getId(e)))
+    .map(e => ({ ...e, selected: false, isNew: true }))
+  const updatedExps = fresh.workExperience
+    .filter(e => existingExpIds.has(getId(e))
+      && contentDiffers(existingExpById[getId(e)], e, EXP_KEYS)
+      && !syncedCopyExists(current.workExperience, e, EXP_KEYS, getId(e)))
+    .map(e => ({ ...e, id: `${e.id}-sync-${Date.now()}`, selected: false, isNew: true }))
 
+  // Education: same pattern
   const existingEduIds = new Set(current.education.map(getId))
   const newEdus = fresh.education
-    .filter((e) => !existingEduIds.has(getId(e)))
-    .map((e) => ({ ...e, selected: false, isNew: true }))
+    .filter(e => !existingEduIds.has(getId(e)))
+    .map(e => ({ ...e, selected: false, isNew: true }))
+  const updatedEdus = fresh.education
+    .filter(e => existingEduIds.has(getId(e))
+      && contentDiffers(existingEduById[getId(e)], e, EDU_KEYS)
+      && !syncedCopyExists(current.education, e, EDU_KEYS, getId(e)))
+    .map(e => ({ ...e, id: `${e.id}-sync-${Date.now()}`, selected: false, isNew: true }))
 
+  // Skills: additive by name-as-ID only (no per-skill updatedAt)
   const existingSkillIds = new Set(current.skills.map(getId))
   const newSkills = fresh.skills
-    .filter((s) => !existingSkillIds.has(getId(s)))
-    .map((s) => ({ ...s, selected: false, isNew: true }))
+    .filter(s => !existingSkillIds.has(getId(s)))
+    .map(s => ({ ...s, selected: false, isNew: true }))
 
+  // Certifications: same pattern as experience
   const existingCertIds = new Set(current.certifications.map(getId))
   const newCerts = fresh.certifications
-    .filter((c) => !existingCertIds.has(getId(c)))
-    .map((c) => ({ ...c, selected: false, isNew: true }))
+    .filter(c => !existingCertIds.has(getId(c)))
+    .map(c => ({ ...c, selected: false, isNew: true }))
+  const updatedCerts = fresh.certifications
+    .filter(c => existingCertIds.has(getId(c))
+      && contentDiffers(existingCertById[getId(c)], c, CERT_KEYS)
+      && !syncedCopyExists(current.certifications, c, CERT_KEYS, getId(c)))
+    .map(c => ({ ...c, id: `${c.id}-sync-${Date.now()}`, selected: false, isNew: true }))
 
-  addedCount = newSummaries.length + newExps.length + newEdus.length + newSkills.length + newCerts.length
+  addedCount = newSummaries.length + newExps.length + updatedExps.length + newEdus.length + updatedEdus.length + newSkills.length + newCerts.length + updatedCerts.length
 
   editableData.value = {
     ...current,
     summaries: [...current.summaries, ...newSummaries],
-    workExperience: [...current.workExperience, ...newExps],
-    education: [...current.education, ...newEdus],
+    workExperience: [...current.workExperience, ...newExps, ...updatedExps],
+    education: [...current.education, ...newEdus, ...updatedEdus],
     skills: [...current.skills, ...newSkills],
-    certifications: [...current.certifications, ...newCerts]
+    certifications: [...current.certifications, ...newCerts, ...updatedCerts]
   }
 
   profileSnapshotAt.value = new Date().toISOString()
   syncAddedCount.value = addedCount
 
   if (addedCount > 0) {
+    const updatedCount = updatedExps.length + updatedEdus.length + updatedCerts.length
+    const newCount = addedCount - updatedCount
+    const parts: string[] = []
+    if (newCount > 0) parts.push(`${newCount} new item${newCount > 1 ? 's' : ''} added`)
+    if (updatedCount > 0) parts.push(`${updatedCount} updated item${updatedCount > 1 ? 's' : ''} added as a copy`)
     toast.add({
       title: 'Profile synced',
-      description: `${addedCount} new item${addedCount > 1 ? 's' : ''} added — highlighted in each section.`,
+      description: `${parts.join(' · ')} — highlighted in each section. Delete whichever version you don't want.`,
       color: 'success',
       icon: 'i-lucide-check-circle'
     })
   } else {
     toast.add({
       title: 'Already up to date',
-      description: 'No new items found in your profile.',
+      description: 'No new or updated items found in your profile.',
       color: 'neutral',
       icon: 'i-lucide-check'
     })
@@ -275,6 +314,7 @@ async function saveResume() {
 async function downloadResume() {
   const options = {
     accentColor: accentColor.value,
+    headerStyle: headerStyle.value,
     contactInfo: contactInfoForPreview.value,
     jobTitle: careerIDStore.contactInfo?.jobTitle || '',
     selectedContent: editableData.value,
@@ -454,20 +494,14 @@ async function downloadResume() {
             />
           </div>
 
-          <DocsResumeContentSelector
+          <DocsResumeContentEditorForm
             v-if="activeTab === 'content'"
             :editable-data="editableData"
             :profile-snapshot-at="profileSnapshotAt"
             :sync-added-count="syncAddedCount"
             @update:editable-data="editableData = $event"
-            @sync="handleSync"
-          />
-
-          <DocsResumeContentEditorForm
-            v-if="activeTab === 'edit'"
-            :editable-data="editableData"
-            @update:editable-data="editableData = $event"
             @update:editing-item="editingItem = $event"
+            @sync="handleSync"
           />
 
           <DocsResumeDesigner

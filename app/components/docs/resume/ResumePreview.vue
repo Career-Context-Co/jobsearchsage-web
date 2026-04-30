@@ -42,6 +42,7 @@ interface Props {
       selected: boolean
     }>
     sectionOrder?: string[]
+    sectionLabels?: Record<string, string>
   }
   editingItem?: { type: string, id: string | number | null }
 }
@@ -117,11 +118,15 @@ function formatMonthYear(dateStr: string | null | undefined) {
 const selectedExperiences = computed(() => 
   (props.selectedContent.workExperience?.filter(exp => exp.selected) || [])
     .sort((a, b) => {
-      // Sort by end date descending (most recent first)
-      // Current positions (no end date) are treated as most recent
+      // Sort by end date descending — current positions first
       const dateA = a.currentPosition || !a.endDate ? Infinity : new Date(a.endDate).getTime()
       const dateB = b.currentPosition || !b.endDate ? Infinity : new Date(b.endDate).getTime()
-      return dateB - dateA
+      const diff = dateB - dateA
+      if (diff !== 0) return diff
+      // Tiebreaker: sort by start date descending
+      const startA = a.startDate ? new Date(a.startDate).getTime() : 0
+      const startB = b.startDate ? new Date(b.startDate).getTime() : 0
+      return startB - startA
     })
 )
 
@@ -176,6 +181,18 @@ const activeSummary = computed(() =>
 // ---- Section ordering ----
 
 const DEFAULT_SECTION_ORDER = ['summary', 'workExperience', 'education', 'skills', 'certifications']
+
+const SECTION_DEFAULT_LABELS: Record<string, string> = {
+  summary: 'Professional Summary',
+  workExperience: 'Work Experience',
+  education: 'Education',
+  skills: 'Skills',
+  certifications: 'Certifications'
+}
+
+function getSectionHeading(key: string): string {
+  return props.selectedContent?.sectionLabels?.[key] ?? SECTION_DEFAULT_LABELS[key] ?? key
+}
 
 const orderedSections = computed(() =>
   props.selectedContent?.sectionOrder ?? DEFAULT_SECTION_ORDER
@@ -255,7 +272,7 @@ const hrStyle = computed(() => {
         class="resume-section"
         :style="[{ marginBottom: '1rem' }, isEditing('summary') ? editingHighlightStyle : {}]"
       >
-        <h2 :style="h2Style">Summary</h2>
+        <h2 :style="h2Style">{{ getSectionHeading('summary') }}</h2>
         <hr :style="hrStyle" />
         <p :style="{ fontSize: '0.8125rem', lineHeight: '1.5', color: '#374151', textAlign: 'justify' }">
           {{ activeSummary.text }}
@@ -268,7 +285,7 @@ const hrStyle = computed(() => {
         class="resume-section"
         :style="{ marginBottom: '1rem' }"
       >
-        <h2 :style="h2Style">Professional Experience</h2>
+        <h2 :style="h2Style">{{ getSectionHeading('workExperience') }}</h2>
         <hr :style="hrStyle" />
         <div
           v-for="(exp, index) in selectedExperiences"
@@ -305,7 +322,7 @@ const hrStyle = computed(() => {
         class="resume-section"
         :style="{ marginBottom: '1rem' }"
       >
-        <h2 :style="h2Style">Education</h2>
+        <h2 :style="h2Style">{{ getSectionHeading('education') }}</h2>
         <hr :style="hrStyle" />
         <div
           v-for="(edu, index) in selectedEducation"
@@ -327,7 +344,7 @@ const hrStyle = computed(() => {
         class="resume-section"
         :style="[{ marginBottom: '1rem' }, isEditing('skills') ? editingHighlightStyle : {}]"
       >
-        <h2 :style="h2Style">Skills</h2>
+        <h2 :style="h2Style">{{ getSectionHeading('skills') }}</h2>
         <hr :style="hrStyle" />
         <div v-for="(skillGroup, groupIndex) in groupedSkills" :key="skillGroup.group" :style="{ marginBottom: groupIndex < groupedSkills.length - 1 ? '0.5rem' : '0' }">
           <p :style="{ fontSize: '0.8125rem', color: '#374151', lineHeight: '1.5' }">
@@ -342,7 +359,7 @@ const hrStyle = computed(() => {
         class="resume-section"
         :style="{ marginBottom: '1rem' }"
       >
-        <h2 :style="h2Style">Certifications</h2>
+        <h2 :style="h2Style">{{ getSectionHeading('certifications') }}</h2>
         <hr :style="hrStyle" />
         <div
           v-for="(cert, index) in selectedCertifications"
