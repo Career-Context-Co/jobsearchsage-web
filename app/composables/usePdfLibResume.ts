@@ -1,4 +1,9 @@
 import { PDFDocument, rgb, StandardFonts, PDFString, PDFName } from 'pdf-lib'
+import {
+  sortCertificationsForResumePreview,
+  sortEducationForResumePreview,
+  sortWorkExperienceForResumePreview
+} from '#shared/utils/resumeDisplayOrder'
 
 interface ContactInfo {
   firstName?: string | null
@@ -69,6 +74,7 @@ interface SelectedContent {
 
 interface PdfLibResumeOptions {
   accentColor?: string
+  headerStyle?: 'classic' | 'bold' | 'minimal'
   contactInfo?: ContactInfo
   jobTitle?: string
   selectedContent?: SelectedContent
@@ -202,6 +208,7 @@ export function usePdfLibResume() {
     try {
       const {
         accentColor = '#0d9488',
+        headerStyle = 'classic',
         contactInfo = {},
         selectedContent = {},
         socialLinks = []
@@ -211,11 +218,17 @@ export function usePdfLibResume() {
       const linkedInLink = socialLinks.find(link => link.platformId === 1)
       const linkedInUsername = linkedInLink ? extractLinkedInUsername(linkedInLink.url) : null
 
-      // Filter selected items
-      const selectedExperiences = selectedContent.workExperience?.filter(exp => exp.selected) || []
-      const selectedEducation = selectedContent.education?.filter(edu => edu.selected) || []
+      // Filter selected items (order matches ResumePreview / DOCX)
+      const selectedExperiences = sortWorkExperienceForResumePreview(
+        selectedContent.workExperience?.filter(exp => exp.selected) || []
+      )
+      const selectedEducation = sortEducationForResumePreview(
+        selectedContent.education?.filter(edu => edu.selected) || []
+      )
       const selectedSkills = selectedContent.skills?.filter(skill => skill.selected) || []
-      const selectedCertifications = selectedContent.certifications?.filter(cert => cert.selected) || []
+      const selectedCertifications = sortCertificationsForResumePreview(
+        selectedContent.certifications?.filter(cert => cert.selected) || []
+      )
       const hasSummary = selectedContent.summary?.enabled && selectedContent.summary?.text
 
       // Create PDF document
@@ -247,36 +260,73 @@ export function usePdfLibResume() {
         }
       }
 
-      // Helper to draw horizontal rule
-      const drawHorizontalRule = () => {
-        page.drawLine({
-          start: { x: PAGE.marginLeft, y },
-          end: { x: PAGE.width - PAGE.marginRight, y },
-          thickness: 0.5,
-          color: ruleColor
-        })
-        y -= 20 // Extra margin below rule before section content
-      }
-
-      // Helper to draw section header (medium weight, not bold)
+      // Helper to draw section header — appearance varies by headerStyle
       const drawSectionHeader = (title: string) => {
         checkNewPage(40)
         y -= 12
-        
+
         const headerText = title.toUpperCase()
-        const headerWidth = helvetica.widthOfTextAtSize(headerText, FONT_SIZES.sectionHeader)
-        const centerX = PAGE.marginLeft + (CONTENT_WIDTH - headerWidth) / 2
-        
-        page.drawText(headerText, {
-          x: centerX,
-          y,
-          size: FONT_SIZES.sectionHeader,
-          font: helvetica,
-          color: rgb(accentRgb.r, accentRgb.g, accentRgb.b)
-        })
-        
-        y -= 6
-        drawHorizontalRule()
+        const accentRgbColor = rgb(accentRgb.r, accentRgb.g, accentRgb.b)
+
+        if (headerStyle === 'bold') {
+          // Filled accent-color bar with white text — vertically centered
+          // capHeight ≈ 72% of font size for Helvetica uppercase letters
+          const capHeight = FONT_SIZES.sectionHeader * 0.80
+          const vertPad = 5  // equal padding above caps and below baseline
+          const barHeight = Math.ceil(capHeight + vertPad * 2)
+          // rect bottom = y - vertPad; rect top = y + capHeight + vertPad (centered around baseline)
+          page.drawRectangle({
+            x: PAGE.marginLeft,
+            y: y - vertPad,
+            width: CONTENT_WIDTH,
+            height: barHeight,
+            color: accentRgbColor
+          })
+          page.drawText(headerText, {
+            x: PAGE.marginLeft + 6,
+            y,
+            size: FONT_SIZES.sectionHeader,
+            font: helveticaBold,
+            color: rgb(1, 1, 1)
+          })
+          y -= barHeight + 8
+        } else if (headerStyle === 'minimal') {
+          // Left-aligned neutral gray text + thin rule below
+          page.drawText(headerText, {
+            x: PAGE.marginLeft,
+            y,
+            size: FONT_SIZES.sectionHeader,
+            font: helvetica,
+            color: rgb(0.216, 0.255, 0.318) // #374151
+          })
+          y -= 6
+          page.drawLine({
+            start: { x: PAGE.marginLeft, y },
+            end: { x: PAGE.width - PAGE.marginRight, y },
+            thickness: 0.5,
+            color: ruleColor
+          })
+          y -= 20
+        } else {
+          // classic: centered, accent color, rule below
+          const headerWidth = helvetica.widthOfTextAtSize(headerText, FONT_SIZES.sectionHeader)
+          const centerX = PAGE.marginLeft + (CONTENT_WIDTH - headerWidth) / 2
+          page.drawText(headerText, {
+            x: centerX,
+            y,
+            size: FONT_SIZES.sectionHeader,
+            font: helvetica,
+            color: accentRgbColor
+          })
+          y -= 6
+          page.drawLine({
+            start: { x: PAGE.marginLeft, y },
+            end: { x: PAGE.width - PAGE.marginRight, y },
+            thickness: 0.5,
+            color: ruleColor
+          })
+          y -= 20
+        }
       }
 
       // === HEADER: Name and Contact ===

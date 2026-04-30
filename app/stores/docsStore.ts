@@ -89,7 +89,14 @@ export const useDocsStore = defineStore('docs', {
 
         const idx = this.resumes.findIndex(r => r.id === id)
         if (idx >= 0) {
-          this.resumes.splice(idx, 1, { ...this.resumes[idx], ...result.data })
+          this.resumes.splice(idx, 1, {
+            ...this.resumes[idx],
+            ...result.data,
+            // Keep content and designSettings in the cache up-to-date so
+            // subsequent getResume() calls return the latest saved state
+            ...(patch.content !== undefined && { content: patch.content }),
+            ...(patch.designSettings !== undefined && { designSettings: patch.designSettings })
+          })
           return this.resumes[idx]
         }
 

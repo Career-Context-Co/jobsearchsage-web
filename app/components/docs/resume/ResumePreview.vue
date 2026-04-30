@@ -1,6 +1,13 @@
 <script setup lang="ts">
+import {
+  sortCertificationsForResumePreview,
+  sortEducationForResumePreview,
+  sortWorkExperienceForResumePreview
+} from '#shared/utils/resumeDisplayOrder'
+
 interface Props {
   accentColor?: string
+  headerStyle?: 'classic' | 'bold' | 'minimal'
   contactInfo?: {
     firstName?: string | null
     lastName?: string | null
@@ -10,7 +17,7 @@ interface Props {
   linkedInUsername?: string | null
   jobTitle?: string
   selectedContent?: {
-    summary?: { text: string, enabled: boolean }
+    summaries?: Array<{ id: string; text: string; enabled: boolean }>
     workExperience?: Array<{
       id: string | number
       employer: string
@@ -40,12 +47,15 @@ interface Props {
       issueDate: string
       selected: boolean
     }>
+    sectionOrder?: string[]
+    sectionLabels?: Record<string, string>
   }
   editingItem?: { type: string, id: string | number | null }
 }
 
 const props = withDefaults(defineProps<Props>(), {
   accentColor: '#0d9488',
+  headerStyle: 'classic',
   contactInfo: () => ({}),
   linkedInUsername: null,
   jobTitle: '',
@@ -110,26 +120,17 @@ function formatMonthYear(dateStr: string | null | undefined) {
   return formatDateForDisplay(dateStr)
 }
 
-// Filter selected items and sort by date (most recent first)
-const selectedExperiences = computed(() => 
-  (props.selectedContent.workExperience?.filter(exp => exp.selected) || [])
-    .sort((a, b) => {
-      // Sort by end date descending (most recent first)
-      // Current positions (no end date) are treated as most recent
-      const dateA = a.currentPosition || !a.endDate ? Infinity : new Date(a.endDate).getTime()
-      const dateB = b.currentPosition || !b.endDate ? Infinity : new Date(b.endDate).getTime()
-      return dateB - dateA
-    })
+// Filter selected items and sort (same order as PDF/DOCX — shared helpers)
+const selectedExperiences = computed(() =>
+  sortWorkExperienceForResumePreview(
+    props.selectedContent.workExperience?.filter(exp => exp.selected) || []
+  )
 )
 
-const selectedEducation = computed(() => 
-  (props.selectedContent.education?.filter(edu => edu.selected) || [])
-    .sort((a, b) => {
-      // Sort by end date descending (most recent first)
-      const dateA = a.endDate ? new Date(a.endDate).getTime() : 0
-      const dateB = b.endDate ? new Date(b.endDate).getTime() : 0
-      return dateB - dateA
-    })
+const selectedEducation = computed(() =>
+  sortEducationForResumePreview(
+    props.selectedContent.education?.filter(edu => edu.selected) || []
+  )
 )
 
 const selectedSkills = computed(() => 
@@ -155,17 +156,70 @@ const groupedSkills = computed(() => {
   }))
 })
 
-const selectedCertifications = computed(() => 
-  (props.selectedContent.certifications?.filter(cert => cert.selected) || [])
-    .sort((a, b) => {
-      // Sort by issue date descending (most recent first)
-      const dateA = a.issueDate ? new Date(a.issueDate).getTime() : 0
-      const dateB = b.issueDate ? new Date(b.issueDate).getTime() : 0
-      return dateB - dateA
-    })
+const selectedCertifications = computed(() =>
+  sortCertificationsForResumePreview(
+    props.selectedContent.certifications?.filter(cert => cert.selected) || []
+  )
 )
 
-const hasSummary = computed(() => props.selectedContent.summary?.enabled)
+const hasSummary = computed(() => !!activeSummary.value)
+const activeSummary = computed(() =>
+  props.selectedContent?.summaries?.find(s => s.enabled) ?? null
+)
+
+// ---- Section ordering ----
+
+const DEFAULT_SECTION_ORDER = ['summary', 'workExperience', 'education', 'skills', 'certifications']
+
+const SECTION_DEFAULT_LABELS: Record<string, string> = {
+  summary: 'Professional Summary',
+  workExperience: 'Work Experience',
+  education: 'Education',
+  skills: 'Skills',
+  certifications: 'Certifications'
+}
+
+function getSectionHeading(key: string): string {
+  return props.selectedContent?.sectionLabels?.[key] ?? SECTION_DEFAULT_LABELS[key] ?? key
+}
+
+const orderedSections = computed(() =>
+  props.selectedContent?.sectionOrder ?? DEFAULT_SECTION_ORDER
+)
+
+// ---- Header style ----
+
+const h2Style = computed(() => {
+  const color = props.accentColor ?? '#0d9488'
+  const hs = props.headerStyle ?? 'classic'
+  if (hs === 'bold') {
+    return {
+      fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase',
+      letterSpacing: '0.05em', padding: '0.2rem 0.5rem',
+      backgroundColor: color, color: '#ffffff',
+      marginBottom: '0.5rem', display: 'block'
+    }
+  }
+  if (hs === 'minimal') {
+    return {
+      fontSize: '0.75rem', fontWeight: '500', textTransform: 'uppercase',
+      letterSpacing: '0.1em', color: '#374151',
+      borderBottom: '1px solid #d1d5db', paddingBottom: '0.25rem',
+      marginBottom: '0.5rem', textAlign: 'left' as const
+    }
+  }
+  // classic (default)
+  return {
+    fontSize: '0.75rem', fontWeight: '500', textTransform: 'uppercase',
+    letterSpacing: '0.1em', color, marginBottom: '0.25rem', textAlign: 'center' as const
+  }
+})
+
+const hrStyle = computed(() => {
+  const hs = props.headerStyle ?? 'classic'
+  if (hs === 'bold' || hs === 'minimal') return { display: 'none' }
+  return { border: 'none', borderTop: '1px solid #d1d5db', marginBottom: '0.5rem' }
+})
 </script>
 
 <template>
@@ -198,113 +252,119 @@ const hasSummary = computed(() => props.selectedContent.summary?.enabled)
       </div>
     </header>
 
-    <!-- Professional Summary -->
-    <section 
-      v-if="hasSummary && selectedContent.summary" 
-      class="resume-section" 
-      :style="[{ marginBottom: '1rem' }, isEditing('summary') ? editingHighlightStyle : {}]"
-    >
-      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
-        Summary
-      </h2>
-      <hr :style="{ border: 'none', borderTop: '1px solid #d1d5db', marginBottom: '0.5rem' }" />
-      <p :style="{ fontSize: '0.8125rem', lineHeight: '1.5', color: '#374151', textAlign: 'justify' }">
-        {{ selectedContent.summary.text }}
-      </p>
-    </section>
+    <!-- Sections rendered in user-defined order -->
+    <template v-for="sectionKey in orderedSections" :key="sectionKey">
 
-    <!-- Work Experience -->
-    <section v-if="selectedExperiences.length > 0" class="resume-section" :style="{ marginBottom: '1rem' }">
-      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
-        Professional Experience
-      </h2>
-      <hr :style="{ border: 'none', borderTop: '1px solid #d1d5db', marginBottom: '0.5rem' }" />
-      <div
-        v-for="(exp, index) in selectedExperiences"
-        :key="exp.id"
-        class="resume-entry"
-        :style="[{ marginBottom: index < selectedExperiences.length - 1 ? '0.75rem' : '0' }, isEditing('experience', exp.id) ? editingHighlightStyle : {}]"
+      <!-- Professional Summary -->
+      <section
+        v-if="sectionKey === 'summary' && hasSummary && activeSummary"
+        class="resume-section"
+        :style="[{ marginBottom: '1rem' }, isEditing('summary') ? editingHighlightStyle : {}]"
       >
-        <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }">
-          <h3 :style="{ fontWeight: 'bold', fontSize: '0.875rem', color: '#111827' }">{{ exp.jobTitle }}</h3>
-          <span :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ formatDateRange(exp.startDate, exp.endDate, exp.currentPosition) }}</span>
-        </div>
-        <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.25rem' }">
-          <p :style="{ fontWeight: 'bold', fontSize: '0.8125rem', color: '#4D4D4D' }">{{ exp.employer }}</p>
-          <span :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ exp.locationType }}</span>
-        </div>
-        <ul 
-          v-if="exp.highlights.some(h => h.selected)" 
-          :style="{ listStyleType: 'disc', listStylePosition: 'outside', marginLeft: '1.25rem', fontSize: '0.8125rem', color: '#374151' }"
-        >
-          <li
-            v-for="highlight in exp.highlights.filter(h => h.selected)"
-            :key="highlight.id"
-            :style="{ marginBottom: '0.125rem', lineHeight: '1.4' }"
-          >
-            {{ highlight.text }}
-          </li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- Education -->
-    <section v-if="selectedEducation.length > 0" class="resume-section" :style="{ marginBottom: '1rem' }">
-      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
-        Education
-      </h2>
-      <hr :style="{ border: 'none', borderTop: '1px solid #d1d5db', marginBottom: '0.5rem' }" />
-      <div
-        v-for="(edu, index) in selectedEducation"
-        :key="edu.id"
-        class="resume-entry"
-        :style="[{ marginBottom: index < selectedEducation.length - 1 ? '0.5rem' : '0' }, isEditing('education', edu.id) ? editingHighlightStyle : {}]"
-      >
-        <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }">
-          <h3 :style="{ fontWeight: 'bold', fontSize: '0.875rem', color: '#111827' }">{{ edu.degree }}<span v-if="edu.areaOfStudy"> in {{ edu.areaOfStudy }}</span></h3>
-          <span v-if="edu.endDate" :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ formatDateForDisplay(edu.endDate) }}</span>
-        </div>
-        <p :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ edu.institution }}</p>
-      </div>
-    </section>
-
-    <!-- Skills -->
-    <section 
-      v-if="selectedSkills.length > 0" 
-      class="resume-section" 
-      :style="[{ marginBottom: '1rem' }, isEditing('skills') ? editingHighlightStyle : {}]"
-    >
-      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
-        Skills
-      </h2>
-      <hr :style="{ border: 'none', borderTop: '1px solid #d1d5db', marginBottom: '0.5rem' }" />
-      <!-- Display skills grouped by category -->
-      <div v-for="(skillGroup, groupIndex) in groupedSkills" :key="skillGroup.group" :style="{ marginBottom: groupIndex < groupedSkills.length - 1 ? '0.5rem' : '0' }">
-        <p :style="{ fontSize: '0.8125rem', color: '#374151', lineHeight: '1.5' }">
-          <span v-if="groupedSkills.length > 1" :style="{ fontWeight: 'bold' }">{{ skillGroup.group }}: </span>{{ skillGroup.skills.join(', ') }}
+        <h2 :style="h2Style">{{ getSectionHeading('summary') }}</h2>
+        <hr :style="hrStyle" />
+        <p :style="{ fontSize: '0.8125rem', lineHeight: '1.5', color: '#374151', textAlign: 'justify' }">
+          {{ activeSummary.text }}
         </p>
-      </div>
-    </section>
+      </section>
 
-    <!-- Certifications -->
-    <section v-if="selectedCertifications.length > 0" class="resume-section" :style="{ marginBottom: '1rem' }">
-      <h2 :style="{ textAlign: 'center', fontSize: '0.75rem', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.1em', color: accentColor, marginBottom: '0.25rem' }">
-        Certifications
-      </h2>
-      <hr :style="{ border: 'none', borderTop: '1px solid #d1d5db', marginBottom: '0.5rem' }" />
-      <div
-        v-for="(cert, index) in selectedCertifications"
-        :key="cert.id"
-        class="resume-entry"
-        :style="[{ marginBottom: index < selectedCertifications.length - 1 ? '0.375rem' : '0' }, isEditing('certification', cert.id) ? editingHighlightStyle : {}]"
+      <!-- Work Experience -->
+      <section
+        v-else-if="sectionKey === 'workExperience' && selectedExperiences.length > 0"
+        class="resume-section"
+        :style="{ marginBottom: '1rem' }"
       >
-        <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }">
-          <h3 :style="{ fontWeight: 'bold', fontSize: '0.875rem', color: '#111827' }">{{ cert.name }}</h3>
-          <span v-if="cert.issueDate" :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ formatMonthYear(cert.issueDate) }}</span>
+        <h2 :style="h2Style">{{ getSectionHeading('workExperience') }}</h2>
+        <hr :style="hrStyle" />
+        <div
+          v-for="(exp, index) in selectedExperiences"
+          :key="exp.id"
+          class="resume-entry"
+          :style="[{ marginBottom: index < selectedExperiences.length - 1 ? '0.75rem' : '0' }, isEditing('experience', exp.id) ? editingHighlightStyle : {}]"
+        >
+          <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }">
+            <h3 :style="{ fontWeight: 'bold', fontSize: '0.875rem', color: '#111827' }">{{ exp.jobTitle }}</h3>
+            <span :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ formatDateRange(exp.startDate, exp.endDate, exp.currentPosition) }}</span>
+          </div>
+          <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.25rem' }">
+            <p :style="{ fontWeight: 'bold', fontSize: '0.8125rem', color: '#4D4D4D' }">{{ exp.employer }}</p>
+            <span :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ exp.locationType }}</span>
+          </div>
+          <ul
+            v-if="exp.highlights.some(h => h.selected)"
+            :style="{ listStyleType: 'disc', listStylePosition: 'outside', marginLeft: '1.25rem', fontSize: '0.8125rem', color: '#374151' }"
+          >
+            <li
+              v-for="highlight in exp.highlights.filter(h => h.selected)"
+              :key="highlight.id"
+              :style="{ marginBottom: '0.125rem', lineHeight: '1.4' }"
+            >
+              {{ highlight.text }}
+            </li>
+          </ul>
         </div>
-        <p v-if="cert.issuer" :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ cert.issuer }}</p>
-      </div>
-    </section>
+      </section>
+
+      <!-- Education -->
+      <section
+        v-else-if="sectionKey === 'education' && selectedEducation.length > 0"
+        class="resume-section"
+        :style="{ marginBottom: '1rem' }"
+      >
+        <h2 :style="h2Style">{{ getSectionHeading('education') }}</h2>
+        <hr :style="hrStyle" />
+        <div
+          v-for="(edu, index) in selectedEducation"
+          :key="edu.id"
+          class="resume-entry"
+          :style="[{ marginBottom: index < selectedEducation.length - 1 ? '0.5rem' : '0' }, isEditing('education', edu.id) ? editingHighlightStyle : {}]"
+        >
+          <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }">
+            <h3 :style="{ fontWeight: 'bold', fontSize: '0.875rem', color: '#111827' }">{{ edu.degree }}<span v-if="edu.areaOfStudy"> in {{ edu.areaOfStudy }}</span></h3>
+            <span v-if="edu.endDate" :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ formatDateForDisplay(edu.endDate) }}</span>
+          </div>
+          <p :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ edu.institution }}</p>
+        </div>
+      </section>
+
+      <!-- Skills -->
+      <section
+        v-else-if="sectionKey === 'skills' && selectedSkills.length > 0"
+        class="resume-section"
+        :style="[{ marginBottom: '1rem' }, isEditing('skills') ? editingHighlightStyle : {}]"
+      >
+        <h2 :style="h2Style">{{ getSectionHeading('skills') }}</h2>
+        <hr :style="hrStyle" />
+        <div v-for="(skillGroup, groupIndex) in groupedSkills" :key="skillGroup.group" :style="{ marginBottom: groupIndex < groupedSkills.length - 1 ? '0.5rem' : '0' }">
+          <p :style="{ fontSize: '0.8125rem', color: '#374151', lineHeight: '1.5' }">
+            <span v-if="groupedSkills.length > 1" :style="{ fontWeight: 'bold' }">{{ skillGroup.group }}: </span>{{ skillGroup.skills.join(', ') }}
+          </p>
+        </div>
+      </section>
+
+      <!-- Certifications -->
+      <section
+        v-else-if="sectionKey === 'certifications' && selectedCertifications.length > 0"
+        class="resume-section"
+        :style="{ marginBottom: '1rem' }"
+      >
+        <h2 :style="h2Style">{{ getSectionHeading('certifications') }}</h2>
+        <hr :style="hrStyle" />
+        <div
+          v-for="(cert, index) in selectedCertifications"
+          :key="cert.id"
+          class="resume-entry"
+          :style="[{ marginBottom: index < selectedCertifications.length - 1 ? '0.375rem' : '0' }, isEditing('certification', cert.id) ? editingHighlightStyle : {}]"
+        >
+          <div :style="{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }">
+            <h3 :style="{ fontWeight: 'bold', fontSize: '0.875rem', color: '#111827' }">{{ cert.name }}</h3>
+            <span v-if="cert.issueDate" :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ formatMonthYear(cert.issueDate) }}</span>
+          </div>
+          <p v-if="cert.issuer" :style="{ fontSize: '0.8125rem', color: '#374151' }">{{ cert.issuer }}</p>
+        </div>
+      </section>
+
+    </template>
 
     <!-- Empty State -->
     <div 
