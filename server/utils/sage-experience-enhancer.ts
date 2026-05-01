@@ -46,6 +46,17 @@ export type SageInterviewResult =
   | { done: false; message: string }
   | { done: true; output: string }
 
+export interface SageHeroSignalExperience {
+  highlights?: string[]
+  summary?: string | null
+  contextNotes?: string | null
+  sageNotes?: string | null
+}
+
+export type SageHeroSignalResult =
+  | { nudge: false }
+  | { nudge: true; signal: string; context: string }
+
 export class SageExperienceEnhancementError extends Error {
   constructor(
     message: string,
@@ -331,6 +342,111 @@ Write exactly one helpful next interviewer message that moves the user toward th
 
     throw new SageExperienceEnhancementError(
       'Failed to generate interview response',
+      'AI_PROVIDER_ERROR',
+      { originalError: error?.message }
+    )
+  }
+}
+
+function parseHeroSignalResponse(response: string): SageHeroSignalResult {
+  try {
+    let cleanResponse = response.trim()
+    if (cleanResponse.startsWith('```')) {
+      const start = cleanResponse.indexOf('{')
+      const end = cleanResponse.lastIndexOf('}')
+      if (start !== -1 && end !== -1 && end > start) {
+        cleanResponse = cleanResponse.substring(start, end + 1)
+      }
+    }
+
+    const parsed = JSON.parse(cleanResponse) as Record<string, any>
+    if (typeof parsed.nudge !== 'boolean') {
+      throw new SageExperienceEnhancementError('AI response missing boolean nudge field', 'AI_PROVIDER_ERROR')
+    }
+
+    if (!parsed.nudge) {
+      return { nudge: false }
+    }
+
+    if (typeof parsed.signal !== 'string' || parsed.signal.trim().length === 0) {
+      throw new SageExperienceEnhancementError('AI response missing signal for nudge=true', 'AI_PROVIDER_ERROR')
+    }
+
+    if (typeof parsed.context !== 'string' || parsed.context.trim().length === 0) {
+      throw new SageExperienceEnhancementError('AI response missing context for nudge=true', 'AI_PROVIDER_ERROR')
+    }
+
+    return {
+      nudge: true,
+      signal: parsed.signal.trim(),
+      context: parsed.context.trim(),
+    }
+  } catch (error) {
+    if (error instanceof SageExperienceEnhancementError) {
+      throw error
+    }
+
+    throw new SageExperienceEnhancementError('Failed to parse hero nudge response', 'AI_PROVIDER_ERROR')
+  }
+}
+
+export async function detectHeroSignal(
+  experience: SageHeroSignalExperience
+): Promise<SageHeroSignalResult> {
+  if (!experience || typeof experience !== 'object') {
+    throw new SageExperienceEnhancementError('experience is required', 'INVALID_INPUT')
+  }
+
+  const highlights = Array.isArray(experience.highlights)
+    ? experience.highlights.filter((item: unknown) => typeof item === 'string' && item.trim().length > 0)
+    : []
+  const summary = typeof experience.summary === 'string' ? experience.summary.trim() : ''
+  const contextNotes = typeof experience.contextNotes === 'string' ? experience.contextNotes.trim() : ''
+  const sageNotes = typeof experience.sageNotes === 'string' ? experience.sageNotes.trim() : ''
+
+  // Fast-path: no meaningful content means no nudge.
+  if (highlights.length === 0 && !summary && !contextNotes && !sageNotes) {
+    return { nudge: false }
+  }
+
+  const prompt = `You detect whether an experience has strong HERO-story potential.
+
+Input content:
+- Highlights: ${highlights.length > 0 ? highlights.join(' | ') : '(none)'}
+- Summary: ${summary || '(none)'}
+- Context Notes: ${contextNotes || '(none)'}
+- Sage Notes: ${sageNotes || '(none)'}
+
+Strong signal includes things like quantified outcomes, cross-functional ownership, leadership/scope, or challenges overcome.
+
+Return JSON only:
+{
+  "nudge": true,
+  "signal": "short reason",
+  "context": "1-2 sentence explanation tied to the provided content"
+}
+
+Or:
+{
+  "nudge": false
+}`
+
+  try {
+    const result = await runWithTimeout(generateText({
+      model: gateway('openai/gpt-4o-mini'),
+      prompt,
+      temperature: 0.3,
+      maxRetries: 2,
+    }))
+
+    return parseHeroSignalResponse(result.text)
+  } catch (error: any) {
+    if (error instanceof SageExperienceEnhancementError) {
+      throw error
+    }
+
+    throw new SageExperienceEnhancementError(
+      'Failed to detect HERO signal',
       'AI_PROVIDER_ERROR',
       { originalError: error?.message }
     )

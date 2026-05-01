@@ -56,12 +56,12 @@
 
 ### BE-004: HERO nudge signal detection endpoint
 
-- [ ] Add `detectHeroSignal(experience)` to `server/utils/sage-experience-enhancer.ts`
+- [x] Add `detectHeroSignal(experience)` to `server/utils/sage-experience-enhancer.ts`
   - Reads `highlights`, `summary`, `contextNotes`, `sageNotes` (request snapshot)
   - Returns `{ nudge: true, signal, context }` or `{ nudge: false }`
   - Returns `{ nudge: false }` immediately if all content fields are empty
-- [ ] Create `server/api/ai/experience/nudge-check.post.ts`
-  - Validate `profileId`, `experience` required
+- [x] Create `server/api/ai/experience/hero-nudge.post.ts`
+  - Validate `experience` required
   - Call `detectHeroSignal`, return result
   - Handle AI errors
 
@@ -82,7 +82,7 @@
 
 ### BE-006: Postman collection
 
-- [ ] Create `deliverables/sage-assist-experience-api.postman_collection.json` covering: enhance-achievement (both phases), interview (ongoing + completion), nudge-check, GET sage-notes, PUT sage-notes
+- [ ] Create `deliverables/sage-assist-experience-api.postman_collection.json` covering: enhance-achievement (both phases), interview (ongoing + completion), hero-nudge, GET sage-notes, PUT sage-notes
   - Error cases: missing `bullet`, missing `mode`, missing `experience`, invalid `mode`, missing `profileId`
   - Pre-configure `{{baseUrl}}`, `{{profileId}}`, `{{experienceId}}` variables
 
@@ -135,7 +135,7 @@
 
 - [ ] Create `app/components/profile/sage/SageHeroNudge.vue` — props: `signal`, `context`, `experienceId`
   - CTA navigates to HERO story creation with experience preloaded
-- [ ] On experience detail mount: `POST /api/ai/experience/nudge-check` with experience snapshot including `sageNotes` from FE-001 and `contextNotes` from Career ID experience; cache result for session
+- [ ] On experience detail mount: `POST /api/ai/experience/hero-nudge` with experience snapshot including `sageNotes` from FE-001 and `contextNotes` from Career ID experience; cache result for session
 
 **Dependencies:** FE-001, BE-004  
 **Success criteria:** Nudge uses combined Career ID + Sage notes context.

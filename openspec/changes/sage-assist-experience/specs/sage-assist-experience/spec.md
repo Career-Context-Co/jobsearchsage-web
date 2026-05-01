@@ -92,7 +92,7 @@ The system SHALL analyze an experience entry's content (`highlights`, `summary`,
 #### Scenario: Nudge check on experience detail load
 
 - **WHEN** a user opens an experience detail view
-- **THEN** the system SHALL call `POST /api/ai/experience/nudge-check` with `profileId` and an experience snapshot that includes `sageNotes` loaded from `sage_profile_notes` when available
+- **THEN** the system SHALL call `POST /api/ai/experience/hero-nudge` with an experience snapshot that includes `sageNotes` loaded from `sage_profile_notes` when available
 - **AND** if `nudge: true` is returned, the system SHALL display the non-blocking nudge banner
 
 #### Scenario: Nudge banner content

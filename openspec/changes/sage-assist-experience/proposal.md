@@ -12,7 +12,7 @@ Career ID is intended as a reusable profile API consumed by multiple apps; Sage-
 - Sage AI endpoints live under `/api/ai/experience/` (not under `/api/career-id/.../sage/`):
   - `POST .../enhance-achievement` — per-bullet enhancement with a two-call Q&A flow
   - `POST .../interview` — conversational interview with two modes (`notes_help` → output confirmed via sage-notes API; `role_summary` → generates `summary` via Career ID PATCH)
-  - `POST .../nudge-check` — signal detection across `highlights`, `summary`, `contextNotes`, and Sage notes content (from request snapshot or loaded `sageNotes` for the experience)
+  - `POST .../hero-nudge` — signal detection across `highlights`, `summary`, `contextNotes`, and Sage notes content (from request snapshot or loaded `sageNotes` for the experience)
   - `GET .../:experienceId/sage-notes` — read current Sage notes for an experience
   - `PUT .../:experienceId/sage-notes` — upsert Sage notes after interview confirmation (overwrites prior row per uniqueness constraint)
 - Three new frontend features in the experience detail view:
@@ -45,7 +45,7 @@ Career ID is intended as a reusable profile API consumed by multiple apps; Sage-
 - No changes required to `shared/types/careerId.ts`, `career-id-transformer.ts`, or Career ID PATCH solely for this OpenSpec — unless implementation discovers gaps (none anticipated for `contextNotes`-only payloads).
 - `server/api/ai/experience/enhance-achievement.post.ts` (new)
 - `server/api/ai/experience/interview.post.ts` (new)
-- `server/api/ai/experience/nudge-check.post.ts` (new)
+- `server/api/ai/experience/hero-nudge.post.ts` (new)
 - `server/api/ai/experience/[experienceId]/sage-notes.get.ts` (new)
 - `server/api/ai/experience/[experienceId]/sage-notes.put.ts` (new)
 - `server/utils/sage-experience-enhancer.ts` (new AI utility)

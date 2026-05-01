@@ -160,13 +160,12 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
 }
 ```
 
-### `POST /api/ai/experience/nudge-check`
+### `POST /api/ai/experience/hero-nudge`
 
 **Request:**
 
 ```json
 {
-  "profileId": "string",
   "experience": {
     "id": "string",
     "title": "string",
