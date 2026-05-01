@@ -2,34 +2,39 @@
 
 The experience object currently stores `highlights` (string array of achievement bullets), `summary` (free-form role description), and `context_notes` (a catch-all text field for extra context). The `context_notes` field serves no clear purpose in the current UI and is used inconsistently.
 
-The Sage Assist experience layer adds three AI-powered interactions on top of this data. Before those features can be built correctly, the notes field needs to be split into two clearly-owned fields: `user_notes` (user-authored, never touched by Sage) and `sage_notes` (Sage-generated output from the responsibility interview, freely overwritable by Sage).
+The Sage Assist experience layer adds three AI-powered interactions on top of this data. User-authored extra context remains in Career ID as **`context_notes`** (API: `contextNotes`) — unchanged by this change. Sage-generated notes from the responsibility interview (`sage_notes` conceptually) are stored in JobSearchSage-owned **`sage_profile_notes`**, not on `career_id.experience`, so Career ID stays schema-stable and portable for multiple consumers.
 
 Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Vercel AI SDK + AI Gateway, GPT-4o-mini, 10-second timeout via `Promise.race`) is the established pattern for all new AI utility functions.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Rename `context_notes` → `user_notes` cleanly across DB, transformer, type, endpoints, store, and components
-- Add `sage_notes` as a Sage-exclusive write target
-- Implement 3 new stateless AI endpoints using the existing AI Gateway pattern
-- Deliver 3 frontend features in the experience detail view without disrupting the existing PATCH/form flow
+
+- Leave Career ID schema and Career ID experience field names unchanged (`context_notes` / `contextNotes`)
+- Persist Sage-generated notes in `sage_profile_notes` with logical references to Career ID profile objects (experience rows identified by id + profile id)
+- Implement stateless AI endpoints under `/api/ai/experience/` using the existing AI Gateway pattern
+- Implement `GET`/`PUT` sage-notes handlers that read/write `sage_profile_notes`
+- Deliver 3 frontend features in the experience detail view without putting Sage columns on Career ID PATCH payloads
 
 **Non-Goals:**
+
 - Prompt scripts or question flows for the responsibility interview — defined during implementation
 - HERO nudge threshold scoring rules — defined during implementation
 - Achievement enhancement trigger rules — defined during implementation
 - Any changes to HERO stories, resume generation, or other profile sections
 - Streaming AI responses — all Sage endpoints use standard `generateText` (non-streaming)
+- Database FK from JobSearchSage to Career ID — use logical keys (`profile_id`, `target_type`, `target_id`) only
+- Career ID schema migrations — any rename of `context_notes` is out of scope here and belongs to the Career ID service if desired later
 
 ## Decisions
 
-### Decision: Rename `context_notes` → `user_notes` rather than just adding `sage_notes`
+### Decision: Store Sage-generated notes in `sage_profile_notes` (JobSearchSage schema), not on `career_id.experience`
 
-**Choice**: Rename via Supabase migration.
+**Choice**: New table `sage_profile_notes` with logical references (`user_id`, `profile_id`, `target_type`, `target_id`, `note_type`, `content`, …). Unique constraint on `(user_id, target_type, target_id, note_type)` for overwrite semantics.
 
-**Rationale**: Keeping `context_notes` as the user field while adding `sage_notes` alongside it leaves an ambiguously named column in the DB forever. Renaming makes the ownership contract clear: `user_notes` is user-authored, `sage_notes` is AI-generated. The migration cost is low — `context_notes` is only referenced in the transformer, PATCH handler, type definition, store, and a small number of components.
+**Rationale**: Career ID will be consumed by multiple apps; coupling Sage-specific AI persistence to the Career ID schema forces downstream migrations and pollutes the portable profile model. JobSearchSage owns Sage artifacts; Career ID owns canonical profile fields (`context_notes`, `summary`, `highlights`, etc.).
 
-**Alternative considered**: Keep `context_notes` for users and add `sage_notes`. Rejected because `context_notes` is a poor name for user-authored content and would need renaming later anyway.
+**Alternative considered**: Add `sage_notes` column on `career_id.experience`. Rejected — conflicts with multi-app Career ID API strategy.
 
 ### Decision: Two-call flow for achievement enhancement (questions then update)
 
@@ -39,13 +44,19 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
 
 **Alternative considered**: Single call that returns both questions and a speculative bullet in one shot. Rejected — quality of the improved bullet depends on the user's answers, not the original bullet alone.
 
-### Decision: Single `/sage/interview` endpoint with a `mode` parameter
+### Decision: Single `/api/ai/experience/interview` endpoint with a `mode` parameter
 
 **Choice**: One endpoint with `mode: 'notes_help' | 'role_summary'` plus `conversationHistory[]`.
 
 **Rationale**: Both modes share the same conversational turn structure (send message → receive next question or done). A single endpoint with a mode switch is simpler to maintain than two nearly-identical endpoints. The AI system prompt differs per mode but the request/response shape is identical.
 
-**Alternative considered**: Two separate endpoints (`/sage/interview-notes` and `/sage/interview-summary`). Rejected — code duplication with no routing benefit.
+**Alternative considered**: Two separate endpoints (`/interview-notes` and `/interview-summary`). Rejected — code duplication with no routing benefit.
+
+### Decision: Confirm notes help output via `PUT /api/ai/experience/:experienceId/sage-notes`
+
+**Choice**: Interview returns `output` only; persisting Sage notes is a separate explicit `PUT` after user confirmation. Role summary confirmation continues to use `PATCH .../career-id/.../experience/:id` with `summary`.
+
+**Rationale**: Writes stay in the owning store — JSS for Sage notes, Career ID for `summary` and `highlights`.
 
 ### Decision: Nudge check is a stateless POST; nudge banner is a navigation CTA
 
@@ -55,19 +66,21 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
 
 **Alternative considered**: Persist nudge dismissal per experience in the DB so it doesn't re-appear on future views. Deferred — can be added later if users find repeated nudges disruptive.
 
-### Decision: `sage_notes` is overwritten (not appended) by the interview; read-only to the user
+### Decision: Sage notes row is overwritten (not appended) by confirmed interview; read-only to the user
 
-**Choice**: Each completed "notes help" interview replaces the full `sage_notes` content after user confirmation. `sage_notes` is never exposed as an editable input in any view.
+**Choice**: Each confirmed "notes help" interview replaces the content for that `(user_id, target_type, target_id, note_type)` row. Sage notes are never exposed as an editable input in any view.
 
-**Rationale**: Sage's notes are a coherent block generated from a complete interview session. Appending from multiple sessions would produce a jumbled field. Keeping it read-only preserves the distinction between AI-generated content and the user's own `user_notes`. Users who want to change Sage's notes re-run the interview, which overwrites with a fresh result.
+**Rationale**: Sage's notes are a coherent block from one interview session. Appending would produce a jumbled field. Users who want different Sage notes re-run the interview and confirm overwrite.
 
 ## API Contracts
 
-### `POST .../sage/enhance-achievement`
+### `POST /api/ai/experience/enhance-achievement`
 
 **Request:**
+
 ```json
 {
+  "profileId": "string",
   "experience": {
     "title": "string",
     "employer": "string",
@@ -79,6 +92,7 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
 ```
 
 **Response (questions phase — `answers` omitted or empty):**
+
 ```json
 {
   "success": true,
@@ -90,6 +104,7 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
 ```
 
 **Response (improvement phase — `answers` provided):**
+
 ```json
 {
   "success": true,
@@ -100,11 +115,13 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
 }
 ```
 
-### `POST .../sage/interview`
+### `POST /api/ai/experience/interview`
 
 **Request:**
+
 ```json
 {
+  "profileId": "string",
   "mode": "notes_help | role_summary",
   "experience": {
     "title": "string",
@@ -112,14 +129,17 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
     "employmentType": "string",
     "summary": "string | null",
     "highlights": ["string"],
-    "userNotes": "string | null",
+    "contextNotes": "string | null",
     "sageNotes": "string | null"
   },
   "conversationHistory": [{ "role": "user | assistant", "content": "string" }]
 }
 ```
 
+`sageNotes` in the request body is optional context — sourced from `GET .../sage-notes` or empty if none.
+
 **Response (ongoing):**
+
 ```json
 {
   "success": true,
@@ -131,6 +151,7 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
 ```
 
 **Response (complete):**
+
 ```json
 {
   "success": true,
@@ -141,24 +162,29 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
 }
 ```
 
-### `POST .../sage/nudge-check`
+### `POST /api/ai/experience/nudge-check`
 
 **Request:**
+
 ```json
 {
+  "profileId": "string",
   "experience": {
-    "id": "number",
+    "id": "string",
     "title": "string",
     "employer": "string",
     "highlights": ["string"],
     "summary": "string | null",
-    "userNotes": "string | null",
+    "contextNotes": "string | null",
     "sageNotes": "string | null"
   }
 }
 ```
 
+`sageNotes` SHOULD be populated from `sage_profile_notes` when available so nudge analysis includes Sage-generated context.
+
 **Response:**
+
 ```json
 {
   "success": true,
@@ -169,7 +195,9 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
   }
 }
 ```
+
 or
+
 ```json
 {
   "success": true,
@@ -177,31 +205,66 @@ or
 }
 ```
 
+### `GET /api/ai/experience/:experienceId/sage-notes`
+
+**Query:** `profileId` required (validates access to the Career ID profile).
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "content": "string | null",
+    "updatedAt": "string | null"
+  }
+}
+```
+
+### `PUT /api/ai/experience/:experienceId/sage-notes`
+
+**Request:**
+
+```json
+{
+  "profileId": "string",
+  "content": "string",
+  "metadata": {}
+}
+```
+
+Upserts `sage_profile_notes` for `target_type: 'experience'`, `target_id: experienceId`, `note_type: 'sage_notes'`.
+
+**Response:** success with saved row metadata (implementation-defined).
+
 ## Field Mapping
 
-| TypeScript (camelCase) | DB column (snake_case)  | Notes                             |
-|------------------------|-------------------------|-----------------------------------|
-| `userNotes`            | `user_notes`            | Renamed from `context_notes`      |
-| `sageNotes`            | `sage_notes`            | New column, nullable TEXT         |
+| Concept              | Career ID (`experience`)       | JobSearchSage (`sage_profile_notes`)        |
+|----------------------|--------------------------------|---------------------------------------------|
+| User-authored notes  | `context_notes` / `contextNotes` | —                                       |
+| Sage-generated notes | — (not stored on experience)   | `content` where `note_type` = `sage_notes` |
+
+| TypeScript (camelCase) | Source                                      |
+|------------------------|---------------------------------------------|
+| `contextNotes`         | `career_id.experience.context_notes` (unchanged) |
+| `sageNotes` (UI/API)   | Loaded/saved via `/api/ai/experience/.../sage-notes`, backed by `sage_profile_notes` |
 
 ## Migration Plan
 
-1. Write Supabase migration: `ALTER TABLE career_id.experience RENAME COLUMN context_notes TO user_notes; ALTER TABLE career_id.experience ADD COLUMN sage_notes TEXT;`
-2. Update `shared/types/careerId.ts` — rename `contextNotes` → `userNotes`, add `sageNotes`
-3. Update `server/utils/career-id-transformer.ts` — `transformExperience`
-4. Update `server/api/.../experience/[id].patch.ts` — field mapping
-5. Search and update all frontend references to `contextNotes` → `userNotes`
-6. Build 3 new Sage endpoints + `server/utils/sage-experience-enhancer.ts`
-7. Build 3 frontend Sage UI components
+1. Supabase migration (JobSearchSage only): create `sage_profile_notes` + indexes + RLS policies
+2. Implement `/api/ai/experience/*` endpoints + `sage_profile_notes` persistence + `server/utils/sage-experience-enhancer.ts`
+3. Build frontend Sage UI components and wire sage-notes fetch/put
 
-**Rollback**: If migration causes issues, rename `user_notes` back to `context_notes` and drop `sage_notes`. No data is lost.
+**Rollback (Career ID):** Not applicable — no Career ID migrations in this change.
+
+**Rollback (JobSearchSage):** Drop `sage_profile_notes` table only if no production data to preserve.
 
 ## Risks / Trade-offs
 
 - **10-second AI timeout** — Sage interview turns that require longer context may time out. Mitigation: keep conversation history to the last 3 turns (enforced max turn limit).
-- **`sage_notes` overwrite** — Users who re-run the interview lose their previous Sage-generated notes. Mitigation: display a confirmation warning before overwrite.
+- **Sage notes overwrite** — Users who confirm a new interview lose the previous Sage-generated notes row content for that experience. Mitigation: display a confirmation warning before overwrite.
 - **Nudge check adds a network call on every experience detail view** — Could add latency. Mitigation: fire the call after initial render (non-blocking); cache result for the session.
-- **`context_notes` rename is a breaking change** — Any client code or external integration relying on `contextNotes` will break. Mitigation: this field has no external consumers (internal SPA only); migration is atomic with code changes.
+- **Cross-store reads** — Experience detail must load Career ID experience plus `GET .../sage-notes` for read-only Sage section. Mitigation: parallel fetch; handle missing sage-notes as empty.
 
 ## Resolved Decisions
 
@@ -209,4 +272,4 @@ or
 
 **Nudge banner behavior.** The nudge banner is not a separate dismissal action — it is a call-to-action that navigates the user to start a new HERO story session with the current experience preloaded and prompted. The banner disappears once the user navigates away. No persistence of nudge state is needed. The nudge check result is cached for the current page session only.
 
-**`sage_notes` is strictly read-only to the user.** It is never exposed as an editable input in any view. Users who want to change Sage's notes must re-run the responsibility interview (notes help mode), which overwrites `sage_notes` after confirmation.
+**Sage notes are strictly read-only to the user in the UI.** They are never exposed as an editable input. Users change Sage notes only by re-running the responsibility interview (notes help mode) and confirming, which `PUT`s replacement content to `sage_profile_notes`.
