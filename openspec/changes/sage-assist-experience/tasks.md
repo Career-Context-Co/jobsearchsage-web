@@ -72,8 +72,8 @@
 
 ### BE-005: Sage notes read/write endpoints
 
-- [ ] Create `server/api/ai/experience/[experienceId]/sage-notes.get.ts` — query `profileId`; return current `content` for `sage_notes` row or null
-- [ ] Create `server/api/ai/experience/[experienceId]/sage-notes.put.ts` — body: `profileId`, `content`, optional `metadata`; upsert `sage_profile_notes`
+- [x] Create `server/api/ai/sage/notes.get.ts` — query: `profileId`, `targetType`, `targetId`, optional `noteType`; return current note `content` or null
+- [x] Create `server/api/ai/sage/notes.put.ts` — body: `profileId`, `targetType`, `targetId`, `content`, optional `noteType`/`metadata`; upsert `sage_profile_notes`
 
 **Dependencies:** BE-001  
 **Success criteria:** Frontend can load read-only Sage notes for display and persist after notes-help interview confirmation.
@@ -95,7 +95,7 @@
 
 ### FE-001: Load Sage notes for experience detail
 
-- [ ] Add composable or small helper — `GET /api/ai/experience/:experienceId/sage-notes?profileId=...` — expose reactive `sageNotesContent` for the detail view
+- [ ] Add composable or small helper — `GET /api/ai/sage/notes?profileId=...&targetType=experience&targetId=...&noteType=sage_notes` — expose reactive `sageNotesContent` for the detail view
 - [ ] Call when opening experience detail (parallel with profile data)
 
 **Dependencies:** BE-005  
@@ -122,7 +122,7 @@
 - [ ] Create `app/components/profile/sage/SageInterviewPanel.vue`
   - Props: `mode`, `experience`, `experienceId`, `profileId`
   - Calls `POST /api/ai/experience/interview` with `sageNotes` in payload when loaded from FE-001 (optional context)
-  - On `done: true` for `notes_help`: confirm → `PUT /api/ai/experience/:experienceId/sage-notes` — if existing content, overwrite confirmation modal first
+  - On `done: true` for `notes_help`: confirm → `PUT /api/ai/sage/notes` with `targetType=experience` + `targetId=experienceId` — if existing content, overwrite confirmation modal first
   - On `done: true` for `role_summary`: confirm → Career ID PATCH `summary` — overwrite confirmation if summary exists
 - [ ] Wire entry points on experience detail — slide-over
 

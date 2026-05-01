@@ -12,7 +12,7 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
 
 - Leave Career ID schema and Career ID experience field names unchanged (`context_notes` / `contextNotes`)
 - Persist Sage-generated notes in `sage_profile_notes` with logical references to Career ID profile objects (experience rows identified by id + profile id)
-- Implement stateless AI endpoints under `/api/ai/experience/` using the existing AI Gateway pattern
+- Implement stateless AI endpoints under `/api/ai/experience/` and `/api/ai/sage/` using the existing AI Gateway pattern
 - Implement `GET`/`PUT` sage-notes handlers that read/write `sage_profile_notes`
 - Deliver 3 frontend features in the experience detail view without putting Sage columns on Career ID PATCH payloads
 
@@ -52,7 +52,7 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
 
 **Alternative considered**: Two separate endpoints (`/interview-notes` and `/interview-summary`). Rejected — code duplication with no routing benefit.
 
-### Decision: Confirm notes help output via `PUT /api/ai/experience/:experienceId/sage-notes`
+### Decision: Confirm notes help output via `PUT /api/ai/sage/notes`
 
 **Choice**: Interview returns `output` only; persisting Sage notes is a separate explicit `PUT` after user confirmation. Role summary confirmation continues to use `PATCH .../career-id/.../experience/:id` with `summary`.
 
@@ -134,7 +134,7 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
 }
 ```
 
-`sageNotes` in the request body is optional context — sourced from `GET .../sage-notes` or empty if none.
+`sageNotes` in the request body is optional context — sourced from `GET /api/ai/sage/notes?...` or empty if none.
 
 **Response (ongoing):**
 
@@ -202,9 +202,9 @@ or
 }
 ```
 
-### `GET /api/ai/experience/:experienceId/sage-notes`
+### `GET /api/ai/sage/notes`
 
-**Query:** `profileId` required (validates access to the Career ID profile).
+**Query:** `profileId`, `targetType`, `targetId` required; `noteType` optional (defaults to `sage_notes`).
 
 **Response:**
 
@@ -218,19 +218,22 @@ or
 }
 ```
 
-### `PUT /api/ai/experience/:experienceId/sage-notes`
+### `PUT /api/ai/sage/notes`
 
 **Request:**
 
 ```json
 {
   "profileId": "string",
+  "targetType": "string",
+  "targetId": "string",
+  "noteType": "string (optional, defaults to sage_notes)",
   "content": "string",
   "metadata": {}
 }
 ```
 
-Upserts `sage_profile_notes` for `target_type: 'experience'`, `target_id: experienceId`, `note_type: 'sage_notes'`.
+Upserts `sage_profile_notes` for the provided `(targetType, targetId, noteType)` logical key.
 
 **Response:** success with saved row metadata (implementation-defined).
 
@@ -244,7 +247,7 @@ Upserts `sage_profile_notes` for `target_type: 'experience'`, `target_id: experi
 | TypeScript (camelCase) | Source                                      |
 |------------------------|---------------------------------------------|
 | `contextNotes`         | `career_id.experience.context_notes` (unchanged) |
-| `sageNotes` (UI/API)   | Loaded/saved via `/api/ai/experience/.../sage-notes`, backed by `sage_profile_notes` |
+| `sageNotes` (UI/API)   | Loaded/saved via `/api/ai/sage/notes`, backed by `sage_profile_notes` |
 
 ## Migration Plan
 
@@ -261,7 +264,7 @@ Upserts `sage_profile_notes` for `target_type: 'experience'`, `target_id: experi
 - **10-second AI timeout** — Sage interview turns that require longer context may time out. Mitigation: keep conversation history to the last 3 turns (enforced max turn limit).
 - **Sage notes overwrite** — Users who confirm a new interview lose the previous Sage-generated notes row content for that experience. Mitigation: display a confirmation warning before overwrite.
 - **Nudge check adds a network call on every experience detail view** — Could add latency. Mitigation: fire the call after initial render (non-blocking); cache result for the session.
-- **Cross-store reads** — Experience detail must load Career ID experience plus `GET .../sage-notes` for read-only Sage section. Mitigation: parallel fetch; handle missing sage-notes as empty.
+- **Cross-store reads** — Experience detail must load Career ID experience plus `GET /api/ai/sage/notes` for read-only Sage section. Mitigation: parallel fetch; handle missing sage-notes as empty.
 
 ## Resolved Decisions
 

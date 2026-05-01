@@ -37,13 +37,13 @@ The system SHALL provide a per-bullet AI enhancement flow on individual `highlig
 
 ### Requirement: Responsibility Interview
 
-The system SHALL provide a conversational AI interview accessible from the experience detail view with two distinct modes. The "notes help" mode produces output that SHALL be persisted to `sage_profile_notes` (Sage notes for that experience) after user confirmation via `PUT /api/ai/experience/:experienceId/sage-notes`. The "role summary" mode generates a `summary` that SHALL be saved via Career ID `PATCH` after confirmation. Both modes preserve existing persisted content until the user confirms replacement.
+The system SHALL provide a conversational AI interview accessible from the experience detail view with two distinct modes. The "notes help" mode produces output that SHALL be persisted to `sage_profile_notes` (Sage notes for that experience) after user confirmation via `PUT /api/ai/sage/notes` (with `targetType=experience`, `targetId=:experienceId`). The "role summary" mode generates a `summary` that SHALL be saved via Career ID `PATCH` after confirmation. Both modes preserve existing persisted content until the user confirms replacement.
 
 #### Scenario: Open notes help interview
 
 - **WHEN** a user opens the "Help me write my notes" interview from the experience detail view
 - **THEN** the system SHALL open an interview panel with `mode: notes_help`
-- **AND** Sage SHALL begin the conversation by calling `POST /api/ai/experience/interview` with experience context and optional current Sage notes from `GET /api/ai/experience/:experienceId/sage-notes`
+- **AND** Sage SHALL begin the conversation by calling `POST /api/ai/experience/interview` with experience context and optional current Sage notes from `GET /api/ai/sage/notes` using `targetType=experience` and `targetId=:experienceId`
 
 #### Scenario: Open role summary interview
 
@@ -61,7 +61,7 @@ The system SHALL provide a conversational AI interview accessible from the exper
 
 - **WHEN** the interview endpoint returns `done: true` for `mode: notes_help`
 - **THEN** the system SHALL display the generated notes content for user review
-- **AND** the user SHALL be able to confirm (save via `PUT /api/ai/experience/:experienceId/sage-notes`) or discard
+- **AND** the user SHALL be able to confirm (save via `PUT /api/ai/sage/notes` with `targetType=experience` and `targetId=:experienceId`) or discard
 
 #### Scenario: Interview completion — role summary
 
@@ -81,7 +81,7 @@ The system SHALL display Sage-generated notes for an experience as read-only con
 
 #### Scenario: Display Sage notes when present
 
-- **WHEN** `GET /api/ai/experience/:experienceId/sage-notes` returns non-empty content
+- **WHEN** `GET /api/ai/sage/notes` (for `targetType=experience`, `targetId=:experienceId`) returns non-empty content
 - **THEN** the experience detail view SHALL show a read-only section labeled as Sage-generated
 - **AND** the user SHALL NOT have a form field that edits Sage notes directly
 

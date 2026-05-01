@@ -9,12 +9,12 @@ Career ID is intended as a reusable profile API consumed by multiple apps; Sage-
 ## What Changes
 
 - **JobSearchSage schema** — New `sage_profile_notes` table stores Sage-generated notes keyed to Career ID profile objects (e.g. experience) via logical references — no FK into Career ID tables. Content for the responsibility interview "notes help" mode is written here (`note_type` such as `sage_notes`).
-- Sage AI endpoints live under `/api/ai/experience/` (not under `/api/career-id/.../sage/`):
+- Sage AI endpoints live under `/api/ai/experience/` plus generic Sage-note routes under `/api/ai/sage/` (not under `/api/career-id/.../sage/`):
   - `POST .../enhance-achievement` — per-bullet enhancement with a two-call Q&A flow
   - `POST .../interview` — conversational interview with two modes (`notes_help` → output confirmed via sage-notes API; `role_summary` → generates `summary` via Career ID PATCH)
   - `POST .../hero-nudge` — signal detection across `highlights`, `summary`, `contextNotes`, and Sage notes content (from request snapshot or loaded `sageNotes` for the experience)
-  - `GET .../:experienceId/sage-notes` — read current Sage notes for an experience
-  - `PUT .../:experienceId/sage-notes` — upsert Sage notes after interview confirmation (overwrites prior row per uniqueness constraint)
+  - `GET .../sage/notes` — read current Sage notes for a target (`targetType`/`targetId`)
+  - `PUT .../sage/notes` — upsert Sage notes after interview confirmation (overwrites prior row per uniqueness constraint)
 - Three new frontend features in the experience detail view:
   - Inline achievement enhancement panel on each `highlights` entry
   - Responsibility interview slide-over (mode-aware: notes help or role summary)
@@ -28,7 +28,7 @@ Career ID is intended as a reusable profile API consumed by multiple apps; Sage-
 
 ### Modified Capabilities
 
-- `profile-builder`: Sage-generated notes are not part of the Career ID experience schema; they are loaded/saved via `/api/ai/experience/.../sage-notes`. No Career ID schema or field rename in this change.
+- `profile-builder`: Sage-generated notes are not part of the Career ID experience schema; they are loaded/saved via `/api/ai/sage/notes`. No Career ID schema or field rename in this change.
 
 ## Impact
 
@@ -46,14 +46,14 @@ Career ID is intended as a reusable profile API consumed by multiple apps; Sage-
 - `server/api/ai/experience/enhance-achievement.post.ts` (new)
 - `server/api/ai/experience/interview.post.ts` (new)
 - `server/api/ai/experience/hero-nudge.post.ts` (new)
-- `server/api/ai/experience/[experienceId]/sage-notes.get.ts` (new)
-- `server/api/ai/experience/[experienceId]/sage-notes.put.ts` (new)
+- `server/api/ai/sage/notes.get.ts` (new)
+- `server/api/ai/sage/notes.put.ts` (new)
 - `server/utils/sage-experience-enhancer.ts` (new AI utility)
 - Server utilities for `sage_profile_notes` CRUD (shared with sage-notes handlers)
 
 **Frontend**
 
-- Composable or dedicated fetch for Sage notes — `GET /api/ai/experience/:experienceId/sage-notes`; confirm notes-help interview via `PUT` (not Career ID PATCH for Sage content)
+- Composable or dedicated fetch for Sage notes — `GET /api/ai/sage/notes` with target query params; confirm notes-help interview via `PUT` (not Career ID PATCH for Sage content)
 - New Sage UI components in `app/components/profile/sage/` (enhancement panel, interview panel, nudge banner)
 - Existing `contextNotes` on experience continues as today — no rename task.
 
