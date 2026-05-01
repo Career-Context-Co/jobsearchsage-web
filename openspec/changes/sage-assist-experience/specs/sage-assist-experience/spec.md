@@ -7,7 +7,7 @@ The system SHALL provide a per-bullet AI enhancement flow on individual `highlig
 #### Scenario: Trigger enhancement on a highlight
 
 - **WHEN** a user clicks the Sage enhance action on a `highlights` entry
-- **THEN** the system SHALL call `POST /api/ai/experience/enhance-achievement` with `profileId`, experience context, and the selected bullet
+- **THEN** the system SHALL call `POST /api/ai/experience/enhance-achievement` with experience context (`employer`, `title`, optional `summary`) and the selected bullet
 - **AND** the system SHALL display Sage's follow-up questions inline below the bullet
 
 #### Scenario: Submit answers and receive improved bullet
@@ -43,13 +43,13 @@ The system SHALL provide a conversational AI interview accessible from the exper
 
 - **WHEN** a user opens the "Help me write my notes" interview from the experience detail view
 - **THEN** the system SHALL open an interview panel with `mode: notes_help`
-- **AND** Sage SHALL begin the conversation by calling `POST /api/ai/experience/interview` with `profileId`, experience context, and optional current Sage notes from `GET /api/ai/experience/:experienceId/sage-notes`
+- **AND** Sage SHALL begin the conversation by calling `POST /api/ai/experience/interview` with experience context and optional current Sage notes from `GET /api/ai/experience/:experienceId/sage-notes`
 
 #### Scenario: Open role summary interview
 
 - **WHEN** a user opens the "Describe this role" interview from the experience detail view
 - **THEN** the system SHALL open an interview panel with `mode: role_summary`
-- **AND** Sage SHALL begin the conversation by calling `POST /api/ai/experience/interview` with `profileId` and the experience context
+- **AND** Sage SHALL begin the conversation by calling `POST /api/ai/experience/interview` with the experience context
 
 #### Scenario: Conversational turn
 

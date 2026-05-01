@@ -80,11 +80,10 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
 
 ```json
 {
-  "profileId": "string",
   "experience": {
     "title": "string",
     "employer": "string",
-    "employmentType": "string"
+    "summary": "string | null (optional)"
   },
   "bullet": "string",
   "answers": [{ "questionId": "string", "answer": "string" }]
@@ -121,7 +120,6 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
 
 ```json
 {
-  "profileId": "string",
   "mode": "notes_help | role_summary",
   "experience": {
     "title": "string",

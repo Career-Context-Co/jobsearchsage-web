@@ -26,11 +26,11 @@
 
 ### BE-002: Achievement enhancement endpoint
 
-- [ ] Create `server/utils/sage-experience-enhancer.ts` — scaffold with `generateText` + AI Gateway pattern (matching `profile-experience-enhancer.ts`); add `generateAchievementQuestions(experience, bullet)` and `generateImprovedBullet(experience, bullet, answers)`
-- [ ] Create `server/api/ai/experience/enhance-achievement.post.ts`
+- [x] Create `server/utils/sage-experience-enhancer.ts` — scaffold with `generateText` + AI Gateway pattern (matching `profile-experience-enhancer.ts`); add `generateAchievementQuestions(experience, bullet)` and `generateImprovedBullet(experience, bullet, answers)`
+- [x] Create `server/api/ai/experience/enhance-achievement.post.ts`
   - Phase detection: if `answers` is absent/empty → `generateAchievementQuestions`, return `{ phase: 'questions', questions }`
   - If `answers` provided → `generateImprovedBullet`, return `{ phase: 'result', improvedBullet }`
-  - Validate `profileId`, `experience`, and `bullet` required; return `VALIDATION_ERROR` if missing
+  - Validate `experience` (`employer`, `title`, optional `summary`) and `bullet` required; return `VALIDATION_ERROR` if missing
   - Wrap AI errors with structured error response (mirror `XYZEnhancementError` pattern)
 
 **Dependencies:** None  
@@ -40,12 +40,12 @@
 
 ### BE-003: Responsibility interview endpoint
 
-- [ ] Add `conductInterview(mode, experience, conversationHistory)` to `server/utils/sage-experience-enhancer.ts`
+- [x] Add `conductInterview(mode, experience, conversationHistory)` to `server/utils/sage-experience-enhancer.ts`
   - Notes help mode: prompt targets Sage notes output (persisted separately via sage-notes PUT)
   - Role summary mode: prompt targets `summary` text (user confirms via Career ID PATCH)
   - Returns `{ done: false, message }` or `{ done: true, output }` based on turn count (≥3 user turns → wrap up)
-- [ ] Create `server/api/ai/experience/interview.post.ts`
-  - Validate `profileId`, `mode` (`notes_help` | `role_summary`), `experience`, `conversationHistory`
+- [x] Create `server/api/ai/experience/interview.post.ts`
+  - Validate `mode` (`notes_help` | `role_summary`), `experience`, `conversationHistory`
   - Call `conductInterview`, return result
   - Handle AI errors with structured error response
 
@@ -106,7 +106,7 @@
 ### FE-002: Achievement enhancement UI
 
 - [ ] Create `app/components/profile/sage/SageAchievementEnhancer.vue`
-  - Accepts props: `experience` (title, employer, employmentType), `bullet` (string), `experienceId`, `profileId`
+  - Accepts props: `experience` (title, employer, summary), `bullet` (string), `experienceId`, `profileId`
   - State machine: `idle` → `loading-questions` → `answering` → `loading-result` → `review` → `idle`
   - Calls `POST /api/ai/experience/enhance-achievement`
   - Emits `confirm(improvedBullet)` and `discard`; parent handles Career ID PATCH for `highlights`
