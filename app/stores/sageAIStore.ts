@@ -8,6 +8,12 @@ type CapturedMomentInput = {
   rawNotes: string
 }
 
+type HeroNudgeDiscoveryStartParams = {
+  profileId: string
+  nudgeId: string
+  experience: Experience
+}
+
 const dedupeCapturedMoments = (moments: CapturedMomentInput[]) => {
   const seen = new Set<string>()
   return moments.filter((moment) => {
@@ -173,7 +179,7 @@ export const useSageAIStore = defineStore('sageAI', {
           throw new Error('Failed to start discovery session')
         }
 
-        this.discoverySession = {
+        const session: DiscoverySession = {
           id: response.session_id,
           profile_id: profileId,
           session_status: 'active',
@@ -190,12 +196,13 @@ export const useSageAIStore = defineStore('sageAI', {
               current_role,
               years_experience,
               source_experience_id: sourceExperience?.id ?? null,
-              source_experience: sourceExperience ?? null
+              source_experience: sourceExperience ? { ...sourceExperience } : null
             }
           }
         }
 
-        this.saveSessionToCache(this.discoverySession)
+        this.discoverySession = session
+        this.saveSessionToCache(session)
 
         return response
       } catch (error: any) {
@@ -327,6 +334,181 @@ export const useSageAIStore = defineStore('sageAI', {
         const errorMessage = error?.data?.error?.message || error?.message || 'Failed to end discovery session'
         this.error = errorMessage
         console.error('endDiscoverySession failed', error)
+        throw error
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async startNudgeDiscoverySession(params: HeroNudgeDiscoveryStartParams) {
+      const { profileId, nudgeId, experience } = params
+      this.isLoading = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          data: {
+            sessionId: number
+            heroStoryId: string
+            message: string
+          }
+        }>('/api/ai/hero-discovery/nudge/start', {
+          method: 'POST',
+          body: {
+            profileId,
+            nudgeId,
+            experience
+          }
+        })
+
+        if (!response.success || !response.data?.sessionId) {
+          throw new Error('Failed to start HERO nudge discovery')
+        }
+
+        const session: DiscoverySession = {
+          id: response.data.sessionId,
+          profile_id: profileId,
+          session_status: 'active',
+          started_at: new Date().toISOString(),
+          ended_at: null,
+          moment_count: 0,
+          session_type: 'experience_nudge_story',
+          source_type: 'experience',
+          source_experience_id: experience.id,
+          hero_nudge_id: nudgeId,
+          hero_story_id: response.data.heroStoryId,
+          progress_count: 0,
+          session_data: {
+            mode: 'experience_nudge_story',
+            conversation_history: [
+              { role: 'assistant' as const, content: response.data.message }
+            ],
+            source_snapshot: { ...experience },
+            nudge: { id: nudgeId },
+            story_progress: {
+              answeredQuestions: 0,
+              completedFields: []
+            }
+          }
+        }
+
+        this.discoverySession = session
+        this.saveSessionToCache(session)
+
+        return response.data
+      } catch (error: unknown) {
+        const e = error as { data?: { error?: { message?: string } }, message?: string }
+        const errorMessage = e?.data?.error?.message || e?.message || 'Failed to start HERO nudge discovery'
+        this.error = errorMessage
+        console.error('startNudgeDiscoverySession failed', error)
+        throw error
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async continueNudgeDiscoverySession(sessionId: number, userMessage: string) {
+      this.isLoading = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          data: {
+            message: string
+            completedFields: string[]
+            shouldEndSession: boolean
+            heroStoryId: string | null
+          }
+        }>('/api/ai/hero-discovery/nudge/continue', {
+          method: 'POST',
+          body: {
+            sessionId,
+            userMessage
+          }
+        })
+
+        if (!response.success) {
+          throw new Error('Failed to continue HERO nudge discovery')
+        }
+
+        if (this.discoverySession && this.discoverySession.id === sessionId) {
+          const history = this.discoverySession.session_data?.conversation_history ?? []
+          const updatedHistory = [
+            ...history,
+            { role: 'user' as const, content: userMessage },
+            { role: 'assistant' as const, content: response.data.message }
+          ]
+
+          this.discoverySession = {
+            ...this.discoverySession,
+            hero_story_id: response.data.heroStoryId ?? this.discoverySession.hero_story_id,
+            progress_count: response.data.completedFields.length,
+            session_data: {
+              ...this.discoverySession.session_data,
+              conversation_history: updatedHistory,
+              story_progress: {
+                answeredQuestions: updatedHistory.filter(entry => entry.role === 'user').length,
+                completedFields: response.data.completedFields
+              }
+            }
+          }
+        }
+
+        if (this.discoverySession) {
+          this.saveSessionToCache(this.discoverySession)
+        }
+
+        return response.data
+      } catch (error: unknown) {
+        const e = error as { data?: { error?: { message?: string } }, message?: string }
+        const errorMessage = e?.data?.error?.message || e?.message || 'Failed to continue HERO nudge discovery'
+        this.error = errorMessage
+        console.error('continueNudgeDiscoverySession failed', error)
+        throw error
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async endNudgeDiscoverySession(sessionId: number) {
+      this.isLoading = true
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          data: {
+            sessionId: number
+            heroStoryId: string | null
+          }
+        }>('/api/ai/hero-discovery/nudge/end', {
+          method: 'POST',
+          body: { sessionId }
+        })
+
+        if (!response.success) {
+          throw new Error('Failed to end HERO nudge discovery')
+        }
+
+        if (this.discoverySession && this.discoverySession.id === sessionId) {
+          this.discoverySession = {
+            ...this.discoverySession,
+            session_status: 'completed',
+            ended_at: new Date().toISOString(),
+            hero_story_id: response.data.heroStoryId ?? this.discoverySession.hero_story_id
+          }
+        }
+
+        this.clearSessionCache()
+
+        return response.data
+      } catch (error: unknown) {
+        const e = error as { data?: { error?: { message?: string } }, message?: string }
+        const errorMessage = e?.data?.error?.message || e?.message || 'Failed to end HERO nudge discovery'
+        this.error = errorMessage
+        console.error('endNudgeDiscoverySession failed', error)
         throw error
       } finally {
         this.isLoading = false

@@ -168,7 +168,110 @@
 
 ---
 
-## PHASE 4: FOLLOW-UP HARDENING
+## PHASE 4: HERO NUDGE PERSISTENCE + DISCOVERY REWORK
+
+### DB-002: Persist HERO nudges and update discovery session model
+
+- [x] Create migration for `hero_story_nudges`
+  - Columns: `id`, `profile_id`, `experience_id`, `content_hash`, `signal`, `context`, `status`, `accepted_at`, `declined_at`, `hero_story_id`, `discovery_session_id`, timestamps
+  - Status values: `active`, `accepted`, `declined`, `converted`, `stale`
+  - Unique key on `(profile_id, experience_id, content_hash)`
+  - RLS policies consistent with profile-scoped JobSearchSage tables
+- [x] Alter `hero_discovery_sessions` for mixed discovery modes
+  - Add `session_type`, `source_type`, `source_experience_id`, `hero_nudge_id`, `hero_story_id`, `progress_count`
+  - Keep `moment_count` for legacy `moment_discovery` only
+  - Add indexes for nudge/story lookup and active source-experience sessions
+- [x] Apply migration before implementing app code that reads/writes the new model
+
+**Dependencies:** BE-004  
+**Success criteria:** Nudges can be persisted and discovery sessions can represent `experience_nudge_story` without using `captured_moments` or `moment_count`.
+
+---
+
+### BE-006: Persisted HERO nudge lifecycle
+
+- [x] Add server utility for HERO nudge persistence
+  - Compute stable content hash from summary, achievements, context notes, and Sage notes
+  - Reuse active nudge for unchanged `(profile_id, experience_id, content_hash)`
+  - Mark older active nudges stale when content hash changes
+  - Set `accepted_at` when the user starts the nudge story flow
+  - Set `declined_at` when the user dismisses/declines the nudge
+- [x] Update `POST /api/ai/experience/hero-nudge`
+  - Return persisted nudge data (`id`, `status`, timestamps, linked story/session ids)
+  - Avoid AI provider call when a matching active nudge exists
+- [x] Add decline endpoint for persisted nudges
+
+**Dependencies:** DB-002, BE-004  
+**Success criteria:** Nudge checks are durable, deduplicated by content hash, and track accepted/declined behavior.
+
+---
+
+### BE-007: Nudge-driven HERO discovery endpoints
+
+- [x] Add `POST /api/ai/hero-discovery/nudge/start`
+  - Accepts `profileId`, `nudgeId`, and experience snapshot
+  - Creates or reuses partial `hero_story` linked to source experience
+  - Creates or reuses `hero_discovery_sessions` with `session_type='experience_nudge_story'`
+  - Sets `accepted_at` on the nudge
+  - Returns `sessionId`, `heroStoryId`, and first AI question
+- [x] Add `POST /api/ai/hero-discovery/nudge/continue`
+  - Reads session history from `hero_discovery_sessions`
+  - Asks focused HERO story questions
+  - Updates `session_data.conversation_history`, `session_data.story_progress`, `progress_count`
+  - Updates linked partial HERO story as structured story fields are collected
+- [x] Add `POST /api/ai/hero-discovery/nudge/end`
+  - Marks session complete
+  - Marks nudge converted
+  - Returns linked `heroStoryId`
+- [x] Ensure nudge-driven endpoints do not read or write `captured_moments` or `moment_count`
+
+**Dependencies:** DB-002, BE-006  
+**Success criteria:** Accepting a nudge starts a focused story interview from the experience/nudge context and never creates `hero_moments`.
+
+---
+
+### FE-006: Persistent nudge banner flow
+
+- [x] Replace page-session-only nudge cache with persisted nudge API data
+- [x] Render active persisted nudge after experience save/add, achievement enhancement, summary updates, or notes updates
+- [x] CTA calls nudge discovery start endpoint instead of creating a blank story directly
+- [x] Dismiss action calls nudge decline endpoint and hides current-content nudge
+- [x] Route into HERO page with `nudgeSessionId` and `heroStoryId`
+
+**Dependencies:** BE-006, BE-007  
+**Success criteria:** The banner reflects persisted nudge state, records accepted/declined behavior, and opens the correct nudge-driven story session.
+
+---
+
+### FE-007: Nudge discovery panel and HERO panel unification
+
+- [x] Update HERO page to recognize `nudgeSessionId`
+- [x] Make discovery session UI mode-aware
+  - `moment_discovery`: legacy captured moments language
+  - `experience_nudge_story`: source experience/nudge context and story questions
+- [x] Remove `capturedMoments` dependency from the nudge-driven UI path
+- [x] Update discovery slideout to use the same panel/slideover presentation pattern as the HERO story session instead of the floating drawer
+- [x] Transition from nudge discovery to the linked HERO story session/panel when story shaping is ready
+
+**Dependencies:** BE-007  
+**Success criteria:** Nudge discovery feels like part of the HERO story assistant, not a separate moments flow.
+
+---
+
+### QA-001: Persistent nudge manual validation
+
+- [x] Add manual payloads for nudge create/reuse/stale behavior
+- [x] Add manual payloads for nudge accept/decline/converted lifecycle
+- [x] Add manual payloads for nudge discovery start/continue/end
+- [x] Verify accepting a nudge creates or reuses a linked partial HERO story
+- [x] Verify nudge-driven discovery creates no `hero_moments`
+
+**Dependencies:** DB-002, BE-006, BE-007, FE-006, FE-007  
+**Success criteria:** Full nudge lifecycle can be validated without relying on the legacy moments path.
+
+---
+
+## PHASE 5: FOLLOW-UP HARDENING
 
 ### FH-001: Extend question-engine/interceptor pattern beyond experience endpoints
 

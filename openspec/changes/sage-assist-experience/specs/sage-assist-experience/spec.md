@@ -85,27 +85,50 @@ The system SHALL display Sage-generated notes for an experience as read-only con
 - **THEN** the experience detail view SHALL show a read-only section labeled as Sage-generated
 - **AND** the user SHALL NOT have a form field that edits Sage notes directly
 
-### Requirement: HERO Nudge Signal Detection
+### Requirement: Persistent HERO Nudge Signal Detection
 
-The system SHALL analyze an experience entry's content (`highlights`, `summary`, `contextNotes` from Career ID, and Sage notes content from `sage_profile_notes` included in the request snapshot) and surface a non-blocking nudge when strong HERO signal is detected. Strong signal includes: quantified results, cross-functional work, scope or leadership language, or challenges overcome.
+The system SHALL analyze an experience entry's content (`highlights`, `summary`, `contextNotes` from Career ID, and Sage notes content from `sage_profile_notes` included in the request snapshot) and persist a HERO story nudge when strong HERO signal is detected. Strong signal includes: quantified results, cross-functional work, scope or leadership language, or challenges overcome. A nudge SHALL be keyed by profile, experience, and a content hash so repeated checks reuse the same active nudge until the experience content changes.
 
-#### Scenario: Nudge check on experience detail load
+#### Scenario: Nudge check after experience content changes
 
-- **WHEN** a user opens an experience detail view
-- **THEN** the system SHALL call `POST /api/ai/experience/hero-nudge` with an experience snapshot that includes `sageNotes` loaded from `sage_profile_notes` when available
-- **AND** if `nudge: true` is returned, the system SHALL display the non-blocking nudge banner
+- **WHEN** a user adds or updates an experience, updates its summary, updates an achievement, or updates its notes
+- **THEN** the system SHALL call `POST /api/ai/experience/hero-nudge` with the latest saved experience snapshot
+- **AND** the snapshot SHALL include `sageNotes` loaded from `sage_profile_notes` when available
+- **AND** if the endpoint detects a strong signal, it SHALL create or return an active persisted HERO nudge for the current experience content hash
+
+#### Scenario: Existing active nudge is reused
+
+- **WHEN** the system checks an experience whose content hash matches an existing active HERO nudge
+- **THEN** the endpoint SHALL return the existing nudge without calling the AI provider again
+- **AND** the nudge banner SHALL display from persisted data
+
+#### Scenario: Experience content changes after a nudge
+
+- **WHEN** the system checks an experience whose content hash differs from an existing active nudge for the same experience
+- **THEN** the system SHALL mark the older nudge stale
+- **AND** it SHALL evaluate the new snapshot for a new active nudge
 
 #### Scenario: Nudge banner content
 
 - **WHEN** the nudge banner is displayed
-- **THEN** it SHALL include Sage's reason for the nudge (signal summary)
-- **AND** it SHALL include a single call-to-action that navigates the user to start a new HERO story session with the current experience preloaded
+- **THEN** it SHALL include a short second-person signal sentence
+- **AND** it SHALL include one short second-person context sentence
+- **AND** it SHALL include a call-to-action to start the HERO story interview
+- **AND** it MAY include a dismiss action
 
-#### Scenario: User acts on nudge
+#### Scenario: User accepts nudge
 
 - **WHEN** the user clicks the nudge banner action
-- **THEN** the system SHALL navigate to the HERO story creation flow with the current experience ID and a pre-populated prompt context
-- **AND** the nudge banner SHALL no longer be visible upon return to the experience view within the same session
+- **THEN** the system SHALL set `accepted_at` on the persisted nudge
+- **AND** it SHALL create or reuse a partial HERO story linked to the source experience
+- **AND** it SHALL create or reuse a HERO discovery session with `session_type='experience_nudge_story'`
+- **AND** it SHALL open the HERO assistance panel for that nudge-driven story session
+
+#### Scenario: User declines nudge
+
+- **WHEN** the user dismisses or explicitly declines a nudge
+- **THEN** the system SHALL set `declined_at` on the persisted nudge
+- **AND** it SHALL stop showing that nudge while its content hash remains current
 
 #### Scenario: No nudge returned
 
@@ -117,3 +140,35 @@ The system SHALL analyze an experience entry's content (`highlights`, `summary`,
 - **WHEN** the nudge check is called on an experience with empty `highlights`, `summary`, `contextNotes`, and no Sage notes content
 - **THEN** the endpoint SHALL return `nudge: false`
 - **AND** no nudge banner SHALL be shown
+
+### Requirement: Nudge-Driven HERO Discovery Session
+
+The system SHALL support a HERO discovery session mode that starts from a persisted HERO nudge and source experience instead of broad moment discovery. This session SHALL ask story-shaping questions and create or update a partial HERO story. It SHALL NOT create `hero_moments`.
+
+#### Scenario: Start nudge-driven discovery
+
+- **WHEN** a user accepts a HERO nudge
+- **THEN** the system SHALL create or reuse a `hero_discovery_sessions` row with `session_type='experience_nudge_story'`
+- **AND** the row SHALL reference the source experience, persisted nudge, and linked HERO story using first-class columns
+- **AND** `session_data` SHALL store the source experience snapshot, nudge copy, conversation history, and story progress state
+
+#### Scenario: Continue nudge-driven discovery
+
+- **WHEN** the user answers a nudge-driven HERO discovery question
+- **THEN** the system SHALL ask focused HERO story questions for missing Hurdle, Expectation, Response, and Outcome details
+- **AND** the system SHALL update conversation history and story progress
+- **AND** the system SHALL update `progress_count` based on story progress, not moment count
+
+#### Scenario: Complete nudge-driven discovery
+
+- **WHEN** the nudge-driven discovery session has enough story detail
+- **THEN** the system SHALL update the linked partial HERO story
+- **AND** it SHALL mark the discovery session completed
+- **AND** it SHALL mark the nudge converted
+- **AND** it SHALL open or return the linked HERO story session
+
+#### Scenario: Legacy moment discovery remains isolated
+
+- **WHEN** a session has `session_type='moment_discovery'`
+- **THEN** existing `captured_moments` and `moment_count` behavior MAY continue to work for legacy flows
+- **AND** nudge-driven sessions SHALL NOT read or write `captured_moments` or `moment_count`

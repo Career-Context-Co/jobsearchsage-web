@@ -89,12 +89,26 @@ const sageSessionOpen = ref(false)
 const sageSessionExperienceId = ref<number | null>(null)
 const startingHeroExperienceId = ref<number | null>(null)
 
-type HeroNudgeLoadingState = { loading: true, dismissed?: boolean }
-type HeroNudgeEmptyState = { loading: false, dismissed?: boolean, nudge: false }
-type HeroNudgeActiveState = { loading: false, dismissed?: boolean, nudge: true, signal: string, context: string }
+type HeroNudgeLoadingState = { loading: true }
+type HeroNudgeEmptyState = { loading: false, nudge: false }
+type HeroNudgeActiveState = {
+  loading: false
+  nudge: true
+  id: string
+  experienceId: number
+  contentHash: string
+  signal: string
+  context: string
+  status: 'active' | 'accepted' | 'declined' | 'converted' | 'stale'
+  heroStoryId: string | null
+  discoverySessionId: number | null
+  acceptedAt: string | null
+  declinedAt: string | null
+}
 type HeroNudgeState = HeroNudgeLoadingState | HeroNudgeEmptyState | HeroNudgeActiveState
 
 const heroNudgesByExperienceId = ref<Record<number, HeroNudgeState>>({})
+const expandedHeroNudgeIds = ref<Set<number>>(new Set())
 
 const sageSessionExperience = computed(() =>
   sageSessionExperienceId.value !== null
@@ -118,9 +132,68 @@ function heroNudgeFor(experienceId: number): HeroNudgeState | null {
 
 function activeHeroNudgeFor(experienceId: number) {
   const nudge = heroNudgeFor(experienceId)
-  return nudge?.loading === false && nudge.dismissed !== true && nudge.nudge === true
+  return nudge?.loading === false && nudge.nudge === true && nudge.status === 'active'
     ? nudge
     : null
+}
+
+function isHeroNudgeExpanded(experienceId: number) {
+  return expandedHeroNudgeIds.value.has(experienceId)
+}
+
+function expandHeroNudge(experienceId: number) {
+  expandedHeroNudgeIds.value = new Set([...expandedHeroNudgeIds.value, experienceId])
+}
+
+function collapseHeroNudge(experienceId: number) {
+  const next = new Set(expandedHeroNudgeIds.value)
+  next.delete(experienceId)
+  expandedHeroNudgeIds.value = next
+}
+
+function setHeroNudgeState(nudge: Omit<HeroNudgeActiveState, 'loading'>, expanded = false) {
+  heroNudgesByExperienceId.value = {
+    ...heroNudgesByExperienceId.value,
+    [nudge.experienceId]: {
+      loading: false,
+      nudge: true,
+      id: nudge.id,
+      experienceId: nudge.experienceId,
+      contentHash: nudge.contentHash,
+      signal: nudge.signal,
+      context: nudge.context,
+      status: nudge.status,
+      heroStoryId: nudge.heroStoryId,
+      discoverySessionId: nudge.discoverySessionId,
+      acceptedAt: nudge.acceptedAt,
+      declinedAt: nudge.declinedAt
+    }
+  }
+
+  if (expanded) {
+    expandHeroNudge(nudge.experienceId)
+  }
+}
+
+async function loadPersistedHeroNudges(profileId: string) {
+  if (!accountStore.isHeroEnabled) return
+
+  try {
+    const response = await $fetch<{
+      success: boolean
+      data: Array<Omit<HeroNudgeActiveState, 'loading'>>
+    }>('/api/ai/experience/hero-nudge', {
+      query: { profileId }
+    })
+
+    if (!response.success) return
+
+    for (const nudge of response.data) {
+      setHeroNudgeState(nudge, false)
+    }
+  } catch (error) {
+    console.error('Failed to load persisted HERO nudges', error)
+  }
 }
 
 async function checkHeroNudgeForExperience(experience: Experience) {
@@ -145,12 +218,18 @@ async function checkHeroNudgeForExperience(experience: Experience) {
   }
 
   try {
+    const profileId = careerIDStore.profile?.id || careerIDStore.profileId || accountStore.profileId
+    if (!profileId) return
+    const sageNotes = sageAIStore.experienceSageNotesFor(profileId, experience.id)?.content ?? null
+
     const response = await $fetch<{
       success: boolean
-      data: { nudge: false } | { nudge: true, signal: string, context: string }
+      data: { nudge: false } | Omit<HeroNudgeActiveState, 'loading'>
     }>('/api/ai/experience/hero-nudge', {
       method: 'POST',
       body: {
+        profileId,
+        experienceId: experience.id,
         experience: {
           id: experience.id,
           title: experience.title,
@@ -158,21 +237,18 @@ async function checkHeroNudgeForExperience(experience: Experience) {
           highlights: experience.highlights,
           summary: experience.summary ?? null,
           contextNotes: experience.contextNotes ?? null,
-          sageNotes: null
+          sageNotes
         }
       }
     })
 
-    heroNudgesByExperienceId.value = {
-      ...heroNudgesByExperienceId.value,
-      [experience.id]: response.data.nudge
-        ? {
-            loading: false,
-            nudge: true,
-            signal: response.data.signal,
-            context: response.data.context
-          }
-        : { loading: false, nudge: false }
+    if (response.data.nudge) {
+      setHeroNudgeState(response.data, true)
+    } else {
+      heroNudgesByExperienceId.value = {
+        ...heroNudgesByExperienceId.value,
+        [experience.id]: { loading: false, nudge: false }
+      }
     }
   } catch (error) {
     console.error('HERO nudge check failed', error)
@@ -183,14 +259,25 @@ async function checkHeroNudgeForExperience(experience: Experience) {
   }
 }
 
-function dismissHeroNudge(experienceId: number) {
+async function dismissHeroNudge(experienceId: number) {
   const existing = heroNudgesByExperienceId.value[experienceId]
-  heroNudgesByExperienceId.value = {
-    ...heroNudgesByExperienceId.value,
-    [experienceId]: {
-      ...(existing ?? { loading: false, nudge: false }),
-      dismissed: true
-    } as HeroNudgeState
+  if (existing?.loading === false && existing.nudge === true) {
+    try {
+      await $fetch(`/api/ai/experience/hero-nudge/${existing.id}/decline`, {
+        method: 'POST'
+      })
+      heroNudgesByExperienceId.value = {
+        ...heroNudgesByExperienceId.value,
+        [experienceId]: {
+          ...existing,
+          status: 'declined',
+          declinedAt: new Date().toISOString()
+        }
+      }
+      collapseHeroNudge(experienceId)
+    } catch (error) {
+      console.error('Failed to decline HERO nudge', error)
+    }
   }
 }
 
@@ -199,22 +286,22 @@ async function startHeroInterview(experienceId: number) {
 
   const experience = careerIDStore.experience.find(exp => exp.id === experienceId)
   const profileId = careerIDStore.profile?.id || careerIDStore.profileId || accountStore.profileId
-  if (!experience || !profileId) return
+  const nudge = activeHeroNudgeFor(experienceId)
+  if (!experience || !profileId || !nudge) return
 
   startingHeroExperienceId.value = experienceId
 
   try {
-    const storyTitle = `${experience.title} at ${experience.employer}`
-    const createdStory = await careerIDStore.createStory(profileId, {
-      title: storyTitle,
-      sourceExperienceId: experience.id,
-      displayOrder: careerIDStore.heroStories.length + 1
+    const result = await sageAIStore.startNudgeDiscoverySession({
+      profileId,
+      nudgeId: nudge.id,
+      experience
     })
 
     await router.push({
       path: '/profile/hero',
       query: {
-        heroStoryId: createdStory.id
+        highlightStoryId: result.heroStoryId
       }
     })
   } catch (error) {
@@ -475,7 +562,7 @@ async function addExperience() {
       endDate: formData.value.currentPosition ? undefined : formatDateForAPI(formData.value.endDate),
       currentPosition: formData.value.currentPosition || false,
       summary: formData.value.summary || undefined,
-      contextNotes: formData.value.contextNotes || undefined,
+      contextNotes: formData.value.contextNotes ?? null,
       highlights,
       displayOrder: experiences.value.length + 1
     })
@@ -526,7 +613,7 @@ async function updateExperience() {
       endDate: formData.value.currentPosition ? undefined : formatDateForAPI(formData.value.endDate),
       currentPosition: formData.value.currentPosition || false,
       summary: formData.value.summary || undefined,
-      contextNotes: formData.value.contextNotes || undefined,
+      contextNotes: formData.value.contextNotes ?? null,
       highlights
     })
     
@@ -608,6 +695,7 @@ onMounted(async () => {
       await Promise.all(
         experienceIds.map(id => sageAIStore.loadSageNotesForExperience(profileId, id))
       )
+      await loadPersistedHeroNudges(profileId)
     }
   } catch (err: any) {
     // Check if it's a 404 or profile not found error
@@ -935,16 +1023,28 @@ onMounted(async () => {
                 </p>
               </div>
 
-              <ProfileSageHeroNudge
-                v-if="activeHeroNudgeFor(experience.id)"
-                class="mt-3"
-                :signal="activeHeroNudgeFor(experience.id)!.signal"
-                :context="activeHeroNudgeFor(experience.id)!.context"
-                :experience-id="experience.id"
-                :is-loading="startingHeroExperienceId === experience.id"
-                @start="startHeroInterview"
-                @dismiss="dismissHeroNudge"
-              />
+              <div v-if="activeHeroNudgeFor(experience.id)" class="mt-3">
+                <ProfileSageHeroNudge
+                  v-if="isHeroNudgeExpanded(experience.id)"
+                  :signal="activeHeroNudgeFor(experience.id)!.signal"
+                  :context="activeHeroNudgeFor(experience.id)!.context"
+                  :experience-id="experience.id"
+                  :is-loading="startingHeroExperienceId === experience.id"
+                  @start="startHeroInterview"
+                  @dismiss="dismissHeroNudge"
+                />
+                <UButton
+                  v-else
+                  color="primary"
+                  variant="soft"
+                  size="xs"
+                  icon="i-lucide-zap"
+                  class="cursor-pointer"
+                  @click="expandHeroNudge(experience.id)"
+                >
+                  Possible HERO story
+                </UButton>
+              </div>
 
               <div v-if="experience.url" class="mt-3">
                 <a

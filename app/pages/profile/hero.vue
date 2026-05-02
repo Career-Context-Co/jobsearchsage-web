@@ -24,13 +24,16 @@ const { discoverySession, isLoading: isDiscoveryLoading, error: discoveryError }
 
 const profileId = computed(() => careerIDStore.profile?.id || careerIDStore.profileId || accountStore.profileId)
 const savedDiscoverySessions = new Set<number>()
+type HeroAssistantMode = 'launcher' | 'story' | 'discovery'
 
 // Show create form inline
 const isShowingCreateForm = ref(false)
 
-// AI Panel state
-const isAIPanelOpen = ref(false)
+// HERO assistant panel state
+const isHeroAssistantOpen = ref(false)
+const heroAssistantMode = ref<HeroAssistantMode>('launcher')
 const currentStoryIdForAI = ref<string | null>(null)
+const editingStoryId = ref<string | null>(null)
 
 // Pending AI suggestions for existing stories (edit mode)
 const pendingStoryAISuggestions = ref<{
@@ -150,19 +153,52 @@ async function handleSaveNewStory() {
 
 const isDiscoveryDrawerOpen = computed(() => route.query.discoverySession === 'true')
 const routeSourceExperienceId = computed(() => normalizeSourceExperienceId(route.query.sourceExperienceId))
+const routeHighlightStoryId = computed(() => {
+  return typeof route.query.highlightStoryId === 'string' && route.query.highlightStoryId.trim()
+    ? route.query.highlightStoryId.trim()
+    : null
+})
 const routeHeroStoryId = computed(() => {
   return typeof route.query.heroStoryId === 'string' && route.query.heroStoryId.trim()
     ? route.query.heroStoryId.trim()
     : null
 })
 
+const heroAssistantTitle = computed(() => {
+  if (heroAssistantMode.value === 'story') return 'Get AI Help for Your Story'
+  if (heroAssistantMode.value === 'discovery') return 'HERO Discovery Session'
+  return 'HERO AI Help'
+})
+
+const currentStoryForAI = computed(() => {
+  return currentStoryIdForAI.value && currentStoryIdForAI.value !== 'create'
+    ? heroStories.value.find(story => story.id === currentStoryIdForAI.value) ?? null
+    : null
+})
+
+const heroAssistantSubtitle = computed(() => {
+  if (heroAssistantMode.value === 'story') {
+    return currentStoryIdForAI.value === 'create'
+      ? 'Working on: New HERO story'
+      : `Working on: ${currentStoryForAI.value?.title ?? 'Selected HERO story'}`
+  }
+  if (heroAssistantMode.value === 'discovery') return 'Talk through your work to find strong story ideas.'
+  return 'Choose how you want to work with HERO.'
+})
+
 const chatMessages = computed(() => discoverySession.value?.session_data?.conversation_history ?? [])
+const isNudgeDiscoverySession = computed(() => {
+  return discoverySession.value?.session_type === 'experience_nudge_story'
+    || discoverySession.value?.session_data?.mode === 'experience_nudge_story'
+})
 const capturedMoments = computed(() =>
-  (discoverySession.value?.session_data?.captured_moments ?? []).map((moment, index) => ({
+  isNudgeDiscoverySession.value
+    ? []
+    : (discoverySession.value?.session_data?.captured_moments ?? []).map((moment, index) => ({
     id: `${discoverySession.value?.id ?? 'session'}-${index}`,
     title: moment.title,
     rawNotes: moment.rawNotes
-  }))
+    }))
 )
 
 async function handleSaveStory(payload: { story?: HeroStory, updates?: Partial<HeroStory> }) {
@@ -174,6 +210,9 @@ async function handleSaveStory(payload: { story?: HeroStory, updates?: Partial<H
     careerIDStore.error = null
 
     await careerIDStore.updateStory(profileId.value, storyId, payload.updates)
+    if (editingStoryId.value === storyId) {
+      editingStoryId.value = null
+    }
     toast.add({
       title: 'Success',
       description: 'Your HERO story has been updated.',
@@ -260,20 +299,75 @@ async function ensureDiscoverySession() {
 }
 
 function openDiscoverySession() {
+  heroAssistantMode.value = 'discovery'
+  isHeroAssistantOpen.value = true
   router.push({
     query: { ...route.query, discoverySession: 'true' }
   })
   ensureDiscoverySession()
 }
 
-function closeDiscoverySession() {
+function openHeroLauncher() {
+  heroAssistantMode.value = 'launcher'
+  currentStoryIdForAI.value = null
+  isHeroAssistantOpen.value = true
+}
+
+function backToHeroLauncher() {
+  heroAssistantMode.value = 'launcher'
+  currentStoryIdForAI.value = null
+  clearAssistantRouteQuery()
+}
+
+function handleLauncherStorySelect(storyId: string) {
+  openAIPanelForStory(storyId)
+}
+
+function handleLauncherCreateStory() {
+  closeHeroAssistant()
+  startAddingStory()
+}
+
+function handleStoryEditCancel() {
+  editingStoryId.value = null
+}
+
+function handleLauncherDiscovery() {
+  openDiscoverySession()
+}
+
+function clearAssistantRouteQuery() {
   const query = { ...route.query }
   delete query.discoverySession
-  router.push({ query })
+  delete query.heroStoryId
+  router.replace({ query })
+}
+
+function closeHeroAssistant() {
+  isHeroAssistantOpen.value = false
+  currentStoryIdForAI.value = null
+  clearAssistantRouteQuery()
+}
+
+function closeDiscoverySession() {
+  closeHeroAssistant()
 }
 
 async function handleSendMessage(payload: { userMessage: string, capturedMoments: Array<{ title: string, rawNotes: string }> }) {
   if (!discoverySession.value?.id) return
+
+  if (isNudgeDiscoverySession.value) {
+    const response = await sageAIStore.continueNudgeDiscoverySession(
+      discoverySession.value.id,
+      payload.userMessage
+    )
+
+    if (response?.shouldEndSession) {
+      await handleEndSession()
+    }
+    return
+  }
+
   const response = await sageAIStore.continueDiscoverySession(
     discoverySession.value.id,
     payload.userMessage,
@@ -287,7 +381,20 @@ async function handleSendMessage(payload: { userMessage: string, capturedMoments
 
 async function handleEndSession() {
   if (!discoverySession.value?.id) return
+
+  if (isNudgeDiscoverySession.value) {
+    const result = await sageAIStore.endNudgeDiscoverySession(discoverySession.value.id)
+    if (result?.heroStoryId) {
+      clearAssistantRouteQuery()
+      openAIPanelForStory(result.heroStoryId)
+    } else {
+      closeHeroAssistant()
+    }
+    return
+  }
+
   await finalizeDiscoverySession()
+  closeHeroAssistant()
 }
 
 const dedupeCapturedMoments = (moments: Array<{ title: string, rawNotes: string }>) => {
@@ -376,37 +483,28 @@ function handleMomentDevelopWithAI(moment?: { title?: string, source_experience_
   }
 
   currentStoryIdForAI.value = 'create'
-  isAIPanelOpen.value = true
-}
-
-// AI Panel functions
-function openAIPanel() {
-  // Use a temporary ID for create form
-  currentStoryIdForAI.value = 'create'
-  isAIPanelOpen.value = true
+  heroAssistantMode.value = 'story'
+  isHeroAssistantOpen.value = true
 }
 
 function openAIPanelForStory(storyId: string) {
   currentStoryIdForAI.value = storyId
-  isAIPanelOpen.value = true
+  if (storyId !== 'create') {
+    isShowingCreateForm.value = false
+    editingStoryId.value = storyId
+  }
+  heroAssistantMode.value = 'story'
+  isHeroAssistantOpen.value = true
 }
 
 function closeAIPanel() {
-  isAIPanelOpen.value = false
-  currentStoryIdForAI.value = null
-
-  if (route.query.heroStoryId) {
-    const query = { ...route.query }
-    delete query.heroStoryId
-    router.replace({ query })
-  }
+  closeHeroAssistant()
 }
 
 function openRoutedHeroStorySession() {
   if (!routeHeroStoryId.value) return
 
-  currentStoryIdForAI.value = routeHeroStoryId.value
-  isAIPanelOpen.value = true
+  openAIPanelForStory(routeHeroStoryId.value)
 }
 
 function applyAISuggestionsToCreateForm(suggestions: Record<string, Record<string, string>>) {
@@ -458,24 +556,6 @@ function clearPendingAISuggestions() {
   pendingStoryAISuggestions.value = null
 }
 
-// Check if form has any data (for AI button disabled state)
-const hasFormData = computed(() => {
-  return !!(
-    formDataForCreate.value.hurdleProblem
-    || formDataForCreate.value.hurdleScope
-    || formDataForCreate.value.hurdleStakes
-    || formDataForCreate.value.expectationRole
-    || formDataForCreate.value.expectationGoals
-    || formDataForCreate.value.expectationConstraints
-    || formDataForCreate.value.responseActions
-    || formDataForCreate.value.responseTools
-    || formDataForCreate.value.responseChallenges
-    || formDataForCreate.value.outcomeDeliverable
-    || formDataForCreate.value.outcomeMetrics
-    || formDataForCreate.value.outcomeImpact
-  )
-})
-
 async function handleMomentSave(payload: { moment: { id: string | number }, updates: { title: string, rawNotes: string } }) {
   if (!profileId.value) return
   await careerIDStore.updateMoment(profileId.value, payload.moment.id, {
@@ -506,6 +586,8 @@ onMounted(async () => {
   ])
 
   if (isDiscoveryDrawerOpen.value) {
+    heroAssistantMode.value = 'discovery'
+    isHeroAssistantOpen.value = true
     await ensureDiscoverySession()
   }
 
@@ -514,6 +596,8 @@ onMounted(async () => {
 
 watch(isDiscoveryDrawerOpen, (open) => {
   if (open) {
+    heroAssistantMode.value = 'discovery'
+    isHeroAssistantOpen.value = true
     ensureDiscoverySession()
   }
 })
@@ -546,14 +630,13 @@ watch(routeHeroStoryId, () => {
               Create New HERO Story
             </h3>
             <UButton
-              label="Get AI Help"
+              label="Get HERO Help"
               icon="i-lucide-sparkles"
               color="primary"
               variant="ghost"
               size="sm"
               class="cursor-pointer"
-              :disabled="!hasFormData"
-              @click="openAIPanel"
+              @click="openHeroLauncher"
             />
           </div>
         </template>
@@ -761,10 +844,14 @@ watch(routeHeroStoryId, () => {
         :stories="heroStories"
         :is-loading="isLoading"
         :pending-suggestions="pendingStoryAISuggestions"
-        @create="startAddingStory"
+        :highlight-story-id="routeHighlightStoryId"
+        :editing-story-id="editingStoryId"
+        @create="openHeroLauncher"
         @delete="handleDeleteStory"
         @save="handleSaveStory"
+        @cancel="handleStoryEditCancel"
         @open-a-i-help="openAIPanelForStory"
+        @open-a-i-options="openHeroLauncher"
         @clear-pending-suggestions="clearPendingAISuggestions"
       />
     </div>
@@ -778,65 +865,42 @@ watch(routeHeroStoryId, () => {
         @develop-with-a-i="handleMomentDevelopWithAI"
         @remove="handleMomentRemove"
         @save="handleMomentSave"
-        @start-session="openDiscoverySession"
+        @start-session="openHeroLauncher"
       />
     </div>
   </div>
 
-  <!-- Discovery Session Drawer -->
-  <UDrawer
-    v-model:open="isDiscoveryDrawerOpen"
-    direction="right"
-    inset
-    :handle="false"
-    :modal="false"
-    :dismissible="false"
-    @update:open="(open) => { if (!open) closeDiscoverySession() }"
-  >
-    <!-- Hidden trigger (drawer controlled via query param) -->
-    <div class="hidden" />
-
-    <!-- Drawer Content -->
-    <template #body>
-      <div class="w-xl h-full flex flex-col">
-        <ProfileHeroDiscoverySessionChat
-          :session-id="discoverySession?.id ?? ''"
-          :profile-id="profileId"
-          :messages="chatMessages"
-          :captured-moments="capturedMoments"
-          :is-loading="isDiscoveryLoading"
-          :error="discoveryError"
-          :session-status="discoverySession?.session_status"
-          @close="closeDiscoverySession"
-          @send-message="handleSendMessage"
-          @end-session="handleEndSession"
-          @develop-story="handleMomentDevelop"
-          @save-moments="handleSaveMoments"
-        />
-      </div>
-    </template>
-  </UDrawer>
-
-  <!-- AI Help Panel Slideover -->
+  <!-- HERO Assistant Panel -->
   <USlideover
-    v-model:open="isAIPanelOpen"
+    v-model:open="isHeroAssistantOpen"
     side="right"
     :overlay="false"
-    :dismissible="true"
     :modal="false"
     :inset="true"
+    :dismissible="true"
     :ui="{ content: 'max-w-2xl w-full' }"
-    @update:open="(open) => { if (!open) closeAIPanel() }"
+    @update:open="(open) => { if (!open) closeHeroAssistant() }"
   >
     <template #header="{ close }">
       <div class="w-full flex items-start justify-between gap-4">
-        <div class="flex-1">
-          <h2 class="text-lg font-semibold">
-            Get AI Help for Your Story
-          </h2>
-          <p class="text-sm text-muted mt-1">
-            AI-guided story enhancement
-          </p>
+        <div class="flex items-start gap-3 flex-1">
+          <UButton
+            v-if="heroAssistantMode !== 'launcher'"
+            icon="i-lucide-arrow-left"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            class="cursor-pointer mt-0.5"
+            @click="backToHeroLauncher"
+          />
+          <div class="flex-1">
+            <h2 class="text-lg font-semibold">
+              {{ heroAssistantTitle }}
+            </h2>
+            <p class="text-sm text-muted mt-1">
+              {{ heroAssistantSubtitle }}
+            </p>
+          </div>
         </div>
         <UButton
           icon="i-lucide-x"
@@ -849,7 +913,44 @@ watch(routeHeroStoryId, () => {
       </div>
     </template>
     <template #body>
-      <div class="h-full">
+      <div v-if="heroAssistantMode === 'launcher'" class="h-full p-4">
+        <ProfileHeroSessionLauncher
+          :stories="heroStories"
+          @select-story="handleLauncherStorySelect"
+          @create-story="handleLauncherCreateStory"
+          @start-discovery="handleLauncherDiscovery"
+          @close="closeHeroAssistant"
+        />
+      </div>
+      <div v-else-if="heroAssistantMode === 'discovery'" class="h-full flex flex-col">
+        <ProfileHeroDiscoverySessionChat
+          :session-id="discoverySession?.id ?? ''"
+          :profile-id="profileId"
+          :mode="isNudgeDiscoverySession ? 'experience_nudge_story' : 'moment_discovery'"
+          :messages="chatMessages"
+          :captured-moments="capturedMoments"
+          :is-loading="isDiscoveryLoading"
+          :error="discoveryError"
+          :session-status="discoverySession?.session_status"
+          @close="closeDiscoverySession"
+          @send-message="handleSendMessage"
+          @end-session="handleEndSession"
+          @develop-story="handleMomentDevelop"
+          @save-moments="handleSaveMoments"
+        />
+      </div>
+      <div v-else class="h-full">
+        <div
+          v-if="currentStoryForAI"
+          class="mb-3 rounded-lg border border-default bg-default/40 p-3"
+        >
+          <p class="text-xs font-medium text-muted uppercase tracking-wide mb-1">
+            Working On
+          </p>
+          <p class="text-sm font-semibold text-foreground">
+            {{ currentStoryForAI.title }}
+          </p>
+        </div>
         <ProfileHeroSessionPane
           v-if="currentStoryIdForAI && profileId"
           :story-id="currentStoryIdForAI"
@@ -866,7 +967,7 @@ watch(routeHeroStoryId, () => {
           color="neutral"
           variant="ghost"
           class="cursor-pointer"
-          @click="closeAIPanel"
+          @click="closeHeroAssistant"
         />
       </div>
     </template>

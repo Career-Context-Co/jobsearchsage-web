@@ -5,10 +5,14 @@ import { ref, computed, watch } from 'vue'
 interface Props {
   story: HeroStory
   pendingSuggestions?: Record<string, Record<string, string>> | null
+  isHighlighted?: boolean
+  isEditingRequested?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  pendingSuggestions: null
+  pendingSuggestions: null,
+  isHighlighted: false,
+  isEditingRequested: false
 })
 
 const emit = defineEmits<{
@@ -16,6 +20,7 @@ const emit = defineEmits<{
   save: [payload: Partial<HeroStory>]
   cancel: []
   openAIHelp: [storyId: string]
+  openAIOptions: [storyId: string]
   suggestionsApplied: []
 }>()
 
@@ -110,6 +115,10 @@ function handleOpenAIHelp() {
   emit('openAIHelp', props.story.id)
 }
 
+function handleOpenAIOptions() {
+  emit('openAIOptions', props.story.id)
+}
+
 const isTitleEmpty = computed(() => !formData.value.title.trim())
 
 // Apply AI suggestions to the form
@@ -149,6 +158,12 @@ watch(() => props.pendingSuggestions, (newSuggestions) => {
     emit('suggestionsApplied')
   }
 }, { immediate: true })
+
+watch(() => props.isEditingRequested, (requested) => {
+  if (requested && !isEditing.value) {
+    startEditing()
+  }
+}, { immediate: true })
 </script>
 
 <template>
@@ -165,7 +180,7 @@ watch(() => props.pendingSuggestions, (newSuggestions) => {
           variant="ghost"
           size="sm"
           class="cursor-pointer"
-          @click="handleOpenAIHelp"
+          @click="handleOpenAIOptions"
         />
       </div>
       
@@ -356,9 +371,23 @@ watch(() => props.pendingSuggestions, (newSuggestions) => {
   </UPageCard>
 
   <!-- View Mode -->
-  <UPageCard v-else variant="subtle">
+  <UPageCard
+    v-else
+    variant="subtle"
+  >
     <div class="flex items-start justify-between gap-4">
       <div class="flex-1 min-w-0">
+        <UButton
+          v-if="isHighlighted"
+          label="Finish your HERO story"
+          color="primary"
+          variant="soft"
+          size="xs"
+          icon="i-lucide-sparkles"
+          class="mb-2 cursor-pointer"
+          @click.stop="handleOpenAIHelp"
+        />
+
         <!-- Title -->
         <h3 class="font-semibold mb-1 text-foreground">{{ story.title }}</h3>
       

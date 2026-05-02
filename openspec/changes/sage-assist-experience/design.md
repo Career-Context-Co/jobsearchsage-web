@@ -58,13 +58,21 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
 
 **Rationale**: Writes stay in the owning store — JSS for Sage notes, Career ID for `summary` and `highlights`.
 
-### Decision: Nudge check is a stateless POST; nudge banner is a navigation CTA
+### Decision: Persist HERO nudges as experience-linked story candidates
 
-**Choice**: Frontend calls the nudge check endpoint after the experience detail view loads. The banner is not dismissible — it presents a single call-to-action that navigates the user to start a new HERO story session with the current experience preloaded. Once the user navigates away, the banner is no longer shown in that page session. No dismissal state is persisted.
+**Choice**: `POST /api/ai/experience/hero-nudge` persists a nudge candidate when a strong HERO signal is detected. A nudge is keyed by `profile_id`, `experience_id`, and a stable content hash of the saved experience snapshot. It stores short second-person copy (`signal`, `context`), lifecycle status, `accepted_at`, `declined_at`, and optional links to the created HERO story and discovery session.
 
-**Rationale**: The nudge's purpose is to route the user toward HERO story creation, not to surface information they can act on later. A dismiss action would let users ignore it indefinitely without taking action. If they don't want a HERO story, they simply ignore the banner; if they do, they click through. This avoids any need for a dismissal persistence column or user preference.
+**Rationale**: A nudge is not just a transient message; it is a story candidate attached to an experience. Persisting it lets the app avoid re-running AI for unchanged content, track whether the user accepted or declined the suggestion, avoid showing declined suggestions repeatedly, and resume in-progress nudge story sessions.
 
-**Alternative considered**: Persist nudge dismissal per experience in the DB so it doesn't re-appear on future views. Deferred — can be added later if users find repeated nudges disruptive.
+**Alternative considered**: Keep nudge checks stateless and page-session-only. Rejected — this loses accepted/declined analytics, creates repeated AI calls, and makes the flow awkward because the user can be dropped into HERO without durable context.
+
+### Decision: Nudge acceptance starts a HERO discovery session, not a moments flow
+
+**Choice**: Accepting a nudge starts or resumes a `hero_discovery_sessions` row with `session_type='experience_nudge_story'`. The session references the source experience, persisted nudge, and partial HERO story using first-class columns. It asks focused HERO story questions and creates/updates a partial HERO story. It does not create `hero_moments`.
+
+**Rationale**: The existing HERO discovery session table is useful for long-running AI conversation state, but the current moment-capture shape (`captured_moments`, `moment_count`) does not match a nudge that already points at a specific experience. A typed discovery session preserves the reusable conversation container while making the new path explicit.
+
+**Alternative considered**: Continue using hero moments as an invisible intermediate data structure. Rejected — moments are being phased out as a user-facing concept, and hiding them as internal plumbing would create naming drift and confusing lifecycle behavior.
 
 ### Decision: Sage notes row is overwritten (not appended) by confirmed interview; read-only to the user
 
@@ -187,8 +195,16 @@ Existing AI infrastructure in `server/utils/profile-experience-enhancer.ts` (Ver
   "success": true,
   "data": {
     "nudge": true,
+    "id": "string",
+    "experienceId": 123,
+    "contentHash": "string",
     "signal": "string",
-    "context": "string"
+    "context": "string",
+    "status": "active",
+    "acceptedAt": "string | null",
+    "declinedAt": "string | null",
+    "heroStoryId": "string | null",
+    "discoverySessionId": 123
   }
 }
 ```
@@ -201,6 +217,57 @@ or
   "data": { "nudge": false }
 }
 ```
+
+The endpoint SHALL reuse an existing active nudge for the same `(profile_id, experience_id, content_hash)` and SHALL mark older active nudges stale when the experience content hash changes.
+
+### `POST /api/ai/experience/hero-nudge/:id/decline`
+
+Marks a persisted HERO nudge declined.
+
+**Response:** success with `declinedAt`.
+
+### `POST /api/ai/hero-discovery/nudge/start`
+
+**Request:**
+
+```json
+{
+  "profileId": "string",
+  "nudgeId": "string",
+  "experience": {
+    "id": 123,
+    "title": "string",
+    "employer": "string",
+    "highlights": ["string"],
+    "summary": "string | null",
+    "contextNotes": "string | null",
+    "sageNotes": "string | null"
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "sessionId": 123,
+    "heroStoryId": "hero_...",
+    "message": "string"
+  }
+}
+```
+
+This endpoint SHALL set `accepted_at` on the nudge, create or reuse a linked partial HERO story, and create or reuse a `hero_discovery_sessions` row with `session_type='experience_nudge_story'`.
+
+### `POST /api/ai/hero-discovery/nudge/continue`
+
+Continues a nudge-driven HERO story discovery session. The response SHALL include the next assistant message and MAY include structured HERO story field updates.
+
+### `POST /api/ai/hero-discovery/nudge/end`
+
+Completes a nudge-driven HERO story discovery session, marks the session complete, marks the nudge converted, and returns the linked `heroStoryId`.
 
 ### `GET /api/ai/sage/notes`
 
@@ -249,27 +316,63 @@ Upserts `sage_profile_notes` for the provided `(targetType, targetId, noteType)`
 | `contextNotes`         | `career_id.experience.context_notes` (unchanged) |
 | `sageNotes` (UI/API)   | Loaded/saved via `/api/ai/sage/notes`, backed by `sage_profile_notes` |
 
+## HERO Nudge Data Model
+
+### `hero_story_nudges`
+
+JobSearchSage-owned table for persisted story candidates:
+
+- `id`
+- `profile_id`
+- `experience_id`
+- `content_hash`
+- `signal`
+- `context`
+- `status`: `active | accepted | declined | converted | stale`
+- `accepted_at`
+- `declined_at`
+- `hero_story_id`
+- `discovery_session_id`
+- timestamps
+
+### `hero_discovery_sessions`
+
+Keep the existing table as the durable AI conversation container, but add first-class fields for session type and links:
+
+- `session_type`: `moment_discovery | experience_nudge_story`
+- `source_type`: `experience`
+- `source_experience_id`
+- `hero_nudge_id`
+- `hero_story_id`
+- `progress_count`
+
+`moment_count` remains for legacy moment discovery only. Nudge-driven sessions SHALL use `progress_count` and SHALL NOT write `captured_moments` or `moment_count`.
+
 ## Migration Plan
 
 1. Supabase migration (JobSearchSage only): create `sage_profile_notes` + indexes + RLS policies
-2. Implement `/api/ai/experience/*` endpoints + `sage_profile_notes` persistence + `server/utils/sage-experience-enhancer.ts`
-3. Build frontend Sage UI components and wire sage-notes fetch/put
+2. Supabase migration: create `hero_story_nudges`; add nudge/story session columns to `hero_discovery_sessions`; keep `moment_count` for legacy moment discovery only
+3. Implement `/api/ai/experience/*` endpoints + `sage_profile_notes` persistence + `server/utils/sage-experience-enhancer.ts`
+4. Implement persisted HERO nudge utilities and nudge-driven discovery endpoints
+5. Build frontend Sage UI components and wire sage-notes fetch/put
+6. Update HERO discovery panel presentation to use the same panel pattern as the HERO story session and support nudge/story mode
 
 **Rollback (Career ID):** Not applicable — no Career ID migrations in this change.
 
-**Rollback (JobSearchSage):** Drop `sage_profile_notes` table only if no production data to preserve.
+**Rollback (JobSearchSage):** Drop `sage_profile_notes` and `hero_story_nudges` only if no production data to preserve. Remove added `hero_discovery_sessions` columns only if no nudge/story sessions exist.
 
 ## Risks / Trade-offs
 
 - **10-second AI timeout** — Sage interview turns that require longer context may time out. Mitigation: keep conversation history to the last 3 turns (enforced max turn limit).
 - **Sage notes overwrite** — Users who confirm a new interview lose the previous Sage-generated notes row content for that experience. Mitigation: display a confirmation warning before overwrite.
-- **Nudge check adds a network call on every experience detail view** — Could add latency. Mitigation: fire the call after initial render (non-blocking); cache result for the session.
+- **Nudge check adds an AI/provider call after experience saves** — Could add latency or cost. Mitigation: persist nudges by content hash and reuse active nudges for unchanged experience content.
+- **Discovery session table now has mixed modes** — Legacy moment discovery and nudge story discovery have different semantics. Mitigation: use `session_type` and first-class linking columns; only use `moment_count` for `moment_discovery`.
 - **Cross-store reads** — Experience detail must load Career ID experience plus `GET /api/ai/sage/notes` for read-only Sage section. Mitigation: parallel fetch; handle missing sage-notes as empty.
 
 ## Resolved Decisions
 
 **Max interview turns: 3.** After 3 user turns, Sage SHALL wrap up and return `done: true` with the accumulated output. The endpoint tracks turn count from `conversationHistory.length` (user messages only).
 
-**Nudge banner behavior.** The nudge banner is not a separate dismissal action — it is a call-to-action that navigates the user to start a new HERO story session with the current experience preloaded and prompted. The banner disappears once the user navigates away. No persistence of nudge state is needed. The nudge check result is cached for the current page session only.
+**Nudge banner behavior.** The nudge banner is a persisted story candidate. Accepting it sets `accepted_at`, starts or resumes a nudge-driven HERO discovery session, and links to a partial HERO story. Declining it sets `declined_at` so the app can avoid repeatedly showing the same suggestion while the content hash is unchanged.
 
 **Sage notes are strictly read-only to the user in the UI.** They are never exposed as an editable input. Users change Sage notes only by re-running the responsibility interview (notes help mode) and confirming, which `PUT`s replacement content to `sage_profile_notes`.

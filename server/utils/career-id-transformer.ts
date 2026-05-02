@@ -48,8 +48,10 @@ export function transformExperience(data: any): Experience {
     endDate: data.end_date,
     currentPosition: data.current_position,
     summary: data.summary,
+    contextNotes: data.context_notes,
     highlights: data.highlights || [],
     displayOrder: data.display_order,
+    lastEnhancedAt: data.last_enhanced_at,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   }

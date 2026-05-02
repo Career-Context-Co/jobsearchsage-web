@@ -40,7 +40,7 @@ const emit = defineEmits<{
             @click="emit('start', experienceId)"
           />
           <UButton
-            label="Dismiss"
+            label="Reject"
             color="neutral"
             variant="ghost"
             size="sm"

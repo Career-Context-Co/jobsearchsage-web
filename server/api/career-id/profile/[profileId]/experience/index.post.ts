@@ -70,6 +70,7 @@ export default eventHandler(async (event) => {
       end_date: convertMonthYearToDate(body.endDate),
       current_position: body.currentPosition || false,
       summary: body.summary || null,
+      context_notes: body.contextNotes || null,
       highlights: body.highlights || [],
       display_order: body.displayOrder ?? 0
     })

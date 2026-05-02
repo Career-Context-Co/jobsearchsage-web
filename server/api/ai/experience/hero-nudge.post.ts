@@ -1,3 +1,4 @@
+import { serverSupabaseClient } from '#supabase/server'
 import { logRequest, logSuccess, logError, createTimer } from '@@/server/utils/logger'
 import { ErrorCodes } from '@@/server/utils/error-handler'
 import {
@@ -5,11 +6,16 @@ import {
   SageExperienceEnhancementError,
   type SageHeroSignalExperience
 } from '@@/server/utils/sage-experience-enhancer'
+import { getOrCreateHeroNudgeResult } from '@@/server/utils/hero-story-nudges'
 
 const ROUTE_PATH = '/api/ai/experience/hero-nudge'
 
 interface HeroNudgeRequestBody {
-  experience?: SageHeroSignalExperience
+  profileId?: string
+  experienceId?: number
+  experience?: SageHeroSignalExperience & {
+    id?: number | string
+  }
 }
 
 function createValidationError(message: string) {
@@ -26,23 +32,71 @@ function createValidationError(message: string) {
   })
 }
 
+function createUnauthorizedError() {
+  return createError({
+    statusCode: 401,
+    statusMessage: 'Unauthorized',
+    data: {
+      success: false,
+      error: {
+        code: ErrorCodes.UNAUTHORIZED,
+        message: 'Not authenticated'
+      }
+    }
+  })
+}
+
+function normalizeExperienceId(body: HeroNudgeRequestBody) {
+  const rawId = body.experienceId ?? body.experience?.id
+  const parsed = typeof rawId === 'string' ? Number(rawId) : rawId
+
+  return Number.isInteger(parsed) ? parsed as number : null
+}
+
 export default eventHandler(async (event) => {
   const getElapsed = createTimer()
   logRequest('POST', ROUTE_PATH)
 
   try {
     const body = await readBody<HeroNudgeRequestBody>(event)
+    const profileId = body?.profileId
     const experience = body?.experience
+    const experienceId = normalizeExperienceId(body)
+
+    if (!profileId || typeof profileId !== 'string') {
+      throw createValidationError('profileId is required')
+    }
 
     if (!experience || typeof experience !== 'object') {
       throw createValidationError('experience is required')
     }
 
-    const result = await detectHeroSignal(experience)
+    if (experienceId === null) {
+      throw createValidationError('experienceId is required')
+    }
+
+    const supabase = await serverSupabaseClient(event)
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      throw createUnauthorizedError()
+    }
+
+    const result = await getOrCreateHeroNudgeResult(
+      supabase,
+      {
+        profileId,
+        experienceId,
+        experience
+      },
+      () => detectHeroSignal(experience)
+    )
     const duration = getElapsed()
 
     logSuccess('POST', ROUTE_PATH, duration, {
-      nudge: result.nudge
+      profileId,
+      experienceId,
+      nudge: result.nudge,
+      nudgeId: result.nudge ? result.id : null
     })
 
     return {
