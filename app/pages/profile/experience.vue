@@ -4,9 +4,9 @@ import { vMaska } from 'maska/vue'
 import { validateRequired, validateUrl, validateMonthYear, validateDateRange } from '~/utils/validation'
 
 const careerIDStore = useCareerIDStore()
+const sageAIStore = useSageAIStore()
 const accountStore = useAccountStore()
 const toast = useToast()
-const route = useRoute()
 const router = useRouter()
 
 /**
@@ -73,6 +73,7 @@ interface ExperienceFormData {
   endDate: string
   currentPosition: boolean
   summary: string
+  contextNotes: string
   highlights: string[]
 }
 
@@ -84,37 +85,345 @@ const formData = ref<Partial<ExperienceFormData>>({
 })
 const formErrors = ref<Record<string, string>>({})
 
-// Enhancement pane query parameter handling
-const enhancingExperienceId = computed(() => {
-  const enhanceParam = route.query.enhance
-  if (!enhanceParam) return null
-  const id = Number(enhanceParam)
-  return isNaN(id) ? null : id
-})
+const sageSessionOpen = ref(false)
+const sageSessionExperienceId = ref<number | null>(null)
+const startingHeroExperienceId = ref<number | null>(null)
 
-const isEnhancementPaneOpen = computed(() => enhancingExperienceId.value !== null)
+type HeroNudgeLoadingState = { loading: true }
+type HeroNudgeEmptyState = { loading: false, nudge: false }
+type HeroNudgeActiveState = {
+  loading: false
+  nudge: true
+  id: string
+  experienceId: number
+  contentHash: string
+  signal: string
+  context: string
+  status: 'active' | 'accepted' | 'declined' | 'converted' | 'stale'
+  heroStoryId: string | null
+  discoverySessionId: number | null
+  acceptedAt: string | null
+  declinedAt: string | null
+}
+type HeroNudgeState = HeroNudgeLoadingState | HeroNudgeEmptyState | HeroNudgeActiveState
 
-function openEnhancementPane(experienceId: number) {
-  router.push({
-    query: { ...route.query, enhance: experienceId }
+const heroNudgesByExperienceId = ref<Record<number, HeroNudgeState>>({})
+const expandedHeroNudgeIds = ref<Set<number>>(new Set())
+
+const sageSessionExperience = computed(() =>
+  sageSessionExperienceId.value !== null
+    ? experiences.value.find(e => e.id === sageSessionExperienceId.value) ?? null
+    : null
+)
+
+function openSageSession(experienceId: number) {
+  sageSessionExperienceId.value = experienceId
+  sageSessionOpen.value = true
+}
+
+function closeSageSession() {
+  sageSessionOpen.value = false
+  sageSessionExperienceId.value = null
+}
+
+function heroNudgeFor(experienceId: number): HeroNudgeState | null {
+  return heroNudgesByExperienceId.value[experienceId] ?? null
+}
+
+function activeHeroNudgeFor(experienceId: number) {
+  const nudge = heroNudgeFor(experienceId)
+  return nudge?.loading === false && nudge.nudge === true && nudge.status === 'active'
+    ? nudge
+    : null
+}
+
+function isHeroNudgeExpanded(experienceId: number) {
+  return expandedHeroNudgeIds.value.has(experienceId)
+}
+
+function expandHeroNudge(experienceId: number) {
+  expandedHeroNudgeIds.value = new Set([...expandedHeroNudgeIds.value, experienceId])
+}
+
+function collapseHeroNudge(experienceId: number) {
+  const next = new Set(expandedHeroNudgeIds.value)
+  next.delete(experienceId)
+  expandedHeroNudgeIds.value = next
+}
+
+function setHeroNudgeState(nudge: Omit<HeroNudgeActiveState, 'loading'>, expanded = false, profileId?: string) {
+  heroNudgesByExperienceId.value = {
+    ...heroNudgesByExperienceId.value,
+    [nudge.experienceId]: {
+      loading: false,
+      nudge: true,
+      id: nudge.id,
+      experienceId: nudge.experienceId,
+      contentHash: nudge.contentHash,
+      signal: nudge.signal,
+      context: nudge.context,
+      status: nudge.status,
+      heroStoryId: nudge.heroStoryId,
+      discoverySessionId: nudge.discoverySessionId,
+      acceptedAt: nudge.acceptedAt,
+      declinedAt: nudge.declinedAt
+    }
+  }
+
+  if (expanded) {
+    expandHeroNudge(nudge.experienceId)
+  }
+
+  if (profileId) {
+    sageAIStore.setHeroNudge(profileId, nudge)
+  }
+}
+
+async function loadPersistedHeroNudges(profileId: string) {
+  if (!accountStore.isHeroEnabled) return
+
+  sageAIStore.restoreHeroNudgesFromCache()
+  for (const nudge of sageAIStore.heroNudgesForProfile(profileId)) {
+    setHeroNudgeState(nudge, false)
+  }
+
+  try {
+    const response = await $fetch<{
+      success: boolean
+      data: Array<Omit<HeroNudgeActiveState, 'loading'>>
+    }>('/api/ai/experience/hero-nudge', {
+      query: { profileId }
+    })
+
+    if (!response.success) return
+
+    sageAIStore.setHeroNudges(profileId, response.data)
+    for (const nudge of response.data) {
+      setHeroNudgeState(nudge, false)
+    }
+  } catch (error) {
+    console.error('Failed to load persisted HERO nudges', error)
+  }
+}
+
+async function checkHeroNudgeForExperience(experience: Experience) {
+  if (!accountStore.isHeroEnabled) return
+
+  const hasSignalContent = Boolean(
+    experience.summary?.trim()
+    || experience.contextNotes?.trim()
+    || experience.highlights.some(highlight => highlight.trim())
+  )
+  if (!hasSignalContent) {
+    heroNudgesByExperienceId.value = {
+      ...heroNudgesByExperienceId.value,
+      [experience.id]: { loading: false, nudge: false }
+    }
+    return
+  }
+
+  heroNudgesByExperienceId.value = {
+    ...heroNudgesByExperienceId.value,
+    [experience.id]: { loading: true }
+  }
+
+  try {
+    const profileId = careerIDStore.profile?.id || careerIDStore.profileId || accountStore.profileId
+    if (!profileId) return
+    const sageNotes = sageAIStore.experienceSageNotesFor(profileId, experience.id)?.content ?? null
+
+    const response = await $fetch<{
+      success: boolean
+      data: { nudge: false } | Omit<HeroNudgeActiveState, 'loading'>
+    }>('/api/ai/experience/hero-nudge', {
+      method: 'POST',
+      body: {
+        profileId,
+        experienceId: experience.id,
+        experience: {
+          id: experience.id,
+          title: experience.title,
+          employer: experience.employer,
+          highlights: experience.highlights,
+          summary: experience.summary ?? null,
+          contextNotes: experience.contextNotes ?? null,
+          sageNotes
+        }
+      }
+    })
+
+    if (response.data.nudge) {
+      setHeroNudgeState(response.data, true, profileId)
+    } else {
+      heroNudgesByExperienceId.value = {
+        ...heroNudgesByExperienceId.value,
+        [experience.id]: { loading: false, nudge: false }
+      }
+      sageAIStore.clearHeroNudge(profileId, experience.id)
+    }
+  } catch (error) {
+    console.error('HERO nudge check failed', error)
+    heroNudgesByExperienceId.value = {
+      ...heroNudgesByExperienceId.value,
+      [experience.id]: { loading: false, nudge: false }
+    }
+  }
+}
+
+async function dismissHeroNudge(experienceId: number) {
+  const existing = heroNudgesByExperienceId.value[experienceId]
+  if (existing?.loading === false && existing.nudge === true) {
+    try {
+      await $fetch(`/api/ai/experience/hero-nudge/${existing.id}/decline`, {
+        method: 'POST'
+      })
+      heroNudgesByExperienceId.value = {
+        ...heroNudgesByExperienceId.value,
+        [experienceId]: {
+          ...existing,
+          status: 'declined',
+          declinedAt: new Date().toISOString()
+        }
+      }
+      const profileId = careerIDStore.profile?.id || careerIDStore.profileId || accountStore.profileId
+      if (profileId) {
+        sageAIStore.setHeroNudge(profileId, {
+          ...existing,
+          status: 'declined',
+          declinedAt: new Date().toISOString()
+        })
+      }
+      collapseHeroNudge(experienceId)
+    } catch (error) {
+      console.error('Failed to decline HERO nudge', error)
+    }
+  }
+}
+
+async function startHeroInterview(experienceId: number) {
+  if (startingHeroExperienceId.value !== null) return
+
+  const experience = careerIDStore.experience.find(exp => exp.id === experienceId)
+  const profileId = careerIDStore.profile?.id || careerIDStore.profileId || accountStore.profileId
+  const nudge = activeHeroNudgeFor(experienceId)
+  if (!experience || !profileId || !nudge) return
+
+  startingHeroExperienceId.value = experienceId
+
+  try {
+    const result = await sageAIStore.startNudgeDiscoverySession({
+      profileId,
+      nudgeId: nudge.id,
+      experience
+    })
+
+    await router.push({
+      path: '/profile/hero',
+      query: {
+        highlightStoryId: result.heroStoryId
+      }
+    })
+  } catch (error) {
+    console.error('Failed to start HERO story session', error)
+    toast.add({
+      title: 'Could not start HERO interview',
+      description: 'Please try again from the HERO page.',
+      icon: 'i-lucide-alert-circle',
+      color: 'error'
+    })
+  } finally {
+    startingHeroExperienceId.value = null
+  }
+}
+
+async function onSageSessionConfirm(bulletIndex: number, improvedBullet: string) {
+  const expId = sageSessionExperienceId.value
+  if (expId === null) return
+  const exp = careerIDStore.experience.find(e => e.id === expId)
+  if (!exp) return
+  const highlights = editingExperienceId.value === expId && Array.isArray(formData.value.highlights)
+    ? [...formData.value.highlights]
+    : [...exp.highlights]
+  if (bulletIndex < 0 || bulletIndex >= highlights.length) return
+  highlights[bulletIndex] = improvedBullet
+  try {
+    await careerIDStore.updateExperience(expId, {
+      highlights,
+      lastEnhancedAt: new Date().toISOString()
+    })
+    if (editingExperienceId.value === expId && Array.isArray(formData.value.highlights)) {
+      const next = [...formData.value.highlights]
+      if (next[bulletIndex] !== undefined) {
+        next[bulletIndex] = improvedBullet
+        formData.value.highlights = next
+      }
+    }
+    toast.add({
+      title: 'Achievement updated',
+      description: 'Your improved bullet has been saved.',
+      icon: 'i-lucide-check',
+      color: 'success'
+    })
+    const updatedExperience = careerIDStore.experience.find(e => e.id === expId)
+    if (updatedExperience) {
+      void checkHeroNudgeForExperience(updatedExperience)
+    }
+    closeSageSession()
+  } catch (err: unknown) {
+    const e = err as { message?: string }
+    toast.add({
+      title: 'Save failed',
+      description: e?.message || 'Could not save the improved bullet.',
+      icon: 'i-lucide-alert-circle',
+      color: 'error'
+    })
+  }
+}
+
+function onSageSessionApplySummary(summary: string) {
+  const expId = sageSessionExperienceId.value
+  if (expId === null) return
+
+  const exp = careerIDStore.experience.find(e => e.id === expId)
+  if (!exp) return
+
+  if (editingExperienceId.value !== expId) {
+    startEditingExperience(exp)
+  }
+
+  formData.value.summary = summary
+  toast.add({
+    title: 'Summary copied',
+    description: 'Review it in the open experience card, then save your changes.',
+    icon: 'i-lucide-check',
+    color: 'success'
   })
+  closeSageSession()
 }
 
-function closeEnhancementPane() {
-  const query = { ...route.query }
-  delete query.enhance
-  router.push({ query })
-}
+function onSageSessionApplyContextNotes(notes: string) {
+  const expId = sageSessionExperienceId.value
+  if (expId === null) return
 
-// Get the experience being enhanced
-const enhancingExperience = computed(() => {
-  if (!enhancingExperienceId.value) return null
-  return experiences.value.find(exp => exp.id === enhancingExperienceId.value) || null
-})
+  const exp = careerIDStore.experience.find(e => e.id === expId)
+  if (!exp) return
 
-// Handle enhancement pane close
-function handleEnhancementClose() {
-  closeEnhancementPane()
+  if (editingExperienceId.value !== expId) {
+    startEditingExperience(exp)
+  }
+
+  const existingNotes = formData.value.contextNotes?.trim() ?? ''
+  formData.value.contextNotes = existingNotes
+    ? existingNotes.includes(notes) ? existingNotes : `${existingNotes}\n\n${notes}`
+    : notes
+
+  toast.add({
+    title: 'Copied to My Notes',
+    description: 'Review it in the open experience card, then save your changes.',
+    icon: 'i-lucide-check',
+    color: 'success'
+  })
+  closeSageSession()
 }
 
 // Employment type options
@@ -146,6 +455,7 @@ function startAddingExperience() {
     endDate: '',
     currentPosition: false,
     summary: '',
+    contextNotes: '',
     highlights: ['']
   }
   formErrors.value = {}
@@ -166,6 +476,7 @@ function startEditingExperience(experience: Experience) {
     endDate: formatDateForUI(experience.endDate),
     currentPosition: experience.currentPosition,
     summary: experience.summary || '',
+    contextNotes: experience.contextNotes || '',
     highlights: experience.highlights.length > 0 ? [...experience.highlights] : ['']
   }
   formErrors.value = {}
@@ -259,7 +570,7 @@ async function addExperience() {
     // Filter out empty highlights
     const highlights = formData.value.highlights?.filter(h => h.trim()) || []
     
-    await careerIDStore.addExperience({
+    const createdExperience = await careerIDStore.addExperience({
       employmentType: formData.value.employmentType!,
       employer: formData.value.employer!,
       title: formData.value.title!,
@@ -270,6 +581,7 @@ async function addExperience() {
       endDate: formData.value.currentPosition ? undefined : formatDateForAPI(formData.value.endDate),
       currentPosition: formData.value.currentPosition || false,
       summary: formData.value.summary || undefined,
+      contextNotes: formData.value.contextNotes ?? null,
       highlights,
       displayOrder: experiences.value.length + 1
     })
@@ -280,8 +592,9 @@ async function addExperience() {
       icon: 'i-lucide-check',
       color: 'success'
     })
-    
+
     cancelEdit()
+    void checkHeroNudgeForExperience(createdExperience)
   } catch (err: any) {
     toast.add({
       title: 'Error',
@@ -308,7 +621,7 @@ async function updateExperience() {
     // Filter out empty highlights
     const highlights = formData.value.highlights?.filter(h => h.trim()) || []
     
-    await careerIDStore.updateExperience(editingExperienceId.value!, {
+    const updatedExperience = await careerIDStore.updateExperience(editingExperienceId.value!, {
       employmentType: formData.value.employmentType!,
       employer: formData.value.employer!,
       title: formData.value.title!,
@@ -319,6 +632,7 @@ async function updateExperience() {
       endDate: formData.value.currentPosition ? undefined : formatDateForAPI(formData.value.endDate),
       currentPosition: formData.value.currentPosition || false,
       summary: formData.value.summary || undefined,
+      contextNotes: formData.value.contextNotes ?? null,
       highlights
     })
     
@@ -328,8 +642,9 @@ async function updateExperience() {
       icon: 'i-lucide-check',
       color: 'success'
     })
-    
+
     cancelEdit()
+    void checkHeroNudgeForExperience(updatedExperience)
   } catch (err: any) {
     toast.add({
       title: 'Error',
@@ -386,14 +701,19 @@ onMounted(async () => {
   }
 
   try {
-    // Only fetch if not already loaded
-    if (!careerIDStore.isProfileLoaded) {
+    // Refresh old in-memory rows that were loaded before contextNotes was mapped.
+    const hasUnhydratedContextNotes = careerIDStore.experience.some(exp => exp.contextNotes === undefined)
+    if (!careerIDStore.isProfileLoaded || hasUnhydratedContextNotes) {
       await careerIDStore.fetchProfile(profileId)
     }
 
     // If no profile found after fetch, show empty state
     if (!careerIDStore.profile) {
       showEmptyState.value = true
+    } else {
+      const experienceIds = careerIDStore.experience.map(e => e.id)
+      await sageAIStore.loadSageNotesForProfileExperiences(profileId, experienceIds)
+      await loadPersistedHeroNudges(profileId)
     }
   } catch (err: any) {
     // Check if it's a 404 or profile not found error
@@ -592,6 +912,18 @@ onMounted(async () => {
           />
         </div>
 
+        <!-- My Notes -->
+        <div>
+          <label class="block text-sm font-medium mb-1">My Notes</label>
+          <UTextarea
+            v-model="formData.contextNotes"
+            placeholder="Private context you want to remember about this role..."
+            :rows="4"
+            autoresize
+            class="w-full"
+          />
+        </div>
+
         <!-- Highlights -->
         <div>
           <label class="block text-sm font-medium mb-1">Key Achievements <span class="text-error">*</span></label>
@@ -653,7 +985,9 @@ onMounted(async () => {
         :key="experience.id"
         :class="[
           'border rounded-lg transition-colors',
-          enhancingExperienceId === experience.id ? 'border-teal-500 ring-2 ring-teal-500' : 'border-default'
+          sageSessionOpen && sageSessionExperienceId === experience.id
+            ? 'border-teal-500 ring-2 ring-teal-500'
+            : 'border-default'
         ]"
       >
         <!-- View Mode -->
@@ -670,31 +1004,8 @@ onMounted(async () => {
                     <span>• {{ locationTypes.find(t => t.value === experience.locationType)?.label }}</span>
                     <span>• {{ employmentTypes.find(t => t.value === experience.employmentType)?.label }}</span>
                   </div>
-
-                  <!-- Enhancement Status Badge -->
-                  <div v-if="accountStore.isBulletEnhancementEnabled" class="flex items-center gap-2 mt-3">
-                    <UBadge
-                      v-if="experience.lastEnhancedAt"
-                      color="success"
-                      variant="soft"
-                      size="sm"
-                    >
-                      <UIcon name="i-lucide-sparkles" class="w-3 h-3 mr-1" />
-                      Enhanced on {{ formatDate(experience.lastEnhancedAt) }}
-                    </UBadge>
-                    <span v-else class="text-xs text-muted italic">Not enhanced yet</span>
-                  </div>
                 </div>
                 <div class="flex gap-2">
-                  <UButton
-                    v-if="accountStore.isBulletEnhancementEnabled"
-                    icon="i-lucide-sparkles"
-                    color="primary"
-                    variant="ghost"
-                    size="sm"
-                    class="cursor-pointer"
-                    @click="openEnhancementPane(experience.id)"
-                  />
                   <UButton
                     icon="i-lucide-pencil"
                     color="neutral"
@@ -716,7 +1027,41 @@ onMounted(async () => {
               </div>
 
               <div v-if="experience.summary" class="mt-3">
-                <p class="text-sm">{{ experience.summary }}</p>
+                <p class="text-sm">
+                  {{ experience.summary }}
+                </p>
+              </div>
+
+              <div v-if="experience.contextNotes" class="mt-3 rounded-lg border border-default bg-default/40 p-3">
+                <p class="text-xs font-medium text-muted uppercase tracking-wide mb-1">
+                  My Notes
+                </p>
+                <p class="text-sm whitespace-pre-wrap">
+                  {{ experience.contextNotes }}
+                </p>
+              </div>
+
+              <div v-if="activeHeroNudgeFor(experience.id)" class="mt-3">
+                <ProfileSageHeroNudge
+                  v-if="isHeroNudgeExpanded(experience.id)"
+                  :signal="activeHeroNudgeFor(experience.id)!.signal"
+                  :context="activeHeroNudgeFor(experience.id)!.context"
+                  :experience-id="experience.id"
+                  :is-loading="startingHeroExperienceId === experience.id"
+                  @start="startHeroInterview"
+                  @dismiss="dismissHeroNudge"
+                />
+                <UButton
+                  v-else
+                  color="primary"
+                  variant="soft"
+                  size="xs"
+                  icon="i-lucide-zap"
+                  class="cursor-pointer"
+                  @click="expandHeroNudge(experience.id)"
+                >
+                  Possible HERO story
+                </UButton>
               </div>
 
               <div v-if="experience.url" class="mt-3">
@@ -739,16 +1084,27 @@ onMounted(async () => {
           <div class="space-y-4">
             <div class="flex items-center justify-between gap-4">
               <h3 class="text-lg font-semibold">Edit Work Experience</h3>
-              <!-- Enhancement Status Badge in Edit Mode -->
-              <UBadge
-                v-if="experience.lastEnhancedAt"
-                color="success"
-                variant="soft"
-                size="sm"
-              >
-                <UIcon name="i-lucide-sparkles" class="w-3 h-3 mr-1" />
-                Enhanced
-              </UBadge>
+              <div class="flex items-center gap-2">
+                <UBadge
+                  v-if="experience.lastEnhancedAt"
+                  color="success"
+                  variant="soft"
+                  size="sm"
+                >
+                  <UIcon name="i-lucide-sparkles" class="w-3 h-3 mr-1" />
+                  Enhanced
+                </UBadge>
+                <UButton
+                  v-if="accountStore.isBulletEnhancementEnabled"
+                  label="Get AI Help"
+                  icon="i-lucide-sparkles"
+                  color="primary"
+                  variant="ghost"
+                  size="sm"
+                  class="cursor-pointer"
+                  @click="openSageSession(experience.id)"
+                />
+              </div>
             </div>
             
             <!-- Employment Type and Company -->
@@ -870,11 +1226,27 @@ onMounted(async () => {
               />
             </div>
 
+            <!-- My Notes -->
+            <div>
+              <label class="block text-sm font-medium mb-1">My Notes</label>
+              <UTextarea
+                v-model="formData.contextNotes"
+                placeholder="Private context you want to remember about this role..."
+                :rows="4"
+                autoresize
+                class="w-full"
+              />
+            </div>
+
             <!-- Highlights -->
             <div>
               <label class="block text-sm font-medium mb-1">Key Achievements <span class="text-error">*</span></label>
               <div class="space-y-2">
-                <div v-for="(highlight, index) in formData.highlights" :key="index" class="flex gap-2 items-start">
+                <div
+                  v-for="(highlight, index) in formData.highlights"
+                  :key="index"
+                  class="flex gap-2 items-start"
+                >
                   <UTextarea
                     v-model="formData.highlights![index]"
                     placeholder="Describe a key achievement or responsibility..."
@@ -887,7 +1259,7 @@ onMounted(async () => {
                     icon="i-lucide-x"
                     color="neutral"
                     variant="ghost"
-                    class="cursor-pointer"
+                    class="cursor-pointer shrink-0"
                     @click="removeHighlight(index)"
                   />
                 </div>
@@ -913,15 +1285,6 @@ onMounted(async () => {
                 class="cursor-pointer"
                 @click="cancelEdit"
                 :disabled="isSaving"
-              />
-              <UButton
-                v-if="accountStore.isBulletEnhancementEnabled"
-                label="Enhance"
-                color="primary"
-                variant="outline"
-                icon="i-lucide-sparkles"
-                class="cursor-pointer"
-                @click="openEnhancementPane(editingExperienceId!)"
               />
               <UButton
                 label="Save Changes"
@@ -954,29 +1317,62 @@ onMounted(async () => {
     </UPageCard>
   </div>
 
-  <!-- Enhancement Drawer -->
-  <UDrawer
+  <!-- Sage AI Session Slideover -->
+  <USlideover
     v-if="accountStore.isBulletEnhancementEnabled"
-    v-model:open="isEnhancementPaneOpen"
-    direction="right"
-    inset
-    :handle="false"
+    v-model:open="sageSessionOpen"
+    side="right"
+    :overlay="false"
+    :dismissible="true"
     :modal="false"
-    :dismissible="false"
-    @update:open="(open) => { if (!open) closeEnhancementPane() }"
+    :inset="true"
+    :ui="{ content: 'max-w-2xl w-full' }"
+    @update:open="(open) => { if (!open) closeSageSession() }"
   >
-    <!-- Hidden trigger (drawer controlled via query param) -->
-    <div class="hidden" />
-
-    <!-- Drawer Content -->
-    <template #body>
-      <div class="w-xl">
-        <ProfileEnhancementPane
-        :experience="enhancingExperience"
-        @close="handleEnhancementClose"
-      />
+    <template #header="{ close }">
+      <div class="w-full flex items-start justify-between gap-4">
+        <div class="flex-1">
+          <h2 class="text-lg font-semibold">
+            Get AI Help
+          </h2>
+          <p class="text-sm text-muted mt-1">
+            AI-guided experience enhancement
+          </p>
+        </div>
+        <UButton
+          icon="i-lucide-x"
+          color="neutral"
+          variant="ghost"
+          size="md"
+          class="cursor-pointer"
+          @click="close"
+        />
       </div>
     </template>
-
-  </UDrawer>
+    <template #body>
+      <div class="h-full p-4">
+        <ProfileSageExperienceSession
+          v-if="sageSessionExperience"
+          :key="sageSessionExperience.id"
+          :experience="sageSessionExperience"
+          :profile-id="sageSessionExperience.profileId"
+          @confirm="onSageSessionConfirm"
+          @apply-summary="onSageSessionApplySummary"
+          @apply-context-notes="onSageSessionApplyContextNotes"
+          @close="closeSageSession"
+        />
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex items-center justify-end w-full">
+        <UButton
+          label="Close"
+          color="neutral"
+          variant="ghost"
+          class="cursor-pointer"
+          @click="closeSageSession"
+        />
+      </div>
+    </template>
+  </USlideover>
 </template>

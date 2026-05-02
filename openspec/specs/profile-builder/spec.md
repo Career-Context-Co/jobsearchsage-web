@@ -42,7 +42,7 @@ The system SHALL load the profile based on the authenticated user's identity rat
 - **AND** these values SHALL be set dynamically from the authenticated user's session data
 
 ### Requirement: Professional Experience Entry
-The application SHALL allow users to enter multiple professional experience entries with structured fields.
+The application SHALL allow users to enter multiple professional experience entries with structured fields. Each experience entry SHALL support the existing user-authored notes field (`context_notes` / `contextNotes`) in addition to the structured `highlights`, `summary`, and date/employer fields. Sage-generated notes are not stored on the Career ID experience model; they are owned by JobSearchSage (`sage_profile_notes`) and are out of scope for this capability except where the UI loads them via the Sage API.
 
 #### Scenario: Add work experience
 - **WHEN** a user adds a professional experience entry
@@ -55,6 +55,11 @@ The application SHALL allow users to enter multiple professional experience entr
 - **THEN** the system SHALL require company name, job title, and start date
 - **AND** end date SHALL be optional (for current positions)
 - **AND** at least one accomplishment SHALL be required
+
+#### Scenario: Context notes on experience
+- **WHEN** a user edits an experience entry
+- **THEN** the form SHALL expose the existing notes field for free-form context authored by the user (Career ID `context_notes` / API `contextNotes`)
+- **AND** the system SHALL persist it via `PATCH /api/career-id/profile/:profileId/experience/:id` as today
 
 ### Requirement: Education Entry
 The application SHALL allow users to enter multiple education entries with structured fields.

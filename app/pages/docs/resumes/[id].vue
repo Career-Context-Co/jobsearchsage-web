@@ -41,7 +41,7 @@ const editingItem = ref<{ type: string; id: string | number | null }>({ type: ''
 
 const previewZoom = ref(100)
 const ZOOM_STEP = 25
-const ZOOM_MIN = 75
+const ZOOM_MIN = 50
 const ZOOM_MAX = 200
 function zoomIn() { previewZoom.value = Math.min(ZOOM_MAX, previewZoom.value + ZOOM_STEP) }
 function zoomOut() { previewZoom.value = Math.max(ZOOM_MIN, previewZoom.value - ZOOM_STEP) }

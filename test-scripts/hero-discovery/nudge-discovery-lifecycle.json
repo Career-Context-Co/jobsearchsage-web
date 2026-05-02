@@ -1,0 +1,120 @@
+{
+  "name": "HERO Nudge Discovery Lifecycle",
+  "description": "Manual payloads for persistent HERO nudges and nudge-driven HERO discovery sessions.",
+  "steps": [
+    {
+      "name": "Create or reuse persisted HERO nudge",
+      "method": "POST",
+      "endpoint": "/api/ai/experience/hero-nudge",
+      "body": {
+        "profileId": "cid_example",
+        "experienceId": 123,
+        "experience": {
+          "id": 123,
+          "title": "Research Assistant",
+          "employer": "University Example",
+          "summary": "Supported secure communications research and independently explored blockchain protocols.",
+          "highlights": [
+            "Co-authored a secure communication research paper",
+            "Initiated independent blockchain research project"
+          ],
+          "contextNotes": "Worked closely with faculty and shaped research direction.",
+          "sageNotes": null
+        }
+      },
+      "expected": {
+        "success": true,
+        "data": {
+          "nudge": true,
+          "id": "hnudge_...",
+          "status": "active"
+        }
+      }
+    },
+    {
+      "name": "Decline persisted HERO nudge",
+      "method": "POST",
+      "endpoint": "/api/ai/experience/hero-nudge/hnudge_example/decline",
+      "body": {},
+      "expected": {
+        "success": true,
+        "data": {
+          "nudge": true,
+          "status": "declined",
+          "declinedAt": "timestamp"
+        }
+      }
+    },
+    {
+      "name": "Start nudge-driven HERO discovery",
+      "method": "POST",
+      "endpoint": "/api/ai/hero-discovery/nudge/start",
+      "body": {
+        "profileId": "cid_example",
+        "nudgeId": "hnudge_example",
+        "experience": {
+          "id": 123,
+          "title": "Research Assistant",
+          "employer": "University Example",
+          "summary": "Supported secure communications research and independently explored blockchain protocols.",
+          "highlights": [
+            "Co-authored a secure communication research paper",
+            "Initiated independent blockchain research project"
+          ],
+          "contextNotes": "Worked closely with faculty and shaped research direction.",
+          "sageNotes": null
+        }
+      },
+      "expected": {
+        "success": true,
+        "data": {
+          "sessionId": 1,
+          "heroStoryId": "hero_...",
+          "message": "first question"
+        }
+      }
+    },
+    {
+      "name": "Continue nudge-driven HERO discovery",
+      "method": "POST",
+      "endpoint": "/api/ai/hero-discovery/nudge/continue",
+      "body": {
+        "sessionId": 1,
+        "userMessage": "The challenge was figuring out how to apply secure communication concepts to blockchain use cases with limited prior work."
+      },
+      "expected": {
+        "success": true,
+        "data": {
+          "message": "next question",
+          "completedFields": [
+            "hurdleProblem"
+          ],
+          "shouldEndSession": false,
+          "heroStoryId": "hero_..."
+        }
+      }
+    },
+    {
+      "name": "End nudge-driven HERO discovery",
+      "method": "POST",
+      "endpoint": "/api/ai/hero-discovery/nudge/end",
+      "body": {
+        "sessionId": 1
+      },
+      "expected": {
+        "success": true,
+        "data": {
+          "sessionId": 1,
+          "heroStoryId": "hero_..."
+        }
+      }
+    }
+  ],
+  "assertions": [
+    "Nudge checks reuse the same active nudge for unchanged content_hash.",
+    "Declined nudges are not shown again until experience content changes.",
+    "Starting nudge discovery sets accepted_at and creates or reuses a partial HERO story.",
+    "Nudge discovery writes progress_count, not moment_count.",
+    "Nudge discovery does not create rows in hero_moments."
+  ]
+}

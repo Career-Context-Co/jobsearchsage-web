@@ -70,6 +70,13 @@ export interface DiscoverySession {
   
   /** Number of moments captured in this session */
   moment_count: number
+
+  session_type?: 'moment_discovery' | 'experience_nudge_story'
+  source_type?: 'experience' | null
+  source_experience_id?: string | number | null
+  hero_nudge_id?: string | null
+  hero_story_id?: string | null
+  progress_count?: number
   
   /** Session data including conversation history and captured moments */
   session_data?: {
@@ -86,7 +93,18 @@ export interface DiscoverySession {
       current_role?: string
       years_experience?: number
       source_experience_id?: string | number | null
-      source_experience?: Record<string, any> | null
+      source_experience?: Record<string, unknown> | null
+    }
+    mode?: 'moment_discovery' | 'experience_nudge_story'
+    source_snapshot?: Record<string, unknown> | null
+    nudge?: {
+      id?: string
+      signal?: string
+      context?: string
+    }
+    story_progress?: {
+      answeredQuestions?: number
+      completedFields?: string[]
     }
   }
 }

@@ -11,19 +11,24 @@ interface Props {
   stories: HeroStory[]
   isLoading?: boolean
   pendingSuggestions?: PendingSuggestions | null
+  highlightStoryId?: string | null
+  editingStoryId?: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
-  pendingSuggestions: null
+  pendingSuggestions: null,
+  highlightStoryId: null,
+  editingStoryId: null
 })
 
 const emit = defineEmits<{
   create: []
   delete: [story: HeroStory]
-  save: [payload: { story: HeroStory; updates: Partial<HeroStory> }]
+  save: [payload: { story: HeroStory, updates: Partial<HeroStory> }]
   cancel: []
   openAIHelp: [storyId: string]
+  openAIOptions: [storyId: string]
   clearPendingSuggestions: []
 }>()
 
@@ -60,8 +65,16 @@ function handleOpenAIHelp(storyId: string) {
   emit('openAIHelp', storyId)
 }
 
+function handleOpenAIOptions(storyId: string) {
+  emit('openAIOptions', storyId)
+}
+
 function handleClearPendingSuggestions() {
   emit('clearPendingSuggestions')
+}
+
+function handleCancel() {
+  emit('cancel')
 }
 
 // Get pending suggestions for a specific story
@@ -95,8 +108,8 @@ function getPendingSuggestionsForStory(storyId: string) {
       </div>
 
       <UButton
-        label="Create Story"
-        icon="i-lucide-bookmark"
+        label="Get HERO Help"
+        icon="i-lucide-sparkles"
         color="primary"
         variant="solid"
         size="md"
@@ -130,8 +143,8 @@ function getPendingSuggestionsForStory(storyId: string) {
             No HERO stories yet. <span class="font-medium">Create your first story</span> to highlight your achievements.
           </p>
           <UButton
-            label="Create Story"
-            icon="i-lucide-plus"
+            label="Get HERO Help"
+            icon="i-lucide-sparkles"
             color="primary"
             size="md"
             class="cursor-pointer shrink-0"
@@ -147,9 +160,13 @@ function getPendingSuggestionsForStory(storyId: string) {
           :key="story.id"
           :story="story"
           :pending-suggestions="getPendingSuggestionsForStory(story.id)"
+          :is-highlighted="story.id === highlightStoryId"
+          :is-editing-requested="story.id === editingStoryId"
           @delete="handleDelete(story)"
           @save="(updates) => handleSave(story, updates)"
+          @cancel="handleCancel"
           @open-a-i-help="handleOpenAIHelp"
+          @open-a-i-options="handleOpenAIOptions"
           @suggestions-applied="handleClearPendingSuggestions"
         />
       </div>

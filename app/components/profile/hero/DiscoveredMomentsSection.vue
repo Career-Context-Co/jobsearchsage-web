@@ -92,7 +92,7 @@ function handleStartSession() {
       </div>
 
       <UButton
-          label="Discover More Moments"
+          label="Get HERO Help"
           icon="i-lucide-sparkles"
           color="primary"
           variant="solid"
@@ -127,7 +127,7 @@ function handleStartSession() {
             No moments captured yet. <span class="font-medium">Start a discovery session</span> to capture achievements.
           </p>
           <UButton
-            label="Start Session"
+            label="Get HERO Help"
             icon="i-lucide-sparkles"
             color="primary"
             size="md"
