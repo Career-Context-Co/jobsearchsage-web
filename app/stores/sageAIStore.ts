@@ -26,6 +26,9 @@ const dedupeCapturedMoments = (moments: CapturedMomentInput[]) => {
 
 const HERO_DISCOVERY_CACHE_KEY = 'sageAI.heroDiscoverySession'
 const HERO_DISCOVERY_CACHE_TTL_MS = 1000 * 60 * 60 * 24
+const EXPERIENCE_SAGE_NOTES_CACHE_KEY = 'sageAI.experienceSageNotes'
+const HERO_NUDGES_CACHE_KEY = 'sageAI.heroNudges'
+const SAGE_DATA_CACHE_TTL_MS = 1000 * 60 * 60 * 24
 
 /** Matches server `SAGE_NOTES_NOTE_TYPE` — sage AI notes for an experience target */
 const SAGE_EXPERIENCE_NOTES_TYPE = 'sage_notes'
@@ -37,6 +40,20 @@ export type ExperienceSageNotesState = {
   error: string | null
 }
 
+export type HeroNudgeCacheState = {
+  nudge: true
+  id: string
+  experienceId: number
+  contentHash: string
+  signal: string
+  context: string
+  status: 'active' | 'accepted' | 'declined' | 'converted' | 'stale'
+  heroStoryId: string | null
+  discoverySessionId: number | null
+  acceptedAt: string | null
+  declinedAt: string | null
+}
+
 function experienceSageNotesKey(profileId: string, experienceId: number) {
   return `${profileId}:${experienceId}`
 }
@@ -46,6 +63,8 @@ const isSessionIncomplete = (session: DiscoverySession) => {
 }
 
 let discoverySessionStage: ReturnType<typeof useLocalStorageState<DiscoverySession>> | null = null
+let experienceSageNotesStage: ReturnType<typeof useLocalStorageState<Record<string, ExperienceSageNotesState>>> | null = null
+let heroNudgesStage: ReturnType<typeof useLocalStorageState<Record<string, HeroNudgeCacheState>>> | null = null
 
 const getDiscoverySessionStage = () => {
   if (!discoverySessionStage) {
@@ -56,6 +75,26 @@ const getDiscoverySessionStage = () => {
   }
 
   return discoverySessionStage
+}
+
+const getExperienceSageNotesStage = () => {
+  if (!experienceSageNotesStage) {
+    experienceSageNotesStage = useLocalStorageState<Record<string, ExperienceSageNotesState>>(EXPERIENCE_SAGE_NOTES_CACHE_KEY, {
+      ttlMs: SAGE_DATA_CACHE_TTL_MS
+    })
+  }
+
+  return experienceSageNotesStage
+}
+
+const getHeroNudgesStage = () => {
+  if (!heroNudgesStage) {
+    heroNudgesStage = useLocalStorageState<Record<string, HeroNudgeCacheState>>(HERO_NUDGES_CACHE_KEY, {
+      ttlMs: SAGE_DATA_CACHE_TTL_MS
+    })
+  }
+
+  return heroNudgesStage
 }
 
 type HeroEnhancementSession = {
@@ -72,7 +111,9 @@ export const useSageAIStore = defineStore('sageAI', {
     isLoading: false,
     error: null as string | null,
     /** Sage profile notes for experience rows: key `${profileId}:${experienceId}` */
-    experienceSageNotesByKey: {} as Record<string, ExperienceSageNotesState>
+    experienceSageNotesByKey: {} as Record<string, ExperienceSageNotesState>,
+    /** Persisted HERO nudges for experience rows: key `${profileId}:${experienceId}` */
+    heroNudgesByKey: {} as Record<string, HeroNudgeCacheState>
   }),
 
   getters: {
@@ -81,10 +122,157 @@ export const useSageAIStore = defineStore('sageAI', {
         (profileId: string, experienceId: number): ExperienceSageNotesState | null => {
           const key = experienceSageNotesKey(profileId, experienceId)
           return state.experienceSageNotesByKey[key] ?? null
+        },
+    heroNudgeFor:
+      state =>
+        (profileId: string, experienceId: number): HeroNudgeCacheState | null => {
+          const key = experienceSageNotesKey(profileId, experienceId)
+          return state.heroNudgesByKey[key] ?? null
+        },
+    heroNudgesForProfile:
+      state =>
+        (profileId: string): HeroNudgeCacheState[] => {
+          const prefix = `${profileId}:`
+          return Object.entries(state.heroNudgesByKey)
+            .filter(([key]) => key.startsWith(prefix))
+            .map(([, nudge]) => nudge)
         }
   },
 
   actions: {
+    saveExperienceSageNotesToCache() {
+      getExperienceSageNotesStage().save(this.experienceSageNotesByKey)
+    },
+
+    restoreExperienceSageNotesFromCache() {
+      const cached = getExperienceSageNotesStage().restore()
+      if (!cached) return null
+
+      this.experienceSageNotesByKey = {
+        ...this.experienceSageNotesByKey,
+        ...cached
+      }
+      return cached
+    },
+
+    saveHeroNudgesToCache() {
+      getHeroNudgesStage().save(this.heroNudgesByKey)
+    },
+
+    restoreHeroNudgesFromCache() {
+      const cached = getHeroNudgesStage().restore()
+      if (!cached) return null
+
+      this.heroNudgesByKey = {
+        ...this.heroNudgesByKey,
+        ...cached
+      }
+      return cached
+    },
+
+    setHeroNudge(profileId: string, nudge: HeroNudgeCacheState) {
+      const key = experienceSageNotesKey(profileId, nudge.experienceId)
+      this.heroNudgesByKey = {
+        ...this.heroNudgesByKey,
+        [key]: nudge
+      }
+      this.saveHeroNudgesToCache()
+    },
+
+    setHeroNudges(profileId: string, nudges: HeroNudgeCacheState[]) {
+      const next = { ...this.heroNudgesByKey }
+      for (const nudge of nudges) {
+        next[experienceSageNotesKey(profileId, nudge.experienceId)] = nudge
+      }
+      this.heroNudgesByKey = next
+      this.saveHeroNudgesToCache()
+    },
+
+    clearHeroNudge(profileId: string, experienceId: number) {
+      const key = experienceSageNotesKey(profileId, experienceId)
+      const next = { ...this.heroNudgesByKey }
+      delete next[key]
+      this.heroNudgesByKey = next
+      this.saveHeroNudgesToCache()
+    },
+
+    async loadSageNotesForProfileExperiences(profileId: string, experienceIds: number[] = []) {
+      this.restoreExperienceSageNotesFromCache()
+
+      const next = { ...this.experienceSageNotesByKey }
+      for (const experienceId of experienceIds) {
+        const key = experienceSageNotesKey(profileId, experienceId)
+        next[key] = {
+          content: next[key]?.content ?? null,
+          updatedAt: next[key]?.updatedAt ?? null,
+          loading: true,
+          error: null
+        }
+      }
+      this.experienceSageNotesByKey = next
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          data: Array<{ targetId: string, content: string | null, updatedAt: string | null }>
+        }>('/api/ai/sage/notes/experience', {
+          query: { profileId }
+        })
+
+        if (!response.success) {
+          throw new Error('Failed to load Sage notes')
+        }
+
+        const hydrated = { ...this.experienceSageNotesByKey }
+        const loadedTargetIds = new Set(response.data.map(note => note.targetId))
+
+        for (const note of response.data) {
+          const experienceId = Number(note.targetId)
+          if (!Number.isInteger(experienceId)) continue
+
+          hydrated[experienceSageNotesKey(profileId, experienceId)] = {
+            content: note.content ?? null,
+            updatedAt: note.updatedAt ?? null,
+            loading: false,
+            error: null
+          }
+        }
+
+        for (const experienceId of experienceIds) {
+          const key = experienceSageNotesKey(profileId, experienceId)
+          if (!loadedTargetIds.has(String(experienceId))) {
+            hydrated[key] = {
+              content: hydrated[key]?.content ?? null,
+              updatedAt: hydrated[key]?.updatedAt ?? null,
+              loading: false,
+              error: null
+            }
+          }
+        }
+
+        this.experienceSageNotesByKey = hydrated
+        this.saveExperienceSageNotesToCache()
+      } catch (error: unknown) {
+        const e = error as { data?: { error?: { message?: string } }, message?: string }
+        const errorMessage
+          = e?.data?.error?.message
+            || e?.message
+            || 'Failed to load Sage notes'
+        const failed = { ...this.experienceSageNotesByKey }
+        for (const experienceId of experienceIds) {
+          const key = experienceSageNotesKey(profileId, experienceId)
+          failed[key] = {
+            content: failed[key]?.content ?? null,
+            updatedAt: failed[key]?.updatedAt ?? null,
+            loading: false,
+            error: errorMessage
+          }
+        }
+        this.experienceSageNotesByKey = failed
+        console.error('loadSageNotesForProfileExperiences failed', error)
+      }
+    },
+
     async loadSageNotesForExperience(profileId: string, experienceId: number) {
       const key = experienceSageNotesKey(profileId, experienceId)
       const prev = this.experienceSageNotesByKey[key]
@@ -118,6 +306,7 @@ export const useSageAIStore = defineStore('sageAI', {
           loading: false,
           error: null
         }
+        this.saveExperienceSageNotesToCache()
       } catch (error: unknown) {
         const e = error as { data?: { error?: { message?: string } }, message?: string }
         const errorMessage

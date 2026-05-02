@@ -30,6 +30,13 @@ interface SageNotesLookupForExperienceParams {
   experienceId: string
 }
 
+interface SageNotesLookupForProfileTargetParams {
+  userId: string
+  profileId: string
+  targetType: string
+  noteType?: string
+}
+
 interface SageNotesUpsertParams extends SageNotesLookupParams {
   content: string
   metadata?: Record<string, any>
@@ -121,6 +128,29 @@ export async function getSageNotesForExperience(
     targetId: experienceId,
     noteType: SAGE_NOTES_NOTE_TYPE,
   })
+}
+
+export async function getSageNotesForProfileTarget(
+  supabase: SupabaseClient,
+  params: SageNotesLookupForProfileTargetParams
+): Promise<SageProfileNote[]> {
+  const { userId, profileId, targetType, noteType } = params
+  const resolvedNoteType = noteType ?? SAGE_NOTES_NOTE_TYPE
+
+  const { data, error } = await supabase
+    .from('sage_profile_notes')
+    .select('id, user_id, profile_id, target_type, target_id, note_type, content, metadata, created_at, updated_at')
+    .eq('user_id', userId)
+    .eq('profile_id', profileId)
+    .eq('target_type', targetType)
+    .eq('note_type', resolvedNoteType)
+    .order('updated_at', { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return (data ?? []) as SageProfileNote[]
 }
 
 export async function upsertSageNotesForExperience(
