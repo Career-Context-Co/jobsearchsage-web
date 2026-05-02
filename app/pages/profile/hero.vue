@@ -149,6 +149,12 @@ async function handleSaveNewStory() {
 }
 
 const isDiscoveryDrawerOpen = computed(() => route.query.discoverySession === 'true')
+const routeSourceExperienceId = computed(() => normalizeSourceExperienceId(route.query.sourceExperienceId))
+const routeHeroStoryId = computed(() => {
+  return typeof route.query.heroStoryId === 'string' && route.query.heroStoryId.trim()
+    ? route.query.heroStoryId.trim()
+    : null
+})
 
 const chatMessages = computed(() => discoverySession.value?.session_data?.conversation_history ?? [])
 const capturedMoments = computed(() =>
@@ -219,18 +225,38 @@ async function handleDeleteStory(story: HeroStory) {
 async function ensureDiscoverySession() {
   if (!profileId.value) return
 
-  if (discoverySession.value && discoverySession.value.session_status === 'active') {
+  const sourceExperienceId = routeSourceExperienceId.value
+  const existingSourceExperienceId = normalizeSourceExperienceId(
+    discoverySession.value?.session_data?.user_context?.source_experience_id
+  )
+
+  if (
+    discoverySession.value
+    && discoverySession.value.session_status === 'active'
+    && (!sourceExperienceId || existingSourceExperienceId === sourceExperienceId)
+  ) {
     return
   }
 
-  if (!discoverySession.value) {
+  if (!discoverySession.value && !sourceExperienceId) {
     const restored = sageAIStore.restoreSessionFromCache(profileId.value)
     if (restored) {
       return
     }
   }
 
-  await sageAIStore.startDiscoverySession(profileId.value)
+  const sourceExperience = sourceExperienceId
+    ? careerIDStore.experience.find(exp => exp.id === sourceExperienceId) ?? null
+    : null
+
+  if (sourceExperienceId && existingSourceExperienceId !== sourceExperienceId) {
+    sageAIStore.clearSessionCache()
+    sageAIStore.discoverySession = null
+  }
+
+  await sageAIStore.startDiscoverySession(profileId.value, {
+    source_experience: sourceExperience
+  })
 }
 
 function openDiscoverySession() {
@@ -368,6 +394,19 @@ function openAIPanelForStory(storyId: string) {
 function closeAIPanel() {
   isAIPanelOpen.value = false
   currentStoryIdForAI.value = null
+
+  if (route.query.heroStoryId) {
+    const query = { ...route.query }
+    delete query.heroStoryId
+    router.replace({ query })
+  }
+}
+
+function openRoutedHeroStorySession() {
+  if (!routeHeroStoryId.value) return
+
+  currentStoryIdForAI.value = routeHeroStoryId.value
+  isAIPanelOpen.value = true
 }
 
 function applyAISuggestionsToCreateForm(suggestions: Record<string, Record<string, string>>) {
@@ -465,6 +504,22 @@ onMounted(async () => {
     careerIDStore.fetchMoments(profileId.value),
     careerIDStore.fetchStories(profileId.value)
   ])
+
+  if (isDiscoveryDrawerOpen.value) {
+    await ensureDiscoverySession()
+  }
+
+  openRoutedHeroStorySession()
+})
+
+watch(isDiscoveryDrawerOpen, (open) => {
+  if (open) {
+    ensureDiscoverySession()
+  }
+})
+
+watch(routeHeroStoryId, () => {
+  openRoutedHeroStorySession()
 })
 </script>
 

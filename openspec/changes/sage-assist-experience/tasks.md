@@ -145,12 +145,13 @@
 
 ### FE-004: HERO nudge banner
 
-- [ ] Create `app/components/profile/sage/SageHeroNudge.vue` — props: `signal`, `context`, `experienceId`
-  - CTA navigates to HERO story creation with experience preloaded
-- [ ] On experience detail mount: `POST /api/ai/experience/hero-nudge` with experience snapshot including `sageNotes` from FE-001 and `contextNotes` from Career ID experience; cache result for session
+- [x] Create `app/components/profile/sage/SageHeroNudge.vue` — props: `signal`, `context`, `experienceId`
+  - CTA creates a linked partial HERO story and opens the HERO story session directly
+- [x] After the user adds or saves an experience, or saves an AI-enhanced achievement, run `POST /api/ai/experience/hero-nudge` with the latest experience snapshot and cache result for the page session
+  - Include summary, achievements, and Career ID `contextNotes` so the nudge reflects what the user just edited
 
 **Dependencies:** FE-001, BE-004  
-**Success criteria:** Nudge uses combined Career ID + Sage notes context.
+**Success criteria:** Nudge uses the latest saved Career ID experience content, uses short second-person copy, and only appears after a user saves new or edited experience content.
 
 ---
 

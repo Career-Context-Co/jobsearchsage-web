@@ -3,7 +3,7 @@ import { ErrorCodes } from '@@/server/utils/error-handler'
 import {
   detectHeroSignal,
   SageExperienceEnhancementError,
-  type SageHeroSignalExperience,
+  type SageHeroSignalExperience
 } from '@@/server/utils/sage-experience-enhancer'
 
 const ROUTE_PATH = '/api/ai/experience/hero-nudge'
@@ -20,9 +20,9 @@ function createValidationError(message: string) {
       success: false,
       error: {
         code: ErrorCodes.VALIDATION_ERROR,
-        message,
-      },
-    },
+        message
+      }
+    }
   })
 }
 
@@ -42,15 +42,16 @@ export default eventHandler(async (event) => {
     const duration = getElapsed()
 
     logSuccess('POST', ROUTE_PATH, duration, {
-      nudge: result.nudge,
+      nudge: result.nudge
     })
 
     return {
       success: true,
-      data: result,
+      data: result
     }
-  } catch (error: any) {
-    if (error?.statusCode) {
+  } catch (error: unknown) {
+    const apiError = error as { statusCode?: number, message?: string }
+    if (apiError?.statusCode) {
       logError('POST', ROUTE_PATH, error, { kind: 'validation' })
       throw error
     }
@@ -61,7 +62,7 @@ export default eventHandler(async (event) => {
 
       logError('POST', ROUTE_PATH, error.message, {
         enhancementCode: error.code,
-        details: error.details,
+        details: error.details
       })
 
       throw createError({
@@ -71,16 +72,16 @@ export default eventHandler(async (event) => {
           success: false,
           error: {
             code: errorCode,
-            message: error.message,
-          },
-        },
+            message: error.message
+          }
+        }
       })
     }
 
     const duration = getElapsed()
     logError('POST', ROUTE_PATH, error, {
       duration,
-      message: error?.message || 'Unknown error',
+      message: apiError?.message || 'Unknown error'
     })
 
     throw createError({
@@ -90,9 +91,9 @@ export default eventHandler(async (event) => {
         success: false,
         error: {
           code: ErrorCodes.INTERNAL_ERROR,
-          message: 'Failed to run hero nudge check',
-        },
-      },
+          message: 'Failed to run hero nudge check'
+        }
+      }
     })
   }
 })

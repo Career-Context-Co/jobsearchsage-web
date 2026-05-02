@@ -7,6 +7,7 @@ const careerIDStore = useCareerIDStore()
 const sageAIStore = useSageAIStore()
 const accountStore = useAccountStore()
 const toast = useToast()
+const router = useRouter()
 
 /**
  * Convert date from YYYY-MM-DD to MM/YYYY format for UI display
@@ -86,6 +87,14 @@ const formErrors = ref<Record<string, string>>({})
 
 const sageSessionOpen = ref(false)
 const sageSessionExperienceId = ref<number | null>(null)
+const startingHeroExperienceId = ref<number | null>(null)
+
+type HeroNudgeLoadingState = { loading: true, dismissed?: boolean }
+type HeroNudgeEmptyState = { loading: false, dismissed?: boolean, nudge: false }
+type HeroNudgeActiveState = { loading: false, dismissed?: boolean, nudge: true, signal: string, context: string }
+type HeroNudgeState = HeroNudgeLoadingState | HeroNudgeEmptyState | HeroNudgeActiveState
+
+const heroNudgesByExperienceId = ref<Record<number, HeroNudgeState>>({})
 
 const sageSessionExperience = computed(() =>
   sageSessionExperienceId.value !== null
@@ -101,6 +110,124 @@ function openSageSession(experienceId: number) {
 function closeSageSession() {
   sageSessionOpen.value = false
   sageSessionExperienceId.value = null
+}
+
+function heroNudgeFor(experienceId: number): HeroNudgeState | null {
+  return heroNudgesByExperienceId.value[experienceId] ?? null
+}
+
+function activeHeroNudgeFor(experienceId: number) {
+  const nudge = heroNudgeFor(experienceId)
+  return nudge?.loading === false && nudge.dismissed !== true && nudge.nudge === true
+    ? nudge
+    : null
+}
+
+async function checkHeroNudgeForExperience(experience: Experience) {
+  if (!accountStore.isHeroEnabled) return
+
+  const hasSignalContent = Boolean(
+    experience.summary?.trim()
+    || experience.contextNotes?.trim()
+    || experience.highlights.some(highlight => highlight.trim())
+  )
+  if (!hasSignalContent) {
+    heroNudgesByExperienceId.value = {
+      ...heroNudgesByExperienceId.value,
+      [experience.id]: { loading: false, nudge: false }
+    }
+    return
+  }
+
+  heroNudgesByExperienceId.value = {
+    ...heroNudgesByExperienceId.value,
+    [experience.id]: { loading: true }
+  }
+
+  try {
+    const response = await $fetch<{
+      success: boolean
+      data: { nudge: false } | { nudge: true, signal: string, context: string }
+    }>('/api/ai/experience/hero-nudge', {
+      method: 'POST',
+      body: {
+        experience: {
+          id: experience.id,
+          title: experience.title,
+          employer: experience.employer,
+          highlights: experience.highlights,
+          summary: experience.summary ?? null,
+          contextNotes: experience.contextNotes ?? null,
+          sageNotes: null
+        }
+      }
+    })
+
+    heroNudgesByExperienceId.value = {
+      ...heroNudgesByExperienceId.value,
+      [experience.id]: response.data.nudge
+        ? {
+            loading: false,
+            nudge: true,
+            signal: response.data.signal,
+            context: response.data.context
+          }
+        : { loading: false, nudge: false }
+    }
+  } catch (error) {
+    console.error('HERO nudge check failed', error)
+    heroNudgesByExperienceId.value = {
+      ...heroNudgesByExperienceId.value,
+      [experience.id]: { loading: false, nudge: false }
+    }
+  }
+}
+
+function dismissHeroNudge(experienceId: number) {
+  const existing = heroNudgesByExperienceId.value[experienceId]
+  heroNudgesByExperienceId.value = {
+    ...heroNudgesByExperienceId.value,
+    [experienceId]: {
+      ...(existing ?? { loading: false, nudge: false }),
+      dismissed: true
+    } as HeroNudgeState
+  }
+}
+
+async function startHeroInterview(experienceId: number) {
+  if (startingHeroExperienceId.value !== null) return
+
+  const experience = careerIDStore.experience.find(exp => exp.id === experienceId)
+  const profileId = careerIDStore.profile?.id || careerIDStore.profileId || accountStore.profileId
+  if (!experience || !profileId) return
+
+  startingHeroExperienceId.value = experienceId
+
+  try {
+    const storyTitle = `${experience.title} at ${experience.employer}`
+    const createdStory = await careerIDStore.createStory(profileId, {
+      title: storyTitle,
+      sourceExperienceId: experience.id,
+      displayOrder: careerIDStore.heroStories.length + 1
+    })
+
+    await router.push({
+      path: '/profile/hero',
+      query: {
+        heroStoryId: createdStory.id
+      }
+    })
+  } catch (error) {
+    console.error('Failed to start HERO story session', error)
+    toast.add({
+      title: 'Could not start HERO interview',
+      description: 'Please try again from the HERO page.',
+      icon: 'i-lucide-alert-circle',
+      color: 'error'
+    })
+  } finally {
+    startingHeroExperienceId.value = null
+  }
 }
 
 async function onSageSessionConfirm(bulletIndex: number, improvedBullet: string) {
@@ -131,6 +258,10 @@ async function onSageSessionConfirm(bulletIndex: number, improvedBullet: string)
       icon: 'i-lucide-check',
       color: 'success'
     })
+    const updatedExperience = careerIDStore.experience.find(e => e.id === expId)
+    if (updatedExperience) {
+      void checkHeroNudgeForExperience(updatedExperience)
+    }
     closeSageSession()
   } catch (err: unknown) {
     const e = err as { message?: string }
@@ -333,7 +464,7 @@ async function addExperience() {
     // Filter out empty highlights
     const highlights = formData.value.highlights?.filter(h => h.trim()) || []
     
-    await careerIDStore.addExperience({
+    const createdExperience = await careerIDStore.addExperience({
       employmentType: formData.value.employmentType!,
       employer: formData.value.employer!,
       title: formData.value.title!,
@@ -355,8 +486,9 @@ async function addExperience() {
       icon: 'i-lucide-check',
       color: 'success'
     })
-    
+
     cancelEdit()
+    void checkHeroNudgeForExperience(createdExperience)
   } catch (err: any) {
     toast.add({
       title: 'Error',
@@ -383,7 +515,7 @@ async function updateExperience() {
     // Filter out empty highlights
     const highlights = formData.value.highlights?.filter(h => h.trim()) || []
     
-    await careerIDStore.updateExperience(editingExperienceId.value!, {
+    const updatedExperience = await careerIDStore.updateExperience(editingExperienceId.value!, {
       employmentType: formData.value.employmentType!,
       employer: formData.value.employer!,
       title: formData.value.title!,
@@ -404,8 +536,9 @@ async function updateExperience() {
       icon: 'i-lucide-check',
       color: 'success'
     })
-    
+
     cancelEdit()
+    void checkHeroNudgeForExperience(updatedExperience)
   } catch (err: any) {
     toast.add({
       title: 'Error',
@@ -801,6 +934,17 @@ onMounted(async () => {
                   {{ experience.contextNotes }}
                 </p>
               </div>
+
+              <ProfileSageHeroNudge
+                v-if="activeHeroNudgeFor(experience.id)"
+                class="mt-3"
+                :signal="activeHeroNudgeFor(experience.id)!.signal"
+                :context="activeHeroNudgeFor(experience.id)!.context"
+                :experience-id="experience.id"
+                :is-loading="startingHeroExperienceId === experience.id"
+                @start="startHeroInterview"
+                @dismiss="dismissHeroNudge"
+              />
 
               <div v-if="experience.url" class="mt-3">
                 <a

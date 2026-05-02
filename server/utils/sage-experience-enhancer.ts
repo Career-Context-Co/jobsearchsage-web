@@ -643,8 +643,16 @@ function parseHeroSignalResponse(response: string): SageHeroSignalResult {
 
     return {
       nudge: true,
-      signal: parsed.signal.trim(),
-      context: parsed.context.trim()
+      signal: normalizeHeroNudgeSentence(
+        parsed.signal,
+        10,
+        'You showed real leadership here.'
+      ),
+      context: normalizeHeroNudgeSentence(
+        parsed.context,
+        18,
+        'You have the makings of a strong HERO story.'
+      )
     }
   } catch (error) {
     if (error instanceof SageExperienceEnhancementError) {
@@ -653,6 +661,19 @@ function parseHeroSignalResponse(response: string): SageHeroSignalResult {
 
     throw new SageExperienceEnhancementError('Failed to parse hero nudge response', 'AI_PROVIDER_ERROR')
   }
+}
+
+function normalizeHeroNudgeSentence(value: unknown, maxWords: number, fallback: string) {
+  if (typeof value !== 'string') return fallback
+
+  const normalized = value.replace(/\s+/g, ' ').trim()
+  const firstSentence = normalized.match(/^[^.!?]+[.!?]?/)?.[0]?.trim() || normalized
+  const words = firstSentence.split(' ').filter(Boolean)
+  const shortened = words.length > maxWords
+    ? `${words.slice(0, maxWords).join(' ')}.`
+    : firstSentence
+
+  return /^(you|your)\b/i.test(shortened) ? shortened : fallback
 }
 
 export async function detectHeroSignal(
@@ -687,8 +708,8 @@ Strong signal includes things like quantified outcomes, cross-functional ownersh
 Return JSON only:
 {
   "nudge": true,
-  "signal": "short reason",
-  "context": "1-2 sentence explanation tied to the provided content"
+  "signal": "short second-person sentence, under 10 words, like: You showed real leadership here.",
+  "context": "one short second-person sentence, under 18 words, tied to the provided content"
 }
 
 Or:
