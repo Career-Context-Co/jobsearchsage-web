@@ -48,6 +48,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   confirm: [bulletIndex: number, improvedBullet: string]
   applySummary: [summary: string]
+  applyContextNotes: [notes: string]
   close: []
 }>()
 
@@ -125,6 +126,13 @@ function onInterviewSaved() {
 
 function onInterviewApplySummary(summary: string) {
   emit('applySummary', summary)
+  currentView.value = 'picker'
+  interviewMode.value = null
+  coachingMessage.value = 'I\'ll help you improve your experience. What would you like to work on?'
+}
+
+function onInterviewApplyContextNotes(notes: string) {
+  emit('applyContextNotes', notes)
   currentView.value = 'picker'
   interviewMode.value = null
   coachingMessage.value = 'I\'ll help you improve your experience. What would you like to work on?'
@@ -357,6 +365,7 @@ function onInterviewApplySummary(summary: string) {
         class="flex-1 min-h-0"
         @saved="onInterviewSaved"
         @apply-summary="onInterviewApplySummary"
+        @apply-context-notes="onInterviewApplyContextNotes"
         @close="emit('close')"
       />
     </div>

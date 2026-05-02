@@ -154,14 +154,16 @@
 
 ---
 
-### FE-005: Display Sage notes in experience detail view
+### FE-005: Display My Notes in experience detail view
 
-- [ ] Read-only section "Sage Notes" — render when FE-001 returns non-empty content
-- [ ] Never render Sage notes as an editable input
-- [ ] Keep `contextNotes` editable via existing Career ID experience form behavior — no field rename in this change
+- [x] Do not render hidden Sage Notes in the experience detail/edit card
+- [x] Keep `contextNotes` editable via existing Career ID experience form behavior — no field rename in this change
+- [x] Show `contextNotes` as "My Notes" after Summary in the experience detail card
+- [x] Show "Copy to My Notes" only inside the Sage notes interview review; copied notes go into editable `contextNotes`, and user saves through the normal experience form
+- [x] If the user closes the Sage notes interview without copying, generated Sage Notes are not visible in the experience detail UI
 
 **Dependencies:** FE-001  
-**Success criteria:** Sage notes visible read-only from AI route; `contextNotes` unchanged.
+**Success criteria:** Only user-owned `contextNotes` are visible in the detail card; generated Sage Notes are visible only during the Sage interview review unless copied into My Notes.
 
 ---
 

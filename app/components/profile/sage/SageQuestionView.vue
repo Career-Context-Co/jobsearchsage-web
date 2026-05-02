@@ -7,16 +7,19 @@ const props = withDefaults(defineProps<{
   isLoading?: boolean
   initialAnswer?: string | string[]
   canGoBack?: boolean
+  canEndQuestioning?: boolean
 }>(), {
   progress: '',
   isLoading: false,
   initialAnswer: undefined,
-  canGoBack: false
+  canGoBack: false,
+  canEndQuestioning: false
 })
 
 const emit = defineEmits<{
   answer: [questionId: string, value: string | string[], questionText: string]
   back: []
+  endQuestioning: [questionId?: string, value?: string | string[], questionText?: string]
 }>()
 
 const freeFormAnswer = ref('')
@@ -133,6 +136,11 @@ function submitSingleChoice() {
 function submitMultiChoice() {
   if (!canSubmitMultiChoice.value) return
 
+  const selectedLabels = getSelectedOptionLabels()
+  emit('answer', props.question.id, selectedLabels, props.question.text)
+}
+
+function getSelectedOptionLabels() {
   const selectedLabels = selectedOptionIds.value
     .map((optionId) => {
       const option = props.question.options?.find(item => item.id === optionId)
@@ -141,7 +149,36 @@ function submitMultiChoice() {
     })
     .filter((label): label is string => !!label)
 
-  emit('answer', props.question.id, selectedLabels, props.question.text)
+  return selectedLabels
+}
+
+function endQuestioning() {
+  if (props.isLoading) return
+
+  if (props.question.type === 'free_form' && canSubmitFreeForm.value) {
+    emit('endQuestioning', props.question.id, freeFormAnswer.value.trim(), props.question.text)
+    return
+  }
+
+  if (props.question.type === 'single_choice' && canSubmitSingleChoice.value) {
+    const option = props.question.options?.find(item => item.id === selectedOptionIds.value[0])
+    if (option) {
+      emit(
+        'endQuestioning',
+        props.question.id,
+        option.allowCustom ? customText.value.trim() : option.label,
+        props.question.text
+      )
+      return
+    }
+  }
+
+  if (props.question.type === 'multi_choice' && canSubmitMultiChoice.value) {
+    emit('endQuestioning', props.question.id, getSelectedOptionLabels(), props.question.text)
+    return
+  }
+
+  emit('endQuestioning')
 }
 
 watch(
@@ -180,7 +217,7 @@ watch(
         :disabled="isLoading"
         class="w-full"
       />
-      <div class="flex justify-between">
+      <div class="flex justify-between gap-2">
         <UButton
           v-if="canGoBack"
           label="Back"
@@ -192,14 +229,25 @@ watch(
           @click="emit('back')"
         />
         <div v-else />
-        <UButton
-          label="Continue"
-          color="primary"
-          class="cursor-pointer"
-          :disabled="!canSubmitFreeForm"
-          :loading="isLoading"
-          @click="submitFreeForm"
-        />
+        <div class="flex gap-2">
+          <UButton
+            v-if="canEndQuestioning"
+            label="End Questioning"
+            color="neutral"
+            variant="soft"
+            class="cursor-pointer"
+            :disabled="isLoading"
+            @click="endQuestioning"
+          />
+          <UButton
+            label="Continue"
+            color="primary"
+            class="cursor-pointer"
+            :disabled="!canSubmitFreeForm"
+            :loading="isLoading"
+            @click="submitFreeForm"
+          />
+        </div>
       </div>
     </div>
 
@@ -246,7 +294,7 @@ watch(
         class="w-full"
       />
 
-      <div class="flex justify-between">
+      <div class="flex justify-between gap-2">
         <UButton
           v-if="canGoBack"
           label="Back"
@@ -258,14 +306,25 @@ watch(
           @click="emit('back')"
         />
         <div v-else />
-        <UButton
-          label="Continue"
-          color="primary"
-          class="cursor-pointer"
-          :disabled="question.type === 'single_choice' ? !canSubmitSingleChoice : !canSubmitMultiChoice"
-          :loading="isLoading"
-          @click="question.type === 'single_choice' ? submitSingleChoice() : submitMultiChoice()"
-        />
+        <div class="flex gap-2">
+          <UButton
+            v-if="canEndQuestioning"
+            label="End Questioning"
+            color="neutral"
+            variant="soft"
+            class="cursor-pointer"
+            :disabled="isLoading"
+            @click="endQuestioning"
+          />
+          <UButton
+            label="Continue"
+            color="primary"
+            class="cursor-pointer"
+            :disabled="question.type === 'single_choice' ? !canSubmitSingleChoice : !canSubmitMultiChoice"
+            :loading="isLoading"
+            @click="question.type === 'single_choice' ? submitSingleChoice() : submitMultiChoice()"
+          />
+        </div>
       </div>
     </div>
   </div>

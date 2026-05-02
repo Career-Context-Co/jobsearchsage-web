@@ -14,6 +14,7 @@ interface ResponsibilityInterviewBody {
   mode?: SageInterviewMode
   experience?: SageInterviewExperience
   answers?: SageCollectedAnswer[]
+  forceComplete?: boolean
 }
 
 function createValidationError(message: string) {
@@ -39,6 +40,7 @@ export default eventHandler(async (event) => {
     const mode = body?.mode
     const experience = body?.experience
     const answers = body?.answers ?? []
+    const forceComplete = body?.forceComplete === true
 
     if (!mode || (mode !== 'notes_help' && mode !== 'role_summary')) {
       throw createValidationError('mode must be one of: notes_help, role_summary')
@@ -52,13 +54,14 @@ export default eventHandler(async (event) => {
       throw createValidationError('answers must be an array when provided')
     }
 
-    const result = await conductResponsibilityInterview(mode, experience, answers)
+    const result = await conductResponsibilityInterview(mode, experience, answers, forceComplete)
     const duration = getElapsed()
 
     logSuccess('POST', ROUTE_PATH, duration, {
       mode,
       done: result.done,
       answerCount: answers.length,
+      forceComplete,
       questionCount: result.done ? 0 : result.questions.length
     })
 

@@ -22,6 +22,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   saved: []
   applySummary: [summary: string]
+  applyContextNotes: [notes: string]
   close: []
 }>()
 
@@ -48,12 +49,6 @@ const existingSageNotes = computed(() =>
 
 const existingSummary = computed(() =>
   props.experience.summary ?? null
-)
-
-const hasExistingContent = computed(() =>
-  props.mode === 'notes_help'
-    ? !!existingSageNotes.value
-    : !!existingSummary.value
 )
 
 const currentQuestion = computed(() =>
@@ -86,7 +81,7 @@ const experiencePayload = computed(() => ({
   sageNotes: existingSageNotes.value ?? undefined
 }))
 
-async function requestNextResult() {
+async function requestNextResult(forceComplete = false) {
   isSubmitting.value = true
   requestError.value = null
 
@@ -99,7 +94,8 @@ async function requestNextResult() {
       body: {
         mode: props.mode,
         experience: experiencePayload.value,
-        answers: allAnswers.value
+        answers: allAnswers.value,
+        forceComplete
       }
     })
 
@@ -132,14 +128,7 @@ async function requestNextResult() {
 async function handleAnswer(questionId: string, value: string | string[], questionText: string) {
   if (!currentQuestion.value || isSubmitting.value) return
 
-  const answerIndex = currentBatchAnswerStartIndex.value + currentQuestionIndex.value
-  const nextAnswers = allAnswers.value.slice(0, answerIndex)
-  nextAnswers[answerIndex] = {
-    questionId,
-    questionText,
-    answer: value
-  }
-  allAnswers.value = nextAnswers
+  saveCurrentAnswer(questionId, value, questionText)
 
   if (currentQuestionIndex.value < questions.value.length - 1) {
     currentQuestionIndex.value++
@@ -149,6 +138,28 @@ async function handleAnswer(questionId: string, value: string | string[], questi
   phase.value = 'generating-output'
   round.value++
   await requestNextResult()
+}
+
+function saveCurrentAnswer(questionId: string, value: string | string[], questionText: string) {
+  const answerIndex = currentBatchAnswerStartIndex.value + currentQuestionIndex.value
+  const nextAnswers = allAnswers.value.slice(0, answerIndex)
+  nextAnswers[answerIndex] = {
+    questionId,
+    questionText,
+    answer: value
+  }
+  allAnswers.value = nextAnswers
+}
+
+async function endQuestioning(questionId?: string, value?: string | string[], questionText?: string) {
+  if (isSubmitting.value) return
+
+  if (questionId && value !== undefined && questionText) {
+    saveCurrentAnswer(questionId, value, questionText)
+  }
+
+  phase.value = 'generating-output'
+  await requestNextResult(true)
 }
 
 function goBack() {
@@ -163,11 +174,7 @@ function startSave() {
     return
   }
 
-  if (hasExistingContent.value) {
-    phase.value = 'confirm-overwrite'
-  } else {
-    save()
-  }
+  emit('applyContextNotes', editableOutput.value.trim())
 }
 
 async function save() {
@@ -274,8 +281,10 @@ onMounted(() => {
         :is-loading="isSubmitting || !!requestError"
         :initial-answer="currentAnswer"
         :can-go-back="currentQuestionIndex > 0"
+        :can-end-questioning="round > 1"
         @answer="handleAnswer"
         @back="goBack"
+        @end-questioning="endQuestioning"
       />
 
       <div class="flex justify-start">
@@ -319,7 +328,7 @@ onMounted(() => {
             @click="emit('close')"
           />
           <UButton
-            :label="mode === 'role_summary' ? 'Use in summary field' : 'Save'"
+            :label="mode === 'role_summary' ? 'Use in summary field' : 'Copy to My Notes'"
             color="primary"
             icon="i-lucide-check"
             class="cursor-pointer"

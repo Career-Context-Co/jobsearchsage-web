@@ -72,6 +72,7 @@ interface ExperienceFormData {
   endDate: string
   currentPosition: boolean
   summary: string
+  contextNotes: string
   highlights: string[]
 }
 
@@ -163,6 +164,31 @@ function onSageSessionApplySummary(summary: string) {
   closeSageSession()
 }
 
+function onSageSessionApplyContextNotes(notes: string) {
+  const expId = sageSessionExperienceId.value
+  if (expId === null) return
+
+  const exp = careerIDStore.experience.find(e => e.id === expId)
+  if (!exp) return
+
+  if (editingExperienceId.value !== expId) {
+    startEditingExperience(exp)
+  }
+
+  const existingNotes = formData.value.contextNotes?.trim() ?? ''
+  formData.value.contextNotes = existingNotes
+    ? existingNotes.includes(notes) ? existingNotes : `${existingNotes}\n\n${notes}`
+    : notes
+
+  toast.add({
+    title: 'Copied to My Notes',
+    description: 'Review it in the open experience card, then save your changes.',
+    icon: 'i-lucide-check',
+    color: 'success'
+  })
+  closeSageSession()
+}
+
 // Employment type options
 const employmentTypes = [
   { value: 'full_time', label: 'Full-time' },
@@ -192,6 +218,7 @@ function startAddingExperience() {
     endDate: '',
     currentPosition: false,
     summary: '',
+    contextNotes: '',
     highlights: ['']
   }
   formErrors.value = {}
@@ -212,6 +239,7 @@ function startEditingExperience(experience: Experience) {
     endDate: formatDateForUI(experience.endDate),
     currentPosition: experience.currentPosition,
     summary: experience.summary || '',
+    contextNotes: experience.contextNotes || '',
     highlights: experience.highlights.length > 0 ? [...experience.highlights] : ['']
   }
   formErrors.value = {}
@@ -316,6 +344,7 @@ async function addExperience() {
       endDate: formData.value.currentPosition ? undefined : formatDateForAPI(formData.value.endDate),
       currentPosition: formData.value.currentPosition || false,
       summary: formData.value.summary || undefined,
+      contextNotes: formData.value.contextNotes || undefined,
       highlights,
       displayOrder: experiences.value.length + 1
     })
@@ -365,6 +394,7 @@ async function updateExperience() {
       endDate: formData.value.currentPosition ? undefined : formatDateForAPI(formData.value.endDate),
       currentPosition: formData.value.currentPosition || false,
       summary: formData.value.summary || undefined,
+      contextNotes: formData.value.contextNotes || undefined,
       highlights
     })
     
@@ -643,6 +673,18 @@ onMounted(async () => {
           />
         </div>
 
+        <!-- My Notes -->
+        <div>
+          <label class="block text-sm font-medium mb-1">My Notes</label>
+          <UTextarea
+            v-model="formData.contextNotes"
+            placeholder="Private context you want to remember about this role..."
+            :rows="4"
+            autoresize
+            class="w-full"
+          />
+        </div>
+
         <!-- Highlights -->
         <div>
           <label class="block text-sm font-medium mb-1">Key Achievements <span class="text-error">*</span></label>
@@ -746,7 +788,18 @@ onMounted(async () => {
               </div>
 
               <div v-if="experience.summary" class="mt-3">
-                <p class="text-sm">{{ experience.summary }}</p>
+                <p class="text-sm">
+                  {{ experience.summary }}
+                </p>
+              </div>
+
+              <div v-if="experience.contextNotes" class="mt-3 rounded-lg border border-default bg-default/40 p-3">
+                <p class="text-xs font-medium text-muted uppercase tracking-wide mb-1">
+                  My Notes
+                </p>
+                <p class="text-sm whitespace-pre-wrap">
+                  {{ experience.contextNotes }}
+                </p>
               </div>
 
               <div v-if="experience.url" class="mt-3">
@@ -911,6 +964,18 @@ onMounted(async () => {
               />
             </div>
 
+            <!-- My Notes -->
+            <div>
+              <label class="block text-sm font-medium mb-1">My Notes</label>
+              <UTextarea
+                v-model="formData.contextNotes"
+                placeholder="Private context you want to remember about this role..."
+                :rows="4"
+                autoresize
+                class="w-full"
+              />
+            </div>
+
             <!-- Highlights -->
             <div>
               <label class="block text-sm font-medium mb-1">Key Achievements <span class="text-error">*</span></label>
@@ -1031,6 +1096,7 @@ onMounted(async () => {
           :profile-id="sageSessionExperience.profileId"
           @confirm="onSageSessionConfirm"
           @apply-summary="onSageSessionApplySummary"
+          @apply-context-notes="onSageSessionApplyContextNotes"
           @close="closeSageSession"
         />
       </div>

@@ -374,19 +374,14 @@ export async function conductInterview(
   const shouldWrapUp = userTurnCount >= 3
   const conversationText = formatConversationHistory(conversationHistory)
 
-  const highlightsText = (experience.highlights && experience.highlights.length > 0)
-    ? experience.highlights.join(' | ')
-    : '(not provided)'
-
-  // notes_help: include highlights as reference context for practical notes
-  // role_summary: omit highlights — responsibility descriptions should come from the conversation, not achievements
+  // notes_help: omit highlights. Sage notes should capture missing role context, not restate bullets.
+  // role_summary: omit highlights — responsibility descriptions should come from the conversation, not achievements.
   const notesHelpContext = `Experience context:
 - Title: ${experience.title}
 - Employer: ${experience.employer}
 - Employment Type: ${experience.employmentType || '(not provided)'}
-- Existing Summary: ${experience.summary || '(not provided)'}
-- Highlights: ${highlightsText}
-- Context Notes: ${experience.contextNotes || '(not provided)'}
+- Existing Summary (do not duplicate): ${experience.summary || '(not provided)'}
+- Existing My Notes / Context Notes (do not duplicate): ${experience.contextNotes || '(not provided)'}
 - Existing Sage Notes: ${experience.sageNotes || '(not provided)'}`
 
   const roleSummaryContext = `Experience context:
@@ -406,14 +401,14 @@ A role summary describes what the person was responsible for — their mandate, 
     const completionPrompt = mode === 'notes_help'
       ? `You are wrapping up a Sage notes interview.
 
-Goal: Draft clear, practical notes about this role that Sage can reference later. Cover what the person did, the types of work they owned, and any relevant context. Do not invent details not mentioned in the conversation.
+Goal: Draft quick internal notes as a short bullet list. Capture what happened during the role, what the person did or achieved between profile updates, and useful context from the conversation that is not already captured in the summary, My Notes, or existing achievement bullets. Do not restate existing profile bullets. Keep each note brief and practical. Do not invent details not mentioned in the conversation.
 
 ${experienceContext}
 
 Conversation history:
 ${conversationText}
 
-Write the final Sage notes as plain prose. Do not ask another question.`
+Write the final Sage notes as 3-6 concise bullets. Do not write a paragraph. Do not ask another question.`
       : `You are wrapping up a role summary interview.
 
 Goal: Write a job-description-style role summary that describes what the person was responsible for at this job — their mandate when hired, the categories of work they owned, and how their scope evolved. Do NOT summarise achievements or outcomes. Do NOT use bullet points. Write 2-4 sentences of plain prose.
@@ -510,7 +505,8 @@ Ask exactly one focused follow-up question from the goal above that has not alre
 export async function conductResponsibilityInterview(
   mode: SageInterviewMode,
   experience: SageInterviewExperience,
-  answers: SageCollectedAnswer[]
+  answers: SageCollectedAnswer[],
+  forceComplete = false
 ): Promise<ResponsibilityInterviewResult> {
   if (mode !== 'notes_help' && mode !== 'role_summary') {
     throw new SageExperienceEnhancementError('mode must be "notes_help" or "role_summary"', 'INVALID_INPUT')
@@ -520,21 +516,25 @@ export async function conductResponsibilityInterview(
   validateResponsibilityAnswers(answers)
 
   const formattedAnswers = formatResponsibilityAnswers(answers)
-  const highlightsText = (experience.highlights && experience.highlights.length > 0)
-    ? experience.highlights.join(' | ')
-    : '(not provided)'
+  const forceCompleteInstruction = forceComplete
+    ? 'The user chose to end questioning now. You MUST return done:true and produce the best final output possible from the available context. Do not ask another question.'
+    : 'The user is willing to answer more questions if needed.'
 
   const modeInstruction = mode === 'notes_help'
     ? `Mode: notes_help
-Final output goal: Draft clear, practical Sage notes about this role that future AI assistance can reference. Cover what the person did, the types of work they owned, stakeholders/context, tools/domains when relevant, and any important scope details. Existing highlights may be used only as context; do not invent facts beyond the provided context and answers.`
+Final output goal: Draft quick internal notes as a short bullet list. Capture what happened during the role, what the person did or achieved between profile updates, and useful context from the interview answers. Do not pull from or restate existing profile bullets, summary, or My Notes. Keep each note brief and practical. Return 3-6 concise bullets, not paragraphs. Do not invent facts beyond provided context and answers.
+Stopping rule for notes_help: once there are 3 or more meaningful answers, usually return done:true. If there are 5 or more answers, always return done:true. Notes help does not need exhaustive detail; useful context is enough.`
     : `Mode: role_summary
-Final output goal: Write a 2-4 sentence job-description-style role summary. Describe what the person was responsible for: mandate, scope, categories of work owned, stakeholders, and how scope evolved. Do not summarize achievements, metrics, results, or outcomes. Do not use bullet points.`
+Final output goal: Write a 2-4 sentence job-description-style role summary. Describe what the person was responsible for: mandate, scope, categories of work owned, stakeholders, and how scope evolved. Do not summarize achievements, metrics, results, or outcomes. Do not use bullet points.
+Stopping rule for role_summary: once the mandate, work categories, and scope/stakeholders are clear enough, return done:true. If there are 5 or more answers, always return done:true.`
 
   const prompt = `SYSTEM RULES (always follow):
 - You receive experience context and any answers collected so far.
 - Decide whether you have enough to produce a strong final output or need more information.
+- ${forceCompleteInstruction}
 - If answers is empty, always return done:false with 2-5 questions.
 - If answers are present and cover the person's mandate, categories of work owned, stakeholders/scope, and any evolution of scope, return done:true.
+- Avoid repetitive follow-up questions. Do not ask for the same information in a different wording.
 - If you need more information, return done:false with 1-5 questions.
 - Choose question types deliberately:
   - single_choice: use only when exactly one answer should be true, such as primary work type, largest stakeholder group, team size range, reporting line, or ownership level.
@@ -574,12 +574,13 @@ Experience context:
 - Title: ${experience.title}
 - Employer: ${experience.employer}
 - Employment Type: ${experience.employmentType || '(not provided)'}
-- Existing Summary: ${experience.summary || '(not provided)'}
-- Highlights: ${mode === 'notes_help' ? highlightsText : '(omitted for role_summary; do not use achievements)'}
-- Context Notes: ${experience.contextNotes || '(not provided)'}
+- Existing Summary (do not duplicate): ${experience.summary || '(not provided)'}
+- Highlights: (omitted; do not use achievements)
+- My Notes / Context Notes (do not duplicate): ${experience.contextNotes || '(not provided)'}
 - Existing Sage Notes: ${experience.sageNotes || '(not provided)'}
 
 Collected answers:
+Answer count: ${answers.length}
 ${formattedAnswers}`
 
   try {
