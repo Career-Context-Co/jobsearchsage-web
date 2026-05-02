@@ -180,8 +180,6 @@ function setHeroNudgeState(nudge: Omit<HeroNudgeActiveState, 'loading'>, expande
 }
 
 async function loadPersistedHeroNudges(profileId: string) {
-  if (!accountStore.isHeroEnabled) return
-
   sageAIStore.restoreHeroNudgesFromCache()
   for (const nudge of sageAIStore.heroNudgesForProfile(profileId)) {
     setHeroNudgeState(nudge, false)
@@ -207,8 +205,6 @@ async function loadPersistedHeroNudges(profileId: string) {
 }
 
 async function checkHeroNudgeForExperience(experience: Experience) {
-  if (!accountStore.isHeroEnabled) return
-
   const hasSignalContent = Boolean(
     experience.summary?.trim()
     || experience.contextNotes?.trim()
@@ -1095,7 +1091,6 @@ onMounted(async () => {
                   Enhanced
                 </UBadge>
                 <UButton
-                  v-if="accountStore.isBulletEnhancementEnabled"
                   label="Get AI Help"
                   icon="i-lucide-sparkles"
                   color="primary"
@@ -1319,7 +1314,6 @@ onMounted(async () => {
 
   <!-- Sage AI Session Slideover -->
   <USlideover
-    v-if="accountStore.isBulletEnhancementEnabled"
     v-model:open="sageSessionOpen"
     side="right"
     :overlay="false"

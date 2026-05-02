@@ -2,56 +2,48 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
-const accountStore = useAccountStore()
 
 const open = ref(false)
 
-const profileChildren = computed(() => {
-  const baseChildren = [{
-    label: 'Overview',
-    to: '/profile',
-    exact: true,
-    onSelect: () => {
-      open.value = false
-    }
-  }, {
-    label: 'Experience',
-    to: '/profile/experience',
-    onSelect: () => {
-      open.value = false
-    }
-  }, {
-    label: 'Education',
-    to: '/profile/education',
-    onSelect: () => {
-      open.value = false
-    }
-  }, {
-    label: 'Certifications',
-    to: '/profile/certifications',
-    onSelect: () => {
-      open.value = false
-    }
-  }, {
-    label: 'Skills',
-    to: '/profile/skills',
-    onSelect: () => {
-      open.value = false
-    }
-  }]
-
-  if (accountStore.isHeroEnabled) {
-    baseChildren.push({
-      label: 'HERO',
-      to: '/profile/hero',
-      onSelect: () => {
-        open.value = false
-      }
-    })
+const profileChildren = computed(() => [{
+  label: 'Overview',
+  to: '/profile',
+  exact: true,
+  onSelect: () => {
+    open.value = false
   }
-
-  return baseChildren
-})
+}, {
+  label: 'Experience',
+  to: '/profile/experience',
+  onSelect: () => {
+    open.value = false
+  }
+}, {
+  label: 'Education',
+  to: '/profile/education',
+  onSelect: () => {
+    open.value = false
+  }
+}, {
+  label: 'Certifications',
+  to: '/profile/certifications',
+  onSelect: () => {
+    open.value = false
+  }
+}, {
+  label: 'Skills',
+  to: '/profile/skills',
+  onSelect: () => {
+    open.value = false
+  }
+}, {
+  label: 'HERO',
+  to: '/profile/hero',
+  onSelect: () => {
+    open.value = false
+  }
+}]
+)
 
 const links = computed(() => [[
   {

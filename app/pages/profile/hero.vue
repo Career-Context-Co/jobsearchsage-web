@@ -2,10 +2,6 @@
 import { storeToRefs } from 'pinia'
 import type { HeroStory } from '#shared/types/careerId'
 
-definePageMeta({
-  middleware: ['hero-feature']
-})
-
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
@@ -14,7 +10,8 @@ const accountStore = useAccountStore()
 const sageAIStore = useSageAIStore()
 
 const {
-  heroMoments,
+  // HERO Moment UI is temporarily hidden while the feature is paused.
+  // heroMoments,
   heroStories,
   isLoading,
   isSaving,
@@ -581,7 +578,8 @@ onMounted(async () => {
   }
 
   await Promise.allSettled([
-    careerIDStore.fetchMoments(profileId.value),
+    // HERO Moment UI is temporarily hidden while the feature is paused.
+    // careerIDStore.fetchMoments(profileId.value),
     careerIDStore.fetchStories(profileId.value)
   ])
 
@@ -856,18 +854,20 @@ watch(routeHeroStoryId, () => {
       />
     </div>
 
-    <!-- Hero Moments List -->
-    <div v-if="!isShowingCreateForm" class="mt-8">
-      <ProfileHeroDiscoveredMomentsSection
-        :moments="heroMoments"
-        :is-loading="isLoading"
-        @develop="handleMomentDevelop"
-        @develop-with-a-i="handleMomentDevelopWithAI"
-        @remove="handleMomentRemove"
-        @save="handleMomentSave"
-        @start-session="openHeroLauncher"
-      />
-    </div>
+    <!--
+      HERO Moment UI is temporarily hidden while the feature is paused.
+      <div v-if="!isShowingCreateForm" class="mt-8">
+        <ProfileHeroDiscoveredMomentsSection
+          :moments="heroMoments"
+          :is-loading="isLoading"
+          @develop="handleMomentDevelop"
+          @develop-with-a-i="handleMomentDevelopWithAI"
+          @remove="handleMomentRemove"
+          @save="handleMomentSave"
+          @start-session="openHeroLauncher"
+        />
+      </div>
+    -->
   </div>
 
   <!-- HERO Assistant Panel -->

@@ -4,7 +4,6 @@ import { useCareerIDStore } from '~/stores/careerIDStore'
 
 const route = useRoute()
 const careerIDStore = useCareerIDStore()
-const accountStore = useAccountStore()
 
 // Check if we're on the onboarding page
 const isOnboarding = computed(() => route.path === '/profile/onboarding')
@@ -36,15 +35,11 @@ const links = computed(() => {
     label: 'Skills',
     icon: 'i-lucide-wrench',
     to: '/profile/skills'
+  }, {
+    label: 'HERO',
+    icon: 'i-lucide-zap',
+    to: '/profile/hero'
   }]
-
-  if (accountStore.isHeroEnabled) {
-    baseLinks.push({
-      label: 'HERO',
-      icon: 'i-lucide-zap',
-      to: '/profile/hero'
-    })
-  }
 
   return [
     baseLinks,

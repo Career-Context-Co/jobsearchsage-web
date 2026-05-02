@@ -1,20 +1,3 @@
-<script setup lang="ts">
-const accountStore = useAccountStore()
-
-const heroEnabled = computed({
-  get: () => accountStore.isHeroEnabled,
-  set: (value: boolean) => accountStore.setHeroEnabled(value)
-})
-
-const bulletEnhancementEnabled = computed({
-  get: () => accountStore.isBulletEnhancementEnabled,
-  set: (value: boolean) => accountStore.setBulletEnhancementEnabled(value)
-})
-
-// Coming soon features (not yet functional)
-const resumeGenerationEnabled = ref(false)
-</script>
-
 <template>
   <UPageCard
     title="Insiders Program"
@@ -34,7 +17,9 @@ const resumeGenerationEnabled = ref(false)
     />
 
     <UPageCard variant="subtle" :ui="{ container: 'divide-y divide-default' }">
-      <p class="text-sm text-muted">No features available yet. Stay tuned for updates! 😄👍</p>
+      <p class="text-sm text-muted">
+        No insider-only features are available right now. HERO and AI bullet enhancement are now available to everyone.
+      </p>
     </UPageCard>
   </div>
 
@@ -48,24 +33,9 @@ const resumeGenerationEnabled = ref(false)
     />
 
     <UPageCard variant="subtle" :ui="{ container: 'divide-y divide-default' }">
-      <UFormField
-        name="bulletEnhancement"
-        label="AI Bullet Enhancement"
-        description="Use AI to enhance your resume bullet points with more impactful, metrics-driven language that highlights your achievements."
-        class="flex items-center justify-between not-last:pb-4 gap-2"
-      >
-        <USwitch v-model="bulletEnhancementEnabled" disabled/>
-      </UFormField>
-
-      <UFormField
-        name="hero"
-        label="HERO Framework"
-        description="Enable the HERO story framework to capture and develop your career achievements using the Hurdle, Expectation, Response, Outcome methodology. Perfect for preparing compelling interview stories."
-        class="flex items-center justify-between not-last:pb-4 gap-2 opacity-60"
-      >
-        <USwitch v-model="heroEnabled" disabled />
-      </UFormField>
-
+      <p class="text-sm text-muted">
+        New experimental features will appear here when they are ready for early access.
+      </p>
     </UPageCard>
   </div>
 </template>

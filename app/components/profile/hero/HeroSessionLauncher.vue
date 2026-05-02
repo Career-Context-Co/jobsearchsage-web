@@ -28,14 +28,15 @@ const sections = [
     description: 'Improve or finish a story',
     subtitle: 'Choose an existing story or start a new one',
     icon: 'i-lucide-bookmark'
-  },
-  {
-    id: 'discovery',
-    label: 'Do discovery',
-    description: 'Find possible stories',
-    subtitle: 'Talk through your work and capture strong story ideas',
-    icon: 'i-lucide-sparkles'
   }
+  // HERO Moment discovery UI is temporarily hidden while the feature is paused.
+  // {
+  //   id: 'discovery',
+  //   label: 'Do discovery',
+  //   description: 'Find possible stories',
+  //   subtitle: 'Talk through your work and capture strong story ideas',
+  //   icon: 'i-lucide-sparkles'
+  // }
 ]
 
 function selectSection(sectionId: string) {

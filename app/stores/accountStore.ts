@@ -16,26 +16,19 @@ interface User {
 interface AccountState {
   user: User | null
   profileId: string | null
-  features: {
-    hero: boolean
-    bulletEnhancement: boolean
-  }
+  features: Record<string, boolean>
 }
 
 export const useAccountStore = defineStore('account', {
   state: (): AccountState => ({
     user: null,
     profileId: null,
-    features: {
-      hero: false,
-      bulletEnhancement: false
-    }
+    features: {}
   }),
 
   getters: {
     isAuthenticated: state => state.user !== null,
-    isHeroEnabled: state => state.features.hero,
-    isBulletEnhancementEnabled: state => state.features.bulletEnhancement
+    isFeatureEnabled: state => (feature: string) => state.features[feature] === true
   },
 
   actions: {
@@ -45,8 +38,8 @@ export const useAccountStore = defineStore('account', {
           const saved = localStorage.getItem(STORAGE_KEY)
           if (saved) {
             const parsed = JSON.parse(saved)
-            if (parsed.features) {
-              this.features = { ...this.features, ...parsed.features }
+            if (parsed.features && typeof parsed.features === 'object') {
+              this.features = parsed.features
             }
           }
         } catch (e) {
@@ -272,19 +265,16 @@ export const useAccountStore = defineStore('account', {
       careerIDStore.resetProfile()
     },
 
-    setHeroEnabled(enabled: boolean) {
-      this.features.hero = enabled
+    setFeatureEnabled(feature: string, enabled: boolean) {
+      this.features = {
+        ...this.features,
+        [feature]: enabled
+      }
       this._persist()
     },
 
-    toggleHeroFeatures() {
-      this.features.hero = !this.features.hero
-      this._persist()
-    },
-
-    setBulletEnhancementEnabled(enabled: boolean) {
-      this.features.bulletEnhancement = enabled
-      this._persist()
+    toggleFeature(feature: string) {
+      this.setFeatureEnabled(feature, !this.isFeatureEnabled(feature))
     },
 
     _persist() {
