@@ -7,16 +7,16 @@
  * A single question in the context gathering process
  */
 export interface ContextQuestion {
-  id: string;
-  text: string;
+  id: string
+  text: string
 }
 
 /**
  * Questions organized by category for presentation
  */
 export interface QuestionGroup {
-  category: string;
-  questions: ContextQuestion[];
+  category: string
+  questions: ContextQuestion[]
 }
 
 /**
@@ -24,9 +24,9 @@ export interface QuestionGroup {
  * Represent individual insights about the achievement
  */
 export interface ContextStory {
-  title?: string;
-  text: string;
-  type: 'project' | 'initiative' | 'responsibility' | 'achievement';
+  title?: string
+  text: string
+  type: 'project' | 'initiative' | 'responsibility' | 'achievement'
 }
 
 /**
@@ -34,11 +34,11 @@ export interface ContextStory {
  * Used for multi-round enhancement flow
  */
 export interface ContextObject {
-  notes: ContextStory[];
+  notes: ContextStory[]
   answeredQuestions: Array<{
-    id: string;
-    answer: string;
-  }>;
+    id: string
+    answer: string
+  }>
 }
 
 /**
@@ -46,8 +46,8 @@ export interface ContextObject {
  * Provides user choice between options
  */
 export interface ResumeBullet {
-  primary: string;
-  secondary: string;
+  primary: string
+  secondary: string
 }
 
 /**
@@ -55,11 +55,11 @@ export interface ResumeBullet {
  * Returns questions and extracted story notes
  */
 export interface GatherContextResponse {
-  success: boolean;
+  success: boolean
   data: {
-    questionGroups: QuestionGroup[];
-    notes: ContextStory[];
-  };
+    questionGroups: QuestionGroup[]
+    notes: ContextStory[]
+  }
 }
 
 /**
@@ -67,9 +67,41 @@ export interface GatherContextResponse {
  * Returns generated XYZ-format bullet pairs
  */
 export interface EnhanceAchievementsResponse {
-  success: boolean;
+  success: boolean
   data: {
-    bullets: ResumeBullet[];
-  };
+    bullets: ResumeBullet[]
+  }
 }
 
+/**
+ * Shared question engine primitives for Sage/HERO AI flows.
+ * These are intentionally generic so endpoint-specific prompts can reuse the same UI contract.
+ */
+export type SageQuestionType = 'free_form' | 'single_choice' | 'multi_choice'
+
+export interface SageQuestionOption {
+  id: string
+  label: string
+  emoji?: string
+  allowCustom?: boolean
+}
+
+export interface SageQuestion {
+  id: string
+  text: string
+  type: SageQuestionType
+  placeholder?: string
+  options?: SageQuestionOption[]
+}
+
+export interface SageCollectedAnswer {
+  questionId: string
+  questionText?: string
+  answer: string | string[]
+}
+
+export type SageQuestionEngineResult<TOutput = string>
+  = | { done: false, questions: SageQuestion[] }
+    | { done: true, output: TOutput }
+
+export type ResponsibilityInterviewResult = SageQuestionEngineResult<string>

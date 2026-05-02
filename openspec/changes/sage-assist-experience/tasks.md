@@ -32,9 +32,13 @@
   - If `answers` provided → `generateImprovedBullet`, return `{ phase: 'result', improvedBullet }`
   - Validate `experience` (`employer`, `title`, optional `summary`) and `bullet` required; return `VALIDATION_ERROR` if missing
   - Wrap AI errors with structured error response (mirror `XYZEnhancementError` pattern)
+- [x] Upgrade achievement questions to the shared Sage question UI contract
+  - Questions now support `single_choice` and `multi_choice`
+  - Multi-select answers are accepted and formatted for final bullet generation
+  - Prompt and parser bias measurable impact/tools/stakeholders/outcomes questions toward `multi_choice`
 
 **Dependencies:** None  
-**Success criteria:** First call with a bullet returns questions. Second call with bullet + answers returns an improved bullet string.
+**Success criteria:** First call with a bullet returns typed structured questions. Second call with bullet + answers returns an improved bullet string.
 
 ---
 
@@ -42,15 +46,25 @@
 
 - [x] Add `conductInterview(mode, experience, conversationHistory)` to `server/utils/sage-experience-enhancer.ts`
   - Notes help mode: prompt targets Sage notes output (persisted separately via sage-notes PUT)
-  - Role summary mode: prompt targets `summary` text (user confirms via Career ID PATCH)
+  - Role summary mode: prompt targets `summary` text (legacy free-text endpoint only)
   - Returns `{ done: false, message }` or `{ done: true, output }` based on turn count (≥3 user turns → wrap up)
 - [x] Create `server/api/ai/experience/interview.post.ts`
   - Validate `mode` (`notes_help` | `role_summary`), `experience`, `conversationHistory`
   - Call `conductInterview`, return result
   - Handle AI errors with structured error response
+- [x] Add structured responsibility question engine
+  - Add `conductResponsibilityInterview(mode, experience, answers)` to `server/utils/sage-experience-enhancer.ts`
+  - Create `server/api/ai/experience/responsibility.post.ts`
+  - Return `{ done: false, questions }` or `{ done: true, output }`
+  - Support `free_form`, `single_choice`, and `multi_choice`
+  - Increase Sage experience AI timeout to 20 seconds
+- [x] Add response interceptor contract layer
+  - Create `server/utils/interceptors/sage-question-engine-interceptor.ts`
+  - Extract, validate, normalize, and repair malformed model JSON before frontend rendering
+  - Keep repair prompt/model separate from the main domain prompt
 
 **Dependencies:** BE-002  
-**Success criteria:** Ongoing turns return `{ done: false, message }`. After 3 user turns, returns `{ done: true, output }`.
+**Success criteria:** Responsibility flow uses typed question batches instead of free-text chat; invalid model output is blocked or repaired before reaching UI.
 
 ---
 
@@ -78,39 +92,35 @@
 **Dependencies:** BE-001  
 **Success criteria:** Frontend can load read-only Sage notes for display and persist after notes-help interview confirmation.
 
----
-
-### BE-006: Postman collection
-
-- [ ] Create `deliverables/sage-assist-experience-api.postman_collection.json` covering: enhance-achievement (both phases), interview (ongoing + completion), hero-nudge, GET sage-notes, PUT sage-notes
-  - Error cases: missing `bullet`, missing `mode`, missing `experience`, invalid `mode`, missing `profileId`
-  - Pre-configure `{{baseUrl}}`, `{{profileId}}`, `{{experienceId}}` variables
-
-**Dependencies:** BE-002, BE-003, BE-004, BE-005  
-**Success criteria:** Collection runs clean against local dev server with all tests passing.
-
----
 
 ## PHASE 3: FRONTEND
 
 ### FE-001: Load Sage notes for experience detail
 
-- [ ] Add composable or small helper — `GET /api/ai/sage/notes?profileId=...&targetType=experience&targetId=...&noteType=sage_notes` — expose reactive `sageNotesContent` for the detail view
-- [ ] Call when opening experience detail (parallel with profile data)
+- [x] Extend `app/stores/sageAIStore.ts` — fetch `GET /api/ai/sage/notes?profileId=...&targetType=experience&targetId=...&noteType=sage_notes` and expose reactive Sage notes state (e.g. content + updatedAt keyed by `profileId` + `targetId`) for the experience detail view
+- [x] Call from experience detail (parallel with profile data) via store action, not a composable
 
 **Dependencies:** BE-005  
-**Success criteria:** Read-only Sage notes available without storing them on `Experience` in Pinia beyond optional local cache.
+**Success criteria:** Read-only Sage notes available from `sageAIStore` without putting them on the Career ID `Experience` model in `careerIDStore`.
 
 ---
 
 ### FE-002: Achievement enhancement UI
 
-- [ ] Create `app/components/profile/sage/SageAchievementEnhancer.vue`
+- [x] Create `app/components/profile/sage/SageAchievementEnhancer.vue`
   - Accepts props: `experience` (title, employer, summary), `bullet` (string), `experienceId`, `profileId`
   - State machine: `idle` → `loading-questions` → `answering` → `loading-result` → `review` → `idle`
   - Calls `POST /api/ai/experience/enhance-achievement`
   - Emits `confirm(improvedBullet)` and `discard`; parent handles Career ID PATCH for `highlights`
-- [ ] Wire into experience detail view — Sage enhance button per `highlights` entry
+- [x] Reuse shared `SageQuestionView` in achievement enhancement
+  - Displays `Choose one` / `Select all that apply` below each question
+  - Supports multi-select, single-select with explicit Continue, custom "Other", Back navigation, and answer restoration
+- [x] Create `app/components/profile/sage/SageExperienceSession.vue` — multi-step session panel (mirrors HeroStorySession)
+  - `picker` view: 2-col grid — "Achievement Bullet" and "Responsibility"
+  - `bullet-picker` view: lists the experience's `highlights` as selectable cards
+  - `enhancing` view: renders `SageAchievementEnhancer` for the chosen bullet
+  - Emits `confirm(bulletIndex, improvedBullet)`, `applySummary(summary)`, and `close`
+- [x] Wire into experience edit card — single "Get AI Help" button (top-right header), opens `SageExperienceSession` in a `USlideover` (`:overlay="false" :modal="false" :inset="true"`, same config as HERO story AI panel); no per-bullet buttons
 
 **Dependencies:** BE-002  
 **Success criteria:** Enhancement flow works; confirm saves bullet via store PATCH to Career ID.
@@ -119,15 +129,17 @@
 
 ### FE-003: Responsibility interview UI
 
-- [ ] Create `app/components/profile/sage/SageInterviewPanel.vue`
+- [x] Create `app/components/profile/sage/SageInterviewPanel.vue`
   - Props: `mode`, `experience`, `experienceId`, `profileId`
-  - Calls `POST /api/ai/experience/interview` with `sageNotes` in payload when loaded from FE-001 (optional context)
+  - Calls `POST /api/ai/experience/responsibility` with `sageNotes` in payload when loaded from FE-001 (optional context)
+  - Uses `SageQuestionView` for `free_form`, `single_choice`, and `multi_choice`
+  - Supports Back navigation within the current question batch and restores previous answers
   - On `done: true` for `notes_help`: confirm → `PUT /api/ai/sage/notes` with `targetType=experience` + `targetId=experienceId` — if existing content, overwrite confirmation modal first
-  - On `done: true` for `role_summary`: confirm → Career ID PATCH `summary` — overwrite confirmation if summary exists
-- [ ] Wire entry points on experience detail — slide-over
+  - On `done: true` for `role_summary`: confirm → emit generated text to the open experience edit card summary field; user reviews/edits and saves through the normal card form
+- [x] Wire entry point on experience detail — the "Responsibility" card in `SageExperienceSession` picker activates `SageInterviewPanel` as a sub-view within the same `USlideover` (`:overlay="false" :modal="false" :inset="true"`); no separate drawer
 
 **Dependencies:** FE-001, BE-003, BE-005  
-**Success criteria:** Notes help persists via sage-notes API; role summary persists via Career ID PATCH.
+**Success criteria:** Notes help persists via sage-notes API; role summary is copied into the open summary field and only persists when the user saves the experience card.
 
 ---
 
@@ -150,3 +162,16 @@
 
 **Dependencies:** FE-001  
 **Success criteria:** Sage notes visible read-only from AI route; `contextNotes` unchanged.
+
+---
+
+## PHASE 4: FOLLOW-UP HARDENING
+
+### FH-001: Extend question-engine/interceptor pattern beyond experience endpoints
+
+- [ ] Decide whether HERO discovery/story-shaping endpoints should adopt `SageQuestionEngineResult`
+- [ ] Move any reusable question-engine prompt/schema helpers out of experience-specific utilities if a second endpoint adopts the pattern
+- [ ] Add lightweight fixtures/manual test payloads for malformed AI JSON, `single_choice`, `multi_choice`, and `free_form`
+
+**Dependencies:** BE-003, FE-002, FE-003  
+**Success criteria:** Future Sage/HERO AI flows can share the same validated question UI contract without duplicating prompt parsing logic.

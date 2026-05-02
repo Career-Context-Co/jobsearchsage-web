@@ -53,7 +53,7 @@ Career ID is intended as a reusable profile API consumed by multiple apps; Sage-
 
 **Frontend**
 
-- Composable or dedicated fetch for Sage notes — `GET /api/ai/sage/notes` with target query params; confirm notes-help interview via `PUT` (not Career ID PATCH for Sage content)
+- `sageAIStore` fetch for Sage notes — `GET /api/ai/sage/notes` with target query params; confirm notes-help interview via `PUT` (not Career ID PATCH for Sage content)
 - New Sage UI components in `app/components/profile/sage/` (enhancement panel, interview panel, nudge banner)
 - Existing `contextNotes` on experience continues as today — no rename task.
 

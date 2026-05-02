@@ -21,6 +21,20 @@ const dedupeCapturedMoments = (moments: CapturedMomentInput[]) => {
 const HERO_DISCOVERY_CACHE_KEY = 'sageAI.heroDiscoverySession'
 const HERO_DISCOVERY_CACHE_TTL_MS = 1000 * 60 * 60 * 24
 
+/** Matches server `SAGE_NOTES_NOTE_TYPE` — sage AI notes for an experience target */
+const SAGE_EXPERIENCE_NOTES_TYPE = 'sage_notes'
+
+export type ExperienceSageNotesState = {
+  content: string | null
+  updatedAt: string | null
+  loading: boolean
+  error: string | null
+}
+
+function experienceSageNotesKey(profileId: string, experienceId: number) {
+  return `${profileId}:${experienceId}`
+}
+
 const isSessionIncomplete = (session: DiscoverySession) => {
   return session.session_status !== 'completed' && session.session_status !== 'abandoned'
 }
@@ -50,10 +64,69 @@ export const useSageAIStore = defineStore('sageAI', {
     discoverySession: null as DiscoverySession | null,
     heroEnhancementSession: null as HeroEnhancementSession | null,
     isLoading: false,
-    error: null as string | null
+    error: null as string | null,
+    /** Sage profile notes for experience rows: key `${profileId}:${experienceId}` */
+    experienceSageNotesByKey: {} as Record<string, ExperienceSageNotesState>
   }),
 
+  getters: {
+    experienceSageNotesFor:
+      state =>
+        (profileId: string, experienceId: number): ExperienceSageNotesState | null => {
+          const key = experienceSageNotesKey(profileId, experienceId)
+          return state.experienceSageNotesByKey[key] ?? null
+        }
+  },
+
   actions: {
+    async loadSageNotesForExperience(profileId: string, experienceId: number) {
+      const key = experienceSageNotesKey(profileId, experienceId)
+      const prev = this.experienceSageNotesByKey[key]
+      this.experienceSageNotesByKey[key] = {
+        content: prev?.content ?? null,
+        updatedAt: prev?.updatedAt ?? null,
+        loading: true,
+        error: null
+      }
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          data: { content: string | null, updatedAt: string | null }
+        }>('/api/ai/sage/notes', {
+          query: {
+            profileId,
+            targetType: 'experience',
+            targetId: String(experienceId),
+            noteType: SAGE_EXPERIENCE_NOTES_TYPE
+          }
+        })
+
+        if (!response.success) {
+          throw new Error('Failed to load Sage notes')
+        }
+
+        this.experienceSageNotesByKey[key] = {
+          content: response.data?.content ?? null,
+          updatedAt: response.data?.updatedAt ?? null,
+          loading: false,
+          error: null
+        }
+      } catch (error: unknown) {
+        const e = error as { data?: { error?: { message?: string } }, message?: string }
+        const errorMessage
+          = e?.data?.error?.message
+            || e?.message
+            || 'Failed to load Sage notes'
+        this.experienceSageNotesByKey[key] = {
+          content: prev?.content ?? null,
+          updatedAt: prev?.updatedAt ?? null,
+          loading: false,
+          error: errorMessage
+        }
+        console.error('loadSageNotesForExperience failed', error)
+      }
+    },
     setError(error: string | null) {
       this.error = error
     },

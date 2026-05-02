@@ -1,4 +1,6 @@
 import { createGateway, generateText } from 'ai'
+import { interceptSageQuestionEngineResponse, SageQuestionEngineInterceptorError } from '@@/server/utils/interceptors/sage-question-engine-interceptor'
+import type { ResponsibilityInterviewResult, SageCollectedAnswer, SageQuestionType } from '#shared/types/enhancement'
 
 const apiKey = useRuntimeConfig().aiGatewayApiKey
 if (!apiKey) {
@@ -6,7 +8,7 @@ if (!apiKey) {
 }
 
 const gateway = createGateway({
-  apiKey: apiKey,
+  apiKey: apiKey
 })
 
 export interface SageAchievementExperience {
@@ -17,12 +19,21 @@ export interface SageAchievementExperience {
 
 export interface SageAchievementAnswer {
   questionId: string
-  answer: string
+  answer: string | string[]
+}
+
+export interface SageAchievementQuestionOption {
+  id: string
+  label: string
+  emoji?: string
+  allowCustom?: boolean
 }
 
 export interface SageAchievementQuestion {
   id: string
   text: string
+  type: SageQuestionType
+  options: SageAchievementQuestionOption[]
 }
 
 export type SageInterviewMode = 'notes_help' | 'role_summary'
@@ -42,9 +53,9 @@ export interface SageInterviewExperience {
   sageNotes?: string | null
 }
 
-export type SageInterviewResult =
-  | { done: false; message: string }
-  | { done: true; output: string }
+export type SageInterviewResult
+  = | { done: false, message: string }
+    | { done: true, output: string }
 
 export interface SageHeroSignalExperience {
   highlights?: string[]
@@ -53,19 +64,55 @@ export interface SageHeroSignalExperience {
   sageNotes?: string | null
 }
 
-export type SageHeroSignalResult =
-  | { nudge: false }
-  | { nudge: true; signal: string; context: string }
+export type SageHeroSignalResult
+  = | { nudge: false }
+    | { nudge: true, signal: string, context: string }
 
 export class SageExperienceEnhancementError extends Error {
   constructor(
     message: string,
     public code: 'TIMEOUT' | 'INVALID_INPUT' | 'AI_PROVIDER_ERROR',
-    public details?: any
+    public details?: unknown
   ) {
     super(message)
     this.name = 'SageExperienceEnhancementError'
   }
+}
+
+type JsonRecord = Record<string, unknown>
+
+function isJsonRecord(value: unknown): value is JsonRecord {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function inferAchievementQuestionType(text: string, rawType: unknown): SageQuestionType {
+  const normalizedType = rawType === 'multi_choice' || rawType === 'single_choice'
+    ? rawType
+    : null
+  const lowerText = text.toLowerCase()
+  const shouldAllowMultiple = [
+    'measurable impact',
+    'which impact',
+    'which impacts',
+    'what impact',
+    'what impacts',
+    'technologies',
+    'tools',
+    'stakeholders',
+    'responsibilities',
+    'outcomes',
+    'select all'
+  ].some(phrase => lowerText.includes(phrase))
+
+  if (shouldAllowMultiple) {
+    return 'multi_choice'
+  }
+
+  return normalizedType ?? 'single_choice'
 }
 
 function validateExperience(experience: SageAchievementExperience): void {
@@ -106,8 +153,15 @@ function validateAnswers(answers: SageAchievementAnswer[]): void {
       throw new SageExperienceEnhancementError(`answers[${index}].questionId must be a non-empty string`, 'INVALID_INPUT')
     }
 
-    if (typeof entry.answer !== 'string') {
-      throw new SageExperienceEnhancementError(`answers[${index}].answer must be a string`, 'INVALID_INPUT')
+    if (typeof entry.answer === 'string') {
+      if (entry.answer.trim().length === 0) {
+        throw new SageExperienceEnhancementError(`answers[${index}].answer must be non-empty`, 'INVALID_INPUT')
+      }
+      return
+    }
+
+    if (!Array.isArray(entry.answer) || entry.answer.length === 0 || entry.answer.some(item => typeof item !== 'string' || item.trim().length === 0)) {
+      throw new SageExperienceEnhancementError(`answers[${index}].answer must be a non-empty string or string array`, 'INVALID_INPUT')
     }
   })
 }
@@ -123,17 +177,30 @@ function parseQuestionsResponse(response: string): SageAchievementQuestion[] {
       }
     }
 
-    const parsed = JSON.parse(cleanResponse)
+    const parsed = JSON.parse(cleanResponse) as JsonRecord
     if (!Array.isArray(parsed.questions)) {
       throw new SageExperienceEnhancementError('AI response missing questions array', 'AI_PROVIDER_ERROR')
     }
 
-    const questions = parsed.questions.map((item: any, index: number) => ({
-      id: typeof item.id === 'string' && item.id.trim().length > 0 ? item.id : `q${index + 1}`,
-      text: typeof item.text === 'string' ? item.text.trim() : '',
-    }))
+    const questions = parsed.questions.map((rawItem, index: number) => {
+      const item = isJsonRecord(rawItem) ? rawItem : {}
+      const id = typeof item.id === 'string' && item.id.trim().length > 0 ? item.id : `q${index + 1}`
+      const text = typeof item.text === 'string' ? item.text.trim() : ''
+      const type = inferAchievementQuestionType(text, item.type)
+      const rawOptions = Array.isArray(item.options) ? item.options : []
+      const options: SageAchievementQuestionOption[] = rawOptions.map((rawOpt, oi: number) => {
+        const opt = isJsonRecord(rawOpt) ? rawOpt : {}
+        return {
+          id: typeof opt.id === 'string' ? opt.id : `${id}_o${oi + 1}`,
+          label: typeof opt.label === 'string' ? opt.label.trim() : String(opt.label ?? ''),
+          emoji: typeof opt.emoji === 'string' ? opt.emoji : undefined,
+          allowCustom: opt.allowCustom === true
+        }
+      })
+      return { id, text, type, options }
+    })
 
-    if (questions.length === 0 || questions.some((item: SageAchievementQuestion) => item.text.length === 0)) {
+    if (questions.length === 0 || questions.some((item: SageAchievementQuestion) => item.text.length === 0 || item.options.length === 0)) {
       throw new SageExperienceEnhancementError('AI response returned invalid questions', 'AI_PROVIDER_ERROR')
     }
 
@@ -173,11 +240,13 @@ function parseImprovedBulletResponse(response: string): string {
   }
 }
 
+const SAGE_AI_TIMEOUT_MS = 20000
+
 async function runWithTimeout(promptRunner: Promise<{ text: string }>): Promise<{ text: string }> {
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => {
-      reject(new SageExperienceEnhancementError('Enhancement request timed out after 10 seconds', 'TIMEOUT'))
-    }, 10000)
+      reject(new SageExperienceEnhancementError('Enhancement request timed out after 20 seconds', 'TIMEOUT'))
+    }, SAGE_AI_TIMEOUT_MS)
   })
 
   return Promise.race([promptRunner, timeoutPromise])
@@ -233,12 +302,60 @@ function validateConversationHistory(conversationHistory: SageInterviewMessage[]
   })
 }
 
+function validateResponsibilityAnswers(answers: SageCollectedAnswer[]): void {
+  if (!Array.isArray(answers)) {
+    throw new SageExperienceEnhancementError('answers must be an array', 'INVALID_INPUT')
+  }
+
+  answers.forEach((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      throw new SageExperienceEnhancementError(`answers[${index}] must be an object`, 'INVALID_INPUT')
+    }
+
+    if (typeof entry.questionId !== 'string' || entry.questionId.trim().length === 0) {
+      throw new SageExperienceEnhancementError(`answers[${index}].questionId must be a non-empty string`, 'INVALID_INPUT')
+    }
+
+    if (entry.questionText !== undefined && typeof entry.questionText !== 'string') {
+      throw new SageExperienceEnhancementError(`answers[${index}].questionText must be a string when provided`, 'INVALID_INPUT')
+    }
+
+    if (typeof entry.answer === 'string') {
+      if (entry.answer.trim().length === 0) {
+        throw new SageExperienceEnhancementError(`answers[${index}].answer must be non-empty`, 'INVALID_INPUT')
+      }
+      return
+    }
+
+    if (!Array.isArray(entry.answer) || entry.answer.length === 0 || entry.answer.some(item => typeof item !== 'string' || item.trim().length === 0)) {
+      throw new SageExperienceEnhancementError(`answers[${index}].answer must be a non-empty string or string array`, 'INVALID_INPUT')
+    }
+  })
+}
+
 function formatConversationHistory(conversationHistory: SageInterviewMessage[]): string {
   if (conversationHistory.length === 0) {
     return '(no prior conversation)'
   }
 
-  return conversationHistory.map((entry) => `${entry.role}: ${entry.content}`).join('\n')
+  return conversationHistory.map(entry => `${entry.role}: ${entry.content}`).join('\n')
+}
+
+function formatResponsibilityAnswers(answers: SageCollectedAnswer[]): string {
+  if (answers.length === 0) {
+    return '(no answers yet)'
+  }
+
+  return answers.map((entry) => {
+    const answerText = Array.isArray(entry.answer)
+      ? entry.answer.join(', ')
+      : entry.answer
+    const questionText = entry.questionText?.trim()
+      ? ` (${entry.questionText.trim()})`
+      : ''
+
+    return `- ${entry.questionId}${questionText}: ${answerText}`
+  }).join('\n')
 }
 
 export async function conductInterview(
@@ -253,41 +370,67 @@ export async function conductInterview(
   validateInterviewExperience(experience)
   validateConversationHistory(conversationHistory)
 
-  const userTurnCount = conversationHistory.filter((entry) => entry.role === 'user').length
+  const userTurnCount = conversationHistory.filter(entry => entry.role === 'user').length
   const shouldWrapUp = userTurnCount >= 3
   const conversationText = formatConversationHistory(conversationHistory)
-  const modeGoal = mode === 'notes_help'
-    ? 'Draft clear, practical Sage notes the user can save as read-only assistant notes.'
-    : 'Draft a concise professional role summary suitable for the experience summary field.'
 
-  const experienceContext = `Experience context:
+  const highlightsText = (experience.highlights && experience.highlights.length > 0)
+    ? experience.highlights.join(' | ')
+    : '(not provided)'
+
+  // notes_help: include highlights as reference context for practical notes
+  // role_summary: omit highlights — responsibility descriptions should come from the conversation, not achievements
+  const notesHelpContext = `Experience context:
 - Title: ${experience.title}
 - Employer: ${experience.employer}
 - Employment Type: ${experience.employmentType || '(not provided)'}
 - Existing Summary: ${experience.summary || '(not provided)'}
-- Highlights: ${(experience.highlights && experience.highlights.length > 0) ? experience.highlights.join(' | ') : '(not provided)'}
+- Highlights: ${highlightsText}
 - Context Notes: ${experience.contextNotes || '(not provided)'}
 - Existing Sage Notes: ${experience.sageNotes || '(not provided)'}`
 
-  if (shouldWrapUp) {
-    const completionPrompt = `You are wrapping up an interview.
+  const roleSummaryContext = `Experience context:
+- Title: ${experience.title}
+- Employer: ${experience.employer}
+- Employment Type: ${experience.employmentType || '(not provided)'}
+- Existing Summary: ${experience.summary || '(not provided)'}
+- Context Notes: ${experience.contextNotes || '(not provided)'}
+- Existing Sage Notes: ${experience.sageNotes || '(not provided)'}
 
-Mode: ${mode}
-Goal: ${modeGoal}
+IMPORTANT: Do NOT use the resume highlights/achievements to write the summary.
+A role summary describes what the person was responsible for — their mandate, scope, and types of work they owned — not their results or outcomes.`
+
+  const experienceContext = mode === 'notes_help' ? notesHelpContext : roleSummaryContext
+
+  if (shouldWrapUp) {
+    const completionPrompt = mode === 'notes_help'
+      ? `You are wrapping up a Sage notes interview.
+
+Goal: Draft clear, practical notes about this role that Sage can reference later. Cover what the person did, the types of work they owned, and any relevant context. Do not invent details not mentioned in the conversation.
 
 ${experienceContext}
 
 Conversation history:
 ${conversationText}
 
-Write the final output text for the user. Do not ask another question.`
+Write the final Sage notes as plain prose. Do not ask another question.`
+      : `You are wrapping up a role summary interview.
+
+Goal: Write a job-description-style role summary that describes what the person was responsible for at this job — their mandate when hired, the categories of work they owned, and how their scope evolved. Do NOT summarise achievements or outcomes. Do NOT use bullet points. Write 2-4 sentences of plain prose.
+
+${experienceContext}
+
+Conversation history:
+${conversationText}
+
+Write only the role summary text. Do not include a heading, preamble, or sign-off. Do not ask another question.`
 
     try {
       const result = await runWithTimeout(generateText({
         model: gateway('openai/gpt-4o-mini'),
         prompt: completionPrompt,
         temperature: 0.4,
-        maxRetries: 2,
+        maxRetries: 2
       }))
 
       const output = result.text.trim()
@@ -296,7 +439,7 @@ Write the final output text for the user. Do not ask another question.`
       }
 
       return { done: true, output }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof SageExperienceEnhancementError) {
         throw error
       }
@@ -304,29 +447,45 @@ Write the final output text for the user. Do not ask another question.`
       throw new SageExperienceEnhancementError(
         'Failed to generate interview completion output',
         'AI_PROVIDER_ERROR',
-        { originalError: error?.message }
+        { originalError: getErrorMessage(error) }
       )
     }
   }
 
-  const nextTurnPrompt = `You are conducting an interview.
+  const nextTurnPrompt = mode === 'notes_help'
+    ? `You are interviewing someone to capture practical Sage notes about their role.
 
-Mode: ${mode}
-Goal: ${modeGoal}
+Goal: Learn what they did, what they owned, and any context useful for future AI assistance with this experience. Keep questions concise and conversational.
 
 ${experienceContext}
 
 Conversation history:
 ${conversationText}
 
-Write exactly one helpful next interviewer message that moves the user toward the goal. Keep it concise.`
+Ask exactly one focused follow-up question. Do not write multiple questions.`
+    : `You are interviewing someone to write a job-description-style role summary — what they were responsible for, not what they achieved.
+
+Goal: Understand their mandate when hired, the domains/types of work they owned (e.g. infrastructure, software development, project management, stakeholder communication), and how their scope evolved over time. Do NOT ask about metrics, outcomes, or impact.
+
+Good questions to ask (choose the most relevant given the conversation so far):
+- What were you primarily hired or tasked to do when you joined?
+- What categories of work did you regularly own? (e.g. feature development, infra, integration work, team coordination)
+- Did your responsibilities expand or shift over time?
+- Who did you work with or report to, and what was your level of ownership?
+
+${experienceContext}
+
+Conversation history:
+${conversationText}
+
+Ask exactly one focused follow-up question from the goal above that has not already been answered. Keep it conversational and concise. Do not ask about results or achievements.`
 
   try {
     const result = await runWithTimeout(generateText({
       model: gateway('openai/gpt-4o-mini'),
       prompt: nextTurnPrompt,
       temperature: 0.5,
-      maxRetries: 2,
+      maxRetries: 2
     }))
 
     const message = result.text.trim()
@@ -335,7 +494,7 @@ Write exactly one helpful next interviewer message that moves the user toward th
     }
 
     return { done: false, message }
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof SageExperienceEnhancementError) {
       throw error
     }
@@ -343,7 +502,112 @@ Write exactly one helpful next interviewer message that moves the user toward th
     throw new SageExperienceEnhancementError(
       'Failed to generate interview response',
       'AI_PROVIDER_ERROR',
-      { originalError: error?.message }
+      { originalError: getErrorMessage(error) }
+    )
+  }
+}
+
+export async function conductResponsibilityInterview(
+  mode: SageInterviewMode,
+  experience: SageInterviewExperience,
+  answers: SageCollectedAnswer[]
+): Promise<ResponsibilityInterviewResult> {
+  if (mode !== 'notes_help' && mode !== 'role_summary') {
+    throw new SageExperienceEnhancementError('mode must be "notes_help" or "role_summary"', 'INVALID_INPUT')
+  }
+
+  validateInterviewExperience(experience)
+  validateResponsibilityAnswers(answers)
+
+  const formattedAnswers = formatResponsibilityAnswers(answers)
+  const highlightsText = (experience.highlights && experience.highlights.length > 0)
+    ? experience.highlights.join(' | ')
+    : '(not provided)'
+
+  const modeInstruction = mode === 'notes_help'
+    ? `Mode: notes_help
+Final output goal: Draft clear, practical Sage notes about this role that future AI assistance can reference. Cover what the person did, the types of work they owned, stakeholders/context, tools/domains when relevant, and any important scope details. Existing highlights may be used only as context; do not invent facts beyond the provided context and answers.`
+    : `Mode: role_summary
+Final output goal: Write a 2-4 sentence job-description-style role summary. Describe what the person was responsible for: mandate, scope, categories of work owned, stakeholders, and how scope evolved. Do not summarize achievements, metrics, results, or outcomes. Do not use bullet points.`
+
+  const prompt = `SYSTEM RULES (always follow):
+- You receive experience context and any answers collected so far.
+- Decide whether you have enough to produce a strong final output or need more information.
+- If answers is empty, always return done:false with 2-5 questions.
+- If answers are present and cover the person's mandate, categories of work owned, stakeholders/scope, and any evolution of scope, return done:true.
+- If you need more information, return done:false with 1-5 questions.
+- Choose question types deliberately:
+  - single_choice: use only when exactly one answer should be true, such as primary work type, largest stakeholder group, team size range, reporting line, or ownership level.
+  - multi_choice: use whenever more than one answer may be true. Prefer multi_choice for domains owned, tools/technologies used, activity categories, collaboration types, responsibilities, stakeholders, or types of work.
+  - free_form: only the user knows the answer, such as why they were hired, specific systems, or how scope changed over time.
+- For single_choice and multi_choice, include 4-5 relevant options plus an "Other (specify)" option with allowCustom:true.
+- Do not turn "which of these applied?" questions into single_choice. Those must be multi_choice.
+- In the first question batch, include at least one multi_choice question when asking about categories of work, domains, tools, stakeholders, or responsibilities.
+- Do not include emoji in options.
+- Return JSON only. No prose outside the JSON object.
+
+Response schema:
+{
+  "done": false,
+  "questions": [
+    {
+      "id": "q1",
+      "text": "Question text",
+      "type": "free_form | single_choice | multi_choice",
+      "placeholder": "Optional hint for free_form",
+      "options": [
+        { "id": "q1_o1", "label": "Option label", "allowCustom": false }
+      ]
+    }
+  ]
+}
+
+or:
+{
+  "done": true,
+  "output": "Final output text"
+}
+
+${modeInstruction}
+
+Experience context:
+- Title: ${experience.title}
+- Employer: ${experience.employer}
+- Employment Type: ${experience.employmentType || '(not provided)'}
+- Existing Summary: ${experience.summary || '(not provided)'}
+- Highlights: ${mode === 'notes_help' ? highlightsText : '(omitted for role_summary; do not use achievements)'}
+- Context Notes: ${experience.contextNotes || '(not provided)'}
+- Existing Sage Notes: ${experience.sageNotes || '(not provided)'}
+
+Collected answers:
+${formattedAnswers}`
+
+  try {
+    const result = await runWithTimeout(generateText({
+      model: gateway('openai/gpt-4o-mini'),
+      prompt,
+      temperature: 0.35,
+      maxRetries: 2
+    }))
+
+    return await interceptSageQuestionEngineResponse(result.text)
+  } catch (error: unknown) {
+    if (error instanceof SageExperienceEnhancementError) {
+      throw error
+    }
+
+    if (error instanceof SageQuestionEngineInterceptorError) {
+      throw new SageExperienceEnhancementError(
+        'Responsibility interview response failed validation',
+        'AI_PROVIDER_ERROR',
+        error.details
+      )
+    }
+
+    throw new SageExperienceEnhancementError(
+      'Failed to conduct responsibility interview',
+      'AI_PROVIDER_ERROR',
+      { originalError: getErrorMessage(error) }
     )
   }
 }
@@ -359,7 +623,7 @@ function parseHeroSignalResponse(response: string): SageHeroSignalResult {
       }
     }
 
-    const parsed = JSON.parse(cleanResponse) as Record<string, any>
+    const parsed = JSON.parse(cleanResponse) as JsonRecord
     if (typeof parsed.nudge !== 'boolean') {
       throw new SageExperienceEnhancementError('AI response missing boolean nudge field', 'AI_PROVIDER_ERROR')
     }
@@ -379,7 +643,7 @@ function parseHeroSignalResponse(response: string): SageHeroSignalResult {
     return {
       nudge: true,
       signal: parsed.signal.trim(),
-      context: parsed.context.trim(),
+      context: parsed.context.trim()
     }
   } catch (error) {
     if (error instanceof SageExperienceEnhancementError) {
@@ -436,11 +700,11 @@ Or:
       model: gateway('openai/gpt-4o-mini'),
       prompt,
       temperature: 0.3,
-      maxRetries: 2,
+      maxRetries: 2
     }))
 
     return parseHeroSignalResponse(result.text)
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof SageExperienceEnhancementError) {
       throw error
     }
@@ -448,7 +712,7 @@ Or:
     throw new SageExperienceEnhancementError(
       'Failed to detect HERO signal',
       'AI_PROVIDER_ERROR',
-      { originalError: error?.message }
+      { originalError: getErrorMessage(error) }
     )
   }
 }
@@ -460,7 +724,7 @@ export async function generateAchievementQuestions(
   validateExperience(experience)
   validateBullet(bullet)
 
-  const prompt = `You are helping a user strengthen one resume bullet.
+  const prompt = `You are helping a user strengthen one resume bullet by asking 3-4 structured questions.
 
 Experience context:
 - Title: ${experience.title}
@@ -471,25 +735,43 @@ Current bullet:
 "${bullet}"
 
 Task:
-- Ask 3-5 concise follow-up questions that help improve impact, scope, and clarity.
-- Questions must focus on missing facts (metrics, scale, ownership, outcomes).
-- Return JSON only in this format:
+- Generate 3-4 questions that uncover missing facts: scale, ownership, impact, and outcomes.
+- Each question must include a "type": "single_choice" or "multi_choice".
+- Use single_choice only when exactly one answer should be true, such as primary ownership level or largest audience.
+- Use multi_choice whenever more than one answer may be true. Prefer multi_choice for measurable impact, technologies/tools, stakeholders, responsibilities, collaboration types, or categories of outcomes.
+- A question like "What measurable impact did this have?" must be multi_choice because multiple impacts can apply.
+- Each question MUST have 4-5 selectable options relevant to the bullet, plus one "Other (specify)" option with allowCustom: true.
+- Do not include emoji in options.
+- Return JSON only in this exact format:
 {
   "questions": [
-    { "id": "q1", "text": "..." }
+    {
+      "id": "q1",
+      "text": "What was the scale or reach of this work?",
+      "type": "single_choice",
+      "options": [
+        { "id": "q1_o1", "label": "Individual contributor only" },
+        { "id": "q1_o2", "label": "Small team (2–5 people)" },
+        { "id": "q1_o3", "label": "Department or business unit" },
+        { "id": "q1_o4", "label": "Cross-functional or company-wide" },
+        { "id": "q1_o5", "label": "Other (specify)", "allowCustom": true }
+      ]
+    }
   ]
-}`
+}
+
+Keep question text concise. Make options specific and meaningful to the bullet content.`
 
   try {
     const result = await runWithTimeout(generateText({
       model: gateway('openai/gpt-4o-mini'),
       prompt,
       temperature: 0.4,
-      maxRetries: 2,
+      maxRetries: 2
     }))
 
     return parseQuestionsResponse(result.text)
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof SageExperienceEnhancementError) {
       throw error
     }
@@ -497,7 +779,7 @@ Task:
     throw new SageExperienceEnhancementError(
       'Failed to generate achievement questions',
       'AI_PROVIDER_ERROR',
-      { originalError: error?.message }
+      { originalError: getErrorMessage(error) }
     )
   }
 }
@@ -512,7 +794,12 @@ export async function generateImprovedBullet(
   validateAnswers(answers)
 
   const formattedAnswers = answers
-    .map((entry) => `- ${entry.questionId}: ${entry.answer}`)
+    .map((entry) => {
+      const answerText = Array.isArray(entry.answer)
+        ? entry.answer.join(', ')
+        : entry.answer
+      return `- ${entry.questionId}: ${answerText}`
+    })
     .join('\n')
 
   const prompt = `You are improving a resume bullet using user-provided clarifications.
@@ -542,11 +829,11 @@ Rules:
       model: gateway('openai/gpt-4o-mini'),
       prompt,
       temperature: 0.3,
-      maxRetries: 2,
+      maxRetries: 2
     }))
 
     return parseImprovedBulletResponse(result.text)
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof SageExperienceEnhancementError) {
       throw error
     }
@@ -554,7 +841,7 @@ Rules:
     throw new SageExperienceEnhancementError(
       'Failed to generate improved bullet',
       'AI_PROVIDER_ERROR',
-      { originalError: error?.message }
+      { originalError: getErrorMessage(error) }
     )
   }
 }

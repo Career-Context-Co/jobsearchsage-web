@@ -4,10 +4,9 @@ import { vMaska } from 'maska/vue'
 import { validateRequired, validateUrl, validateMonthYear, validateDateRange } from '~/utils/validation'
 
 const careerIDStore = useCareerIDStore()
+const sageAIStore = useSageAIStore()
 const accountStore = useAccountStore()
 const toast = useToast()
-const route = useRoute()
-const router = useRouter()
 
 /**
  * Convert date from YYYY-MM-DD to MM/YYYY format for UI display
@@ -84,37 +83,84 @@ const formData = ref<Partial<ExperienceFormData>>({
 })
 const formErrors = ref<Record<string, string>>({})
 
-// Enhancement pane query parameter handling
-const enhancingExperienceId = computed(() => {
-  const enhanceParam = route.query.enhance
-  if (!enhanceParam) return null
-  const id = Number(enhanceParam)
-  return isNaN(id) ? null : id
-})
+const sageSessionOpen = ref(false)
+const sageSessionExperienceId = ref<number | null>(null)
 
-const isEnhancementPaneOpen = computed(() => enhancingExperienceId.value !== null)
+const sageSessionExperience = computed(() =>
+  sageSessionExperienceId.value !== null
+    ? experiences.value.find(e => e.id === sageSessionExperienceId.value) ?? null
+    : null
+)
 
-function openEnhancementPane(experienceId: number) {
-  router.push({
-    query: { ...route.query, enhance: experienceId }
+function openSageSession(experienceId: number) {
+  sageSessionExperienceId.value = experienceId
+  sageSessionOpen.value = true
+}
+
+function closeSageSession() {
+  sageSessionOpen.value = false
+  sageSessionExperienceId.value = null
+}
+
+async function onSageSessionConfirm(bulletIndex: number, improvedBullet: string) {
+  const expId = sageSessionExperienceId.value
+  if (expId === null) return
+  const exp = careerIDStore.experience.find(e => e.id === expId)
+  if (!exp) return
+  const highlights = editingExperienceId.value === expId && Array.isArray(formData.value.highlights)
+    ? [...formData.value.highlights]
+    : [...exp.highlights]
+  if (bulletIndex < 0 || bulletIndex >= highlights.length) return
+  highlights[bulletIndex] = improvedBullet
+  try {
+    await careerIDStore.updateExperience(expId, {
+      highlights,
+      lastEnhancedAt: new Date().toISOString()
+    })
+    if (editingExperienceId.value === expId && Array.isArray(formData.value.highlights)) {
+      const next = [...formData.value.highlights]
+      if (next[bulletIndex] !== undefined) {
+        next[bulletIndex] = improvedBullet
+        formData.value.highlights = next
+      }
+    }
+    toast.add({
+      title: 'Achievement updated',
+      description: 'Your improved bullet has been saved.',
+      icon: 'i-lucide-check',
+      color: 'success'
+    })
+    closeSageSession()
+  } catch (err: unknown) {
+    const e = err as { message?: string }
+    toast.add({
+      title: 'Save failed',
+      description: e?.message || 'Could not save the improved bullet.',
+      icon: 'i-lucide-alert-circle',
+      color: 'error'
+    })
+  }
+}
+
+function onSageSessionApplySummary(summary: string) {
+  const expId = sageSessionExperienceId.value
+  if (expId === null) return
+
+  const exp = careerIDStore.experience.find(e => e.id === expId)
+  if (!exp) return
+
+  if (editingExperienceId.value !== expId) {
+    startEditingExperience(exp)
+  }
+
+  formData.value.summary = summary
+  toast.add({
+    title: 'Summary copied',
+    description: 'Review it in the open experience card, then save your changes.',
+    icon: 'i-lucide-check',
+    color: 'success'
   })
-}
-
-function closeEnhancementPane() {
-  const query = { ...route.query }
-  delete query.enhance
-  router.push({ query })
-}
-
-// Get the experience being enhanced
-const enhancingExperience = computed(() => {
-  if (!enhancingExperienceId.value) return null
-  return experiences.value.find(exp => exp.id === enhancingExperienceId.value) || null
-})
-
-// Handle enhancement pane close
-function handleEnhancementClose() {
-  closeEnhancementPane()
+  closeSageSession()
 }
 
 // Employment type options
@@ -394,6 +440,11 @@ onMounted(async () => {
     // If no profile found after fetch, show empty state
     if (!careerIDStore.profile) {
       showEmptyState.value = true
+    } else {
+      const experienceIds = careerIDStore.experience.map(e => e.id)
+      await Promise.all(
+        experienceIds.map(id => sageAIStore.loadSageNotesForExperience(profileId, id))
+      )
     }
   } catch (err: any) {
     // Check if it's a 404 or profile not found error
@@ -653,7 +704,9 @@ onMounted(async () => {
         :key="experience.id"
         :class="[
           'border rounded-lg transition-colors',
-          enhancingExperienceId === experience.id ? 'border-teal-500 ring-2 ring-teal-500' : 'border-default'
+          sageSessionOpen && sageSessionExperienceId === experience.id
+            ? 'border-teal-500 ring-2 ring-teal-500'
+            : 'border-default'
         ]"
       >
         <!-- View Mode -->
@@ -670,31 +723,8 @@ onMounted(async () => {
                     <span>• {{ locationTypes.find(t => t.value === experience.locationType)?.label }}</span>
                     <span>• {{ employmentTypes.find(t => t.value === experience.employmentType)?.label }}</span>
                   </div>
-
-                  <!-- Enhancement Status Badge -->
-                  <div v-if="accountStore.isBulletEnhancementEnabled" class="flex items-center gap-2 mt-3">
-                    <UBadge
-                      v-if="experience.lastEnhancedAt"
-                      color="success"
-                      variant="soft"
-                      size="sm"
-                    >
-                      <UIcon name="i-lucide-sparkles" class="w-3 h-3 mr-1" />
-                      Enhanced on {{ formatDate(experience.lastEnhancedAt) }}
-                    </UBadge>
-                    <span v-else class="text-xs text-muted italic">Not enhanced yet</span>
-                  </div>
                 </div>
                 <div class="flex gap-2">
-                  <UButton
-                    v-if="accountStore.isBulletEnhancementEnabled"
-                    icon="i-lucide-sparkles"
-                    color="primary"
-                    variant="ghost"
-                    size="sm"
-                    class="cursor-pointer"
-                    @click="openEnhancementPane(experience.id)"
-                  />
                   <UButton
                     icon="i-lucide-pencil"
                     color="neutral"
@@ -739,16 +769,27 @@ onMounted(async () => {
           <div class="space-y-4">
             <div class="flex items-center justify-between gap-4">
               <h3 class="text-lg font-semibold">Edit Work Experience</h3>
-              <!-- Enhancement Status Badge in Edit Mode -->
-              <UBadge
-                v-if="experience.lastEnhancedAt"
-                color="success"
-                variant="soft"
-                size="sm"
-              >
-                <UIcon name="i-lucide-sparkles" class="w-3 h-3 mr-1" />
-                Enhanced
-              </UBadge>
+              <div class="flex items-center gap-2">
+                <UBadge
+                  v-if="experience.lastEnhancedAt"
+                  color="success"
+                  variant="soft"
+                  size="sm"
+                >
+                  <UIcon name="i-lucide-sparkles" class="w-3 h-3 mr-1" />
+                  Enhanced
+                </UBadge>
+                <UButton
+                  v-if="accountStore.isBulletEnhancementEnabled"
+                  label="Get AI Help"
+                  icon="i-lucide-sparkles"
+                  color="primary"
+                  variant="ghost"
+                  size="sm"
+                  class="cursor-pointer"
+                  @click="openSageSession(experience.id)"
+                />
+              </div>
             </div>
             
             <!-- Employment Type and Company -->
@@ -874,7 +915,11 @@ onMounted(async () => {
             <div>
               <label class="block text-sm font-medium mb-1">Key Achievements <span class="text-error">*</span></label>
               <div class="space-y-2">
-                <div v-for="(highlight, index) in formData.highlights" :key="index" class="flex gap-2 items-start">
+                <div
+                  v-for="(highlight, index) in formData.highlights"
+                  :key="index"
+                  class="flex gap-2 items-start"
+                >
                   <UTextarea
                     v-model="formData.highlights![index]"
                     placeholder="Describe a key achievement or responsibility..."
@@ -887,7 +932,7 @@ onMounted(async () => {
                     icon="i-lucide-x"
                     color="neutral"
                     variant="ghost"
-                    class="cursor-pointer"
+                    class="cursor-pointer shrink-0"
                     @click="removeHighlight(index)"
                   />
                 </div>
@@ -913,15 +958,6 @@ onMounted(async () => {
                 class="cursor-pointer"
                 @click="cancelEdit"
                 :disabled="isSaving"
-              />
-              <UButton
-                v-if="accountStore.isBulletEnhancementEnabled"
-                label="Enhance"
-                color="primary"
-                variant="outline"
-                icon="i-lucide-sparkles"
-                class="cursor-pointer"
-                @click="openEnhancementPane(editingExperienceId!)"
               />
               <UButton
                 label="Save Changes"
@@ -954,29 +990,61 @@ onMounted(async () => {
     </UPageCard>
   </div>
 
-  <!-- Enhancement Drawer -->
-  <UDrawer
+  <!-- Sage AI Session Slideover -->
+  <USlideover
     v-if="accountStore.isBulletEnhancementEnabled"
-    v-model:open="isEnhancementPaneOpen"
-    direction="right"
-    inset
-    :handle="false"
+    v-model:open="sageSessionOpen"
+    side="right"
+    :overlay="false"
+    :dismissible="true"
     :modal="false"
-    :dismissible="false"
-    @update:open="(open) => { if (!open) closeEnhancementPane() }"
+    :inset="true"
+    :ui="{ content: 'max-w-2xl w-full' }"
+    @update:open="(open) => { if (!open) closeSageSession() }"
   >
-    <!-- Hidden trigger (drawer controlled via query param) -->
-    <div class="hidden" />
-
-    <!-- Drawer Content -->
-    <template #body>
-      <div class="w-xl">
-        <ProfileEnhancementPane
-        :experience="enhancingExperience"
-        @close="handleEnhancementClose"
-      />
+    <template #header="{ close }">
+      <div class="w-full flex items-start justify-between gap-4">
+        <div class="flex-1">
+          <h2 class="text-lg font-semibold">
+            Get AI Help
+          </h2>
+          <p class="text-sm text-muted mt-1">
+            AI-guided experience enhancement
+          </p>
+        </div>
+        <UButton
+          icon="i-lucide-x"
+          color="neutral"
+          variant="ghost"
+          size="md"
+          class="cursor-pointer"
+          @click="close"
+        />
       </div>
     </template>
-
-  </UDrawer>
+    <template #body>
+      <div class="h-full p-4">
+        <ProfileSageExperienceSession
+          v-if="sageSessionExperience"
+          :key="sageSessionExperience.id"
+          :experience="sageSessionExperience"
+          :profile-id="sageSessionExperience.profileId"
+          @confirm="onSageSessionConfirm"
+          @apply-summary="onSageSessionApplySummary"
+          @close="closeSageSession"
+        />
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex items-center justify-end w-full">
+        <UButton
+          label="Close"
+          color="neutral"
+          variant="ghost"
+          class="cursor-pointer"
+          @click="closeSageSession"
+        />
+      </div>
+    </template>
+  </USlideover>
 </template>
