@@ -64,8 +64,9 @@ export const useAccountStore = defineStore('account', {
       let userEmail: string | undefined
 
       if (supabaseUser.value) {
-        userId = supabaseUser.value.id
-        userEmail = supabaseUser.value.email
+        const sessionUser = supabaseUser.value as typeof supabaseUser.value & { sub?: string }
+        userId = sessionUser.id || sessionUser.sub
+        userEmail = sessionUser.email
       } else {
         const supabase = useSupabaseClient()
         const { data: { session } } = await supabase.auth.getSession()
@@ -75,7 +76,9 @@ export const useAccountStore = defineStore('account', {
         }
       }
 
-      if (!userId) return
+      if (!userId) {
+        return
+      }
 
       try {
         const response: any = await $fetch('/api/auth/session', { method: 'GET' })

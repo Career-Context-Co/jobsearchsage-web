@@ -113,7 +113,11 @@ export const useSageAIStore = defineStore('sageAI', {
     /** Sage profile notes for experience rows: key `${profileId}:${experienceId}` */
     experienceSageNotesByKey: {} as Record<string, ExperienceSageNotesState>,
     /** Persisted HERO nudges for experience rows: key `${profileId}:${experienceId}` */
-    heroNudgesByKey: {} as Record<string, HeroNudgeCacheState>
+    heroNudgesByKey: {} as Record<string, HeroNudgeCacheState>,
+    /** Profiles whose experience Sage notes have been loaded this app session */
+    loadedSageNotesProfileIds: {} as Record<string, boolean>,
+    /** Profiles whose persisted HERO nudges have been loaded this app session */
+    loadedHeroNudgeProfileIds: {} as Record<string, boolean>
   }),
 
   getters: {
@@ -199,6 +203,14 @@ export const useSageAIStore = defineStore('sageAI', {
     async loadSageNotesForProfileExperiences(profileId: string, experienceIds: number[] = []) {
       this.restoreExperienceSageNotesFromCache()
 
+      const hasAllRequestedNotes = experienceIds.every((experienceId) => {
+        const key = experienceSageNotesKey(profileId, experienceId)
+        return this.experienceSageNotesByKey[key] !== undefined
+      })
+      if (this.loadedSageNotesProfileIds[profileId] && hasAllRequestedNotes) {
+        return
+      }
+
       const next = { ...this.experienceSageNotesByKey }
       for (const experienceId of experienceIds) {
         const key = experienceSageNotesKey(profileId, experienceId)
@@ -251,6 +263,10 @@ export const useSageAIStore = defineStore('sageAI', {
         }
 
         this.experienceSageNotesByKey = hydrated
+        this.loadedSageNotesProfileIds = {
+          ...this.loadedSageNotesProfileIds,
+          [profileId]: true
+        }
         this.saveExperienceSageNotesToCache()
       } catch (error: unknown) {
         const e = error as { data?: { error?: { message?: string } }, message?: string }
@@ -270,6 +286,38 @@ export const useSageAIStore = defineStore('sageAI', {
         }
         this.experienceSageNotesByKey = failed
         console.error('loadSageNotesForProfileExperiences failed', error)
+      }
+    },
+
+    async loadHeroNudgesForProfile(profileId: string) {
+      this.restoreHeroNudgesFromCache()
+
+      if (this.loadedHeroNudgeProfileIds[profileId]) {
+        return this.heroNudgesForProfile(profileId)
+      }
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          data: HeroNudgeCacheState[]
+        }>('/api/ai/experience/hero-nudge', {
+          query: { profileId }
+        })
+
+        if (!response.success) {
+          throw new Error('Failed to load HERO nudges')
+        }
+
+        this.setHeroNudges(profileId, response.data)
+        this.loadedHeroNudgeProfileIds = {
+          ...this.loadedHeroNudgeProfileIds,
+          [profileId]: true
+        }
+
+        return this.heroNudgesForProfile(profileId)
+      } catch (error) {
+        console.error('loadHeroNudgesForProfile failed', error)
+        return this.heroNudgesForProfile(profileId)
       }
     },
 

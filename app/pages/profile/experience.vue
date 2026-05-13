@@ -180,27 +180,9 @@ function setHeroNudgeState(nudge: Omit<HeroNudgeActiveState, 'loading'>, expande
 }
 
 async function loadPersistedHeroNudges(profileId: string) {
-  sageAIStore.restoreHeroNudgesFromCache()
-  for (const nudge of sageAIStore.heroNudgesForProfile(profileId)) {
+  const nudges = await sageAIStore.loadHeroNudgesForProfile(profileId)
+  for (const nudge of nudges) {
     setHeroNudgeState(nudge, false)
-  }
-
-  try {
-    const response = await $fetch<{
-      success: boolean
-      data: Array<Omit<HeroNudgeActiveState, 'loading'>>
-    }>('/api/ai/experience/hero-nudge', {
-      query: { profileId }
-    })
-
-    if (!response.success) return
-
-    sageAIStore.setHeroNudges(profileId, response.data)
-    for (const nudge of response.data) {
-      setHeroNudgeState(nudge, false)
-    }
-  } catch (error) {
-    console.error('Failed to load persisted HERO nudges', error)
   }
 }
 
@@ -697,9 +679,7 @@ onMounted(async () => {
   }
 
   try {
-    // Refresh old in-memory rows that were loaded before contextNotes was mapped.
-    const hasUnhydratedContextNotes = careerIDStore.experience.some(exp => exp.contextNotes === undefined)
-    if (!careerIDStore.isProfileLoaded || hasUnhydratedContextNotes) {
+    if (!careerIDStore.isProfileLoaded) {
       await careerIDStore.fetchProfile(profileId)
     }
 
