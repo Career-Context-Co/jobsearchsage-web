@@ -12,6 +12,7 @@ import {
   type QuestionAnswer,
   type StructuredQuestion
 } from './hero-structured-questions'
+import type { QuestionGroup, HeroFieldResult } from '#shared/types/enhancement'
 
 const apiKey = useRuntimeConfig().aiGatewayApiKey
 if (!apiKey) {
@@ -1085,6 +1086,7 @@ Example questions:
 - "What happened to the business or team as a result of this work?"
 - "Did users or customers notice the change? What was their reaction?"
 - "Did this work lead to any recognition or open up future opportunities?"`
+
     }
 
     // Build context string
@@ -1383,4 +1385,247 @@ export async function generateTransitionMessage(
     'Excellent work! Just wrapping up with a final question or two.'
   ]
   return lateMessages[Math.floor(Math.random() * lateMessages.length)]
+}
+
+// ---------------------------------------------------------------------------
+// HERO Section Rounds — Question Generation & Synthesis
+// ---------------------------------------------------------------------------
+
+const SECTION_FIELD_LABELS: Record<SectionType, [string, string, string]> = {
+  hurdle: ['Problem', 'Scope', 'Stakes'],
+  expectation: ['Role', 'Goals', 'Constraints'],
+  response: ['Actions', 'Tools', 'Challenges'],
+  outcome: ['Deliverable', 'Metrics', 'Impact']
+}
+
+const HERO_QUESTION_GENERATION_PROMPT = `You are an AI coach that generates targeted questions to help users articulate their HERO story.
+
+You will receive:
+- A section type (hurdle, expectation, response, or outcome)
+- Context about the user's experience and moment
+- Any previously answered questions
+
+YOUR TASK:
+Generate questions organized into groups (one group per field in the section). Each group should have 3-5 questions that help the user recall specific details.
+
+RULES:
+1. Questions should be specific and conversational
+2. Never invent details — only ask to extract information
+3. If previous answers exist, generate follow-up questions that dig deeper
+4. If previous answers are comprehensive enough (specific metrics, clear details, concrete examples), return empty questionGroups to signal completion
+5. Each question needs a unique id (e.g., "q1", "q2", ...)
+6. Group questions by field, using the field name as the category
+
+Return ONLY valid JSON in this format:
+{
+  "questionGroups": [
+    {
+      "category": "Field Name",
+      "questions": [
+        { "id": "q1", "text": "Your question here?" }
+      ]
+    }
+  ]
+}
+
+If the context is comprehensive enough and no more questions are needed, return:
+{ "questionGroups": [] }`
+
+/**
+ * Generate question groups for a HERO section (round-based flow).
+ * When previousAnswers is empty → Round 1 (initial questions).
+ * When previousAnswers are provided → follow-ups, or empty if done.
+ */
+export async function generateHeroSectionQuestions(
+  sectionType: SectionType,
+  context: StructuredEnhancementInput,
+  previousAnswers?: Array<{ id: string, answer: string }>
+): Promise<QuestionGroup[]> {
+  const fields = SECTION_FIELD_NAMES[sectionType]
+  const labels = SECTION_FIELD_LABELS[sectionType]
+
+  const contextParts: string[] = []
+
+  if (context.moment_title) {
+    contextParts.push(`Moment Title: ${context.moment_title}`)
+  }
+  if (context.moment_description) {
+    contextParts.push(`Moment Description: ${context.moment_description}`)
+  }
+  if (context.experience) {
+    contextParts.push(`Experience: ${context.experience.title} at ${context.experience.employer}`)
+    if (context.experience.summary) {
+      contextParts.push(`Summary: ${context.experience.summary}`)
+    }
+    if (context.experience.highlights?.length) {
+      contextParts.push(`Highlights:\n${context.experience.highlights.map(h => `- ${h}`).join('\n')}`)
+    }
+  }
+  if (context.previous_field_results) {
+    const existing = Object.entries(context.previous_field_results)
+      .filter(([, v]) => v)
+      .map(([k, v]) => `${k}: ${v}`)
+    if (existing.length) {
+      contextParts.push(`Existing field values:\n${existing.join('\n')}`)
+    }
+  }
+
+  let userPrompt: string
+
+  if (!previousAnswers || previousAnswers.length === 0) {
+    userPrompt = `Section: ${sectionType.toUpperCase()}
+Fields: ${labels.join(', ')} (${fields.join(', ')})
+
+Context:
+${contextParts.join('\n')}
+
+This is the initial round. Generate 3-5 questions per field (${labels.length} groups total).
+Start question IDs at "q1".`
+  } else {
+    userPrompt = `Section: ${sectionType.toUpperCase()}
+Fields: ${labels.join(', ')} (${fields.join(', ')})
+
+Context:
+${contextParts.join('\n')}
+
+Previously answered questions:
+${JSON.stringify(previousAnswers, null, 2)}
+
+Review the answers. If they contain enough detail (specific numbers, concrete examples, clear descriptions) for all 3 fields, return empty questionGroups.
+Otherwise, generate follow-up questions to fill gaps. Continue question IDs from "q${previousAnswers.length + 1}".`
+  }
+
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new HeroEnhancementError('Question generation timed out', 'TIMEOUT'))
+      }, 30000)
+    })
+
+    const aiPromise = generateText({
+      model: gateway('openai/gpt-4o'),
+      system: HERO_QUESTION_GENERATION_PROMPT,
+      prompt: userPrompt,
+      temperature: 0.7,
+      maxRetries: 2
+    })
+
+    const result = await Promise.race([aiPromise, timeoutPromise])
+    const text = result.text.trim()
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      throw new HeroEnhancementError('Invalid AI response format', 'INVALID_RESPONSE')
+    }
+
+    const parsed = JSON.parse(jsonMatch[0])
+    if (!Array.isArray(parsed.questionGroups)) {
+      throw new HeroEnhancementError('Missing questionGroups in response', 'INVALID_RESPONSE')
+    }
+
+    return parsed.questionGroups as QuestionGroup[]
+  } catch (error: any) {
+    if (error instanceof HeroEnhancementError) throw error
+    throw new HeroEnhancementError(
+      'Failed to generate section questions',
+      'API_ERROR',
+      { originalError: error.message }
+    )
+  }
+}
+
+const HERO_SYNTHESIS_PROMPT = `You are an AI writing assistant that synthesizes user answers into polished field text for a HERO story section.
+
+You will receive:
+- A section type and its fields
+- All accumulated answers from the user
+- Context about their experience
+
+YOUR TASK:
+For each field in the section, produce a concise, well-written paragraph (2-4 sentences) that captures the key information from the user's answers.
+
+RULES:
+1. Use the user's own words, facts, and numbers — never invent details
+2. Write in third-person professional tone (as if for a resume/portfolio)
+3. Be specific and concrete — include metrics, tools, and names when provided
+4. Each field should be independently readable
+5. If no relevant answers exist for a field, return an empty string for that field
+
+Return ONLY valid JSON mapping field names to text:
+{
+  "field1": "Synthesized text for field 1...",
+  "field2": "Synthesized text for field 2...",
+  "field3": "Synthesized text for field 3..."
+}`
+
+/**
+ * Synthesize final field texts from accumulated answers for a HERO section.
+ */
+export async function synthesizeHeroSectionFields(
+  sectionType: SectionType,
+  answers: Array<{ id: string, answer: string }>,
+  context: StructuredEnhancementInput
+): Promise<HeroFieldResult[]> {
+  const fields = SECTION_FIELD_NAMES[sectionType]
+  const labels = SECTION_FIELD_LABELS[sectionType]
+  const dbFields = SECTION_DB_FIELD_NAMES[sectionType]
+
+  const contextParts: string[] = []
+  if (context.moment_title) {
+    contextParts.push(`Moment Title: ${context.moment_title}`)
+  }
+  if (context.experience) {
+    contextParts.push(`Experience: ${context.experience.title} at ${context.experience.employer}`)
+  }
+
+  const userPrompt = `Section: ${sectionType.toUpperCase()}
+Fields to synthesize: ${fields.map((f, i) => `${f} (${labels[i]})`).join(', ')}
+
+Context:
+${contextParts.join('\n')}
+
+User's answers:
+${JSON.stringify(answers, null, 2)}
+
+Synthesize polished text for each field. Return JSON with keys: ${fields.join(', ')}`
+
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new HeroEnhancementError('Synthesis timed out', 'TIMEOUT'))
+      }, 30000)
+    })
+
+    const aiPromise = generateText({
+      model: gateway('openai/gpt-4o'),
+      system: HERO_SYNTHESIS_PROMPT,
+      prompt: userPrompt,
+      temperature: 0.3,
+      maxRetries: 2
+    })
+
+    const result = await Promise.race([aiPromise, timeoutPromise])
+    const text = result.text.trim()
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      throw new HeroEnhancementError('Invalid synthesis response', 'INVALID_RESPONSE')
+    }
+
+    const parsed = JSON.parse(jsonMatch[0])
+
+    return fields.map((field, i) => ({
+      fieldId: field,
+      fieldLabel: labels[i],
+      dbField: dbFields[i],
+      text: parsed[field] || ''
+    }))
+  } catch (error: any) {
+    if (error instanceof HeroEnhancementError) throw error
+    throw new HeroEnhancementError(
+      'Failed to synthesize section fields',
+      'API_ERROR',
+      { originalError: error.message }
+    )
+  }
 }

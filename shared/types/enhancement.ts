@@ -105,3 +105,13 @@ export type SageQuestionEngineResult<TOutput = string>
     | { done: true, output: TOutput }
 
 export type ResponsibilityInterviewResult = SageQuestionEngineResult<string>
+
+/**
+ * Result of synthesizing a single HERO field from gathered answers
+ */
+export interface HeroFieldResult {
+  fieldId: string
+  fieldLabel: string
+  dbField: string
+  text: string
+}
