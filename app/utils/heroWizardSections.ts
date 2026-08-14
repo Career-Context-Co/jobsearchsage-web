@@ -10,23 +10,17 @@ export const HERO_EXAMPLE_ROLE_LABELS: Record<HeroExampleRole, string> = {
   manager: 'Manager'
 }
 
-export type HeroWizardDetailField
-  = | 'hurdleProblem'
-    | 'hurdleScope'
-    | 'hurdleStakes'
-    | 'expectationRole'
-    | 'expectationGoals'
-    | 'expectationConstraints'
-    | 'responseActions'
-    | 'responseTools'
-    | 'responseChallenges'
-    | 'outcomeDeliverable'
-    | 'outcomeMetrics'
-    | 'outcomeImpact'
-
-type _AssertDetailFieldsExtendHeroStory = HeroWizardDetailField extends keyof HeroStory ? true : never
-const _assertDetailFields: _AssertDetailFieldsExtendHeroStory = true
-void _assertDetailFields
+export type HeroWizardDetailField = Exclude<keyof HeroStory,
+  | 'id'
+  | 'profileId'
+  | 'title'
+  | 'sourceExperienceId'
+  | 'displayOrder'
+  | 'deletedAt'
+  | 'isDeleted'
+  | 'createdAt'
+  | 'updatedAt'
+>
 
 export type ExperienceLinkChoice = 'yes' | 'no' | null
 
@@ -38,41 +32,28 @@ export type HeroWizardStepValue
     | 'outcome'
     | 'review'
 
-export interface HeroWizardDraft {
-  title: string
-  sourceExperienceId: number | null
-  hurdleProblem: string
-  hurdleScope: string
-  hurdleStakes: string
-  expectationRole: string
-  expectationGoals: string
-  expectationConstraints: string
-  responseActions: string
-  responseTools: string
-  responseChallenges: string
-  outcomeDeliverable: string
-  outcomeMetrics: string
-  outcomeImpact: string
+export interface HeroWizardField {
+  key: string
+  tag: string
+  label: string
+  prompt: string
+  dbField: HeroWizardDetailField
+  examples: Record<HeroExampleRole, string>
 }
 
-export function createEmptyHeroWizardDraft(): HeroWizardDraft {
-  return {
-    title: '',
-    sourceExperienceId: null,
-    hurdleProblem: '',
-    hurdleScope: '',
-    hurdleStakes: '',
-    expectationRole: '',
-    expectationGoals: '',
-    expectationConstraints: '',
-    responseActions: '',
-    responseTools: '',
-    responseChallenges: '',
-    outcomeDeliverable: '',
-    outcomeMetrics: '',
-    outcomeImpact: ''
-  }
+export interface HeroWizardSection {
+  key: 'hurdle' | 'expectation' | 'response' | 'outcome'
+  letter: 'H' | 'E' | 'R' | 'O'
+  title: string
+  question: string
+  description: string
+  fields: readonly HeroWizardField[]
 }
+
+export type HeroWizardDraft = {
+  title: string
+  sourceExperienceId: number | null
+} & Record<HeroWizardDetailField, string>
 
 export const HERO_WIZARD_SECTIONS = [
   {
@@ -255,28 +236,28 @@ export const HERO_WIZARD_SECTIONS = [
       }
     ]
   }
-] as const satisfies ReadonlyArray<{
-  key: 'hurdle' | 'expectation' | 'response' | 'outcome'
-  letter: 'H' | 'E' | 'R' | 'O'
-  title: string
-  question: string
-  description: string
-  fields: ReadonlyArray<{
-    key: string
-    tag: string
-    label: string
-    prompt: string
-    dbField: HeroWizardDetailField
-    examples: Record<HeroExampleRole, string>
-  }>
-}>
+] as const satisfies readonly HeroWizardSection[]
 
-export type HeroWizardSection = (typeof HERO_WIZARD_SECTIONS)[number]
-export type HeroWizardField = HeroWizardSection['fields'][number]
+type MappedHeroWizardDbField = (typeof HERO_WIZARD_SECTIONS)[number]['fields'][number]['dbField']
+type MissingHeroWizardDbField = Exclude<HeroWizardDetailField, MappedHeroWizardDbField>
+const _heroWizardConfigMapsEveryDetailField: [MissingHeroWizardDbField] extends [never] ? true : false = true
+void _heroWizardConfigMapsEveryDetailField
 
 export const HERO_WIZARD_DETAIL_FIELDS: HeroWizardDetailField[] = HERO_WIZARD_SECTIONS.flatMap(
   section => section.fields.map(field => field.dbField)
 )
+
+export function createEmptyHeroWizardDraft(): HeroWizardDraft {
+  const details = Object.fromEntries(
+    HERO_WIZARD_DETAIL_FIELDS.map(field => [field, ''])
+  ) as Record<HeroWizardDetailField, string>
+
+  return {
+    title: '',
+    sourceExperienceId: null,
+    ...details
+  }
+}
 
 export function isHeroFieldFilled(value: string | null | undefined): boolean {
   return (value ?? '').trim().length > 0
@@ -293,4 +274,46 @@ export function isHeroSectionFilled(section: HeroWizardSection, draft: HeroWizar
 export function nextHeroExampleRole(current: HeroExampleRole): HeroExampleRole {
   const index = HERO_EXAMPLE_ROLES.indexOf(current)
   return HERO_EXAMPLE_ROLES[(index + 1) % HERO_EXAMPLE_ROLES.length]!
+}
+
+export const HERO_WIZARD_STEP_ORDER: HeroWizardStepValue[] = [
+  'basics',
+  'hurdle',
+  'expectation',
+  'response',
+  'outcome',
+  'review'
+]
+
+export function heroSectionUpdatePayload(
+  section: HeroWizardSection,
+  draft: HeroWizardDraft
+): Partial<Record<HeroWizardDetailField, string | null>> {
+  const payload: Partial<Record<HeroWizardDetailField, string | null>> = {}
+  for (const field of section.fields) {
+    payload[field.dbField] = draft[field.dbField].trim() || null
+  }
+  return payload
+}
+
+export function heroWizardFullUpdatePayload(draft: HeroWizardDraft) {
+  const details = Object.fromEntries(
+    HERO_WIZARD_DETAIL_FIELDS.map(field => [field, draft[field].trim() || null])
+  ) as Record<HeroWizardDetailField, string | null>
+
+  return {
+    title: draft.title.trim(),
+    sourceExperienceId: draft.sourceExperienceId,
+    ...details
+  }
+}
+
+export function applyHeroStoryToDraft(story: HeroStory): HeroWizardDraft {
+  const draft = createEmptyHeroWizardDraft()
+  draft.title = story.title ?? ''
+  draft.sourceExperienceId = story.sourceExperienceId ?? null
+  for (const field of HERO_WIZARD_DETAIL_FIELDS) {
+    draft[field] = story[field] ?? ''
+  }
+  return draft
 }

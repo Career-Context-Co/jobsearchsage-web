@@ -6,9 +6,12 @@ interface Props {
   draft: HeroWizardDraft
   experienceLinked: ExperienceLinkChoice
   experiences: Experience[]
+  isSaving?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  isSaving: false
+})
 
 const emit = defineEmits<{
   edit: [step: HeroWizardStepValue]
@@ -132,6 +135,8 @@ const linkedIsEmpty = computed(() => {
       size="xl"
       block
       class="cursor-pointer mt-2"
+      :loading="isSaving"
+      :disabled="isSaving"
       @click="emit('save')"
     />
   </div>

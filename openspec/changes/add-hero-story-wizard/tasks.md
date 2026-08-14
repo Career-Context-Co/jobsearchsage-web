@@ -22,8 +22,8 @@ Build the full wizard UI against local component state only. No API calls, no pe
 
 **Dependencies:** 1.1
 
-- [ ] 2.1 Define the section config types (section, field, and example-role union) so `dbField` is constrained to keys of `HeroStory` and a missing or misspelled mapping fails typecheck.
-- [ ] 2.2 Define the wizard draft state type covering the title, `sourceExperienceId`, and the twelve HERO detail fields.
+- [x] 2.1 Define the section config types (section, field, and example-role union) so `dbField` is constrained to keys of `HeroStory` and a missing or misspelled mapping fails typecheck.
+- [x] 2.2 Define the wizard draft state type covering the title, `sourceExperienceId`, and the twelve HERO detail fields.
 
 ## 3. Backend and Database Assessment
 
@@ -31,9 +31,15 @@ No endpoint or schema work is expected. These tasks confirm that assumption befo
 
 **Dependencies:** 2.1, 2.2
 
-- [ ] 3.1 Confirm `POST /api/career-id/profile/:profileId/hero-stories` accepts a title-only body with optional `sourceExperienceId`, so the Basics step can create a record before any HERO field exists.
-- [ ] 3.2 Confirm `PATCH /api/career-id/profile/:profileId/hero-stories/:storyId` applies a partial body containing only one section's three fields without clearing the others.
-- [ ] 3.3 Confirm no migration is required: the wizard adds no summary column and no draft status column, and reuses the existing `hero_*` ID generation.
+- [x] 3.1 Confirm `POST /api/career-id/profile/:profileId/hero-stories` accepts a title-only body with optional `sourceExperienceId`, so the Basics step can create a record before any HERO field exists.
+- [x] 3.2 Confirm `PATCH /api/career-id/profile/:profileId/hero-stories/:storyId` applies a partial body containing only one section's three fields without clearing the others.
+- [x] 3.3 Confirm no migration is required: the wizard adds no summary column and no draft status column, and reuses the existing `hero_*` ID generation.
+
+**Findings (no code changes):**
+
+- POST (`index.post.ts`) requires only `title`. Missing HERO fields are inserted as `null`. `sourceExperienceId` is optional and validated as an integer when present. `careerIDStore.createStory` already types all HERO fields as optional.
+- PATCH (`[storyId].patch.ts`) builds `updateData` only for keys that are `!== undefined`. Omitted fields are not sent to Supabase, so a three-field section patch cannot clear sibling sections. Empty string for a provided field is stored as `null`. `careerIDStore.updateStory` already accepts `Partial<...>`.
+- `career_id.hero_stories` already has title + 12 nullable HERO columns + `source_experience_id`. There is no `summary` or `status` column; none is needed. IDs are `generatePrefixedId('hero')` (`hero_*`). The POST file comment that says `story_*` is stale and does not match the code.
 
 ## 4. Wizard Persistence Integration
 
@@ -41,15 +47,15 @@ Replace the mockup's local-only state with incremental persistence through the e
 
 **Dependencies:** 1.2 through 1.9, 3.1, 3.2
 
-- [ ] 4.1 On advancing from Basics with a valid title and no existing record, call `careerIDStore.createStory` with the title and any `sourceExperienceId`, and retain the returned story id for the rest of the session. Do not create a second record if the user returns to Basics and advances again.
-- [ ] 4.2 Block advancing from Basics when the title is empty or whitespace: show "Story title is required" and create no record.
-- [ ] 4.3 On advancing from a HERO section step, call `careerIDStore.updateStory` with only that step's three fields, so jumping backward through the stepper cannot overwrite other sections.
-- [ ] 4.4 On returning to Basics for an existing story and advancing again, patch the changed title or linked experience.
-- [ ] 4.5 Handle persistence failure on advance: stay on the current step, show an error toast, retain entered values, and allow retry via the forward control.
-- [ ] 4.6 Wire "Save & Exit" to persist the current step and navigate to `/profile/hero`, creating no record when pressed on Basics before the story exists.
-- [ ] 4.7 Support resuming: accept a `storyId` query parameter, load that story, populate every step from its saved values, and route subsequent advances to that story.
-- [ ] 4.8 Support prefill: accept title and source experience query parameters and populate the corresponding Basics fields, leaving them editable.
-- [ ] 4.9 Wire "Save HERO Story" on Review to persist anything outstanding, show a confirmation, and navigate to `/profile/hero`. On failure, stay on Review with an error and allow retry.
+- [x] 4.1 On advancing from Basics with a valid title and no existing record, call `careerIDStore.createStory` with the title and any `sourceExperienceId`, and retain the returned story id for the rest of the session. Do not create a second record if the user returns to Basics and advances again.
+- [x] 4.2 Block advancing from Basics when the title is empty or whitespace: show "Story title is required" and create no record.
+- [x] 4.3 On advancing from a HERO section step, call `careerIDStore.updateStory` with only that step's three fields, so jumping backward through the stepper cannot overwrite other sections.
+- [x] 4.4 On returning to Basics for an existing story and advancing again, patch the changed title or linked experience.
+- [x] 4.5 Handle persistence failure on advance: stay on the current step, show an error toast, retain entered values, and allow retry via the forward control.
+- [x] 4.6 Wire "Save & Exit" to persist the current step and navigate to `/profile/hero`, creating no record when pressed on Basics before the story exists.
+- [x] 4.7 Support resuming: accept a `storyId` query parameter, load that story, populate every step from its saved values, and route subsequent advances to that story.
+- [x] 4.8 Support prefill: accept title and source experience query parameters and populate the corresponding Basics fields, leaving them editable.
+- [x] 4.9 Wire "Save HERO Story" on Review to persist anything outstanding, show a confirmation, and navigate to `/profile/hero`. On failure, stay on Review with an error and allow retry.
 
 ## 5. HERO List Page Rework
 
