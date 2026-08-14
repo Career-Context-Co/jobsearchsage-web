@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
 import type { HeroStory } from '#shared/types/careerId'
 
 interface PendingSuggestions {
@@ -11,14 +10,12 @@ interface Props {
   stories: HeroStory[]
   isLoading?: boolean
   pendingSuggestions?: PendingSuggestions | null
-  highlightStoryId?: string | null
   editingStoryId?: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
   pendingSuggestions: null,
-  highlightStoryId: null,
   editingStoryId: null
 })
 
@@ -27,15 +24,11 @@ const emit = defineEmits<{
   delete: [story: HeroStory]
   save: [payload: { story: HeroStory, updates: Partial<HeroStory> }]
   cancel: []
-  openAIHelp: [storyId: string]
-  openAIOptions: [storyId: string]
   clearPendingSuggestions: []
 }>()
 
-// Collapsible state
 const isExpanded = ref(true)
 
-// Sort stories by display order
 const sortedStories = computed(() => {
   return [...props.stories].sort((a, b) => {
     return a.displayOrder - b.displayOrder
@@ -61,23 +54,14 @@ function handleSave(story: HeroStory, updates: Partial<HeroStory>) {
   })
 }
 
-function handleOpenAIHelp(storyId: string) {
-  emit('openAIHelp', storyId)
-}
-
-function handleOpenAIOptions(storyId: string) {
-  emit('openAIOptions', storyId)
+function handleCancel() {
+  emit('cancel')
 }
 
 function handleClearPendingSuggestions() {
   emit('clearPendingSuggestions')
 }
 
-function handleCancel() {
-  emit('cancel')
-}
-
-// Get pending suggestions for a specific story
 function getPendingSuggestionsForStory(storyId: string) {
   if (props.pendingSuggestions?.storyId === storyId) {
     return props.pendingSuggestions.suggestions
@@ -95,7 +79,9 @@ function getPendingSuggestionsForStory(storyId: string) {
     >
       <div class="flex items-center flex-1">
         <div class="flex items-center gap-4">
-          <h2 class="text-xl font-semibold text-foreground">Your HERO Stories</h2>
+          <h2 class="text-xl font-semibold text-foreground">
+            Your HERO Stories
+          </h2>
           <UBadge
             v-if="stories.length > 0"
             color="neutral"
@@ -108,8 +94,8 @@ function getPendingSuggestionsForStory(storyId: string) {
       </div>
 
       <UButton
-        label="Get HERO Help"
-        icon="i-lucide-sparkles"
+        label="New HERO Story"
+        icon="i-lucide-plus"
         color="primary"
         variant="solid"
         size="md"
@@ -129,22 +115,21 @@ function getPendingSuggestionsForStory(storyId: string) {
         Loading stories...
       </div>
 
-      <!-- Subtitle with description -->
       <div v-if="stories.length > 0" class="flex items-center justify-between px-3">
         <p class="text-base text-muted">
           Develop your achievement moments into complete HERO stories.
         </p>
       </div>
 
-      <!-- Empty State (Compact) -->
+      <!-- Empty State -->
       <div v-if="!isLoading && stories.length === 0" class="border border-default rounded-lg p-4">
         <div class="flex flex-col items-center gap-4">
           <p class="text-sm text-muted">
             No HERO stories yet. <span class="font-medium">Create your first story</span> to highlight your achievements.
           </p>
           <UButton
-            label="Get HERO Help"
-            icon="i-lucide-sparkles"
+            label="New HERO Story"
+            icon="i-lucide-plus"
             color="primary"
             size="md"
             class="cursor-pointer shrink-0"
@@ -154,19 +139,16 @@ function getPendingSuggestionsForStory(storyId: string) {
       </div>
 
       <!-- Stories List -->
-      <div v-else-if="!isLoading" class="space-y-2 px-2">
+      <div v-else-if="!isLoading" class="space-y-2 px-2 min-w-0">
         <ProfileHeroStoryCard
           v-for="story in sortedStories"
           :key="story.id"
           :story="story"
           :pending-suggestions="getPendingSuggestionsForStory(story.id)"
-          :is-highlighted="story.id === highlightStoryId"
           :is-editing-requested="story.id === editingStoryId"
           @delete="handleDelete(story)"
           @save="(updates) => handleSave(story, updates)"
           @cancel="handleCancel"
-          @open-a-i-help="handleOpenAIHelp"
-          @open-a-i-options="handleOpenAIOptions"
           @suggestions-applied="handleClearPendingSuggestions"
         />
       </div>

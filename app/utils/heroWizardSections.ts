@@ -271,6 +271,11 @@ export function isHeroSectionFilled(section: HeroWizardSection, draft: HeroWizar
   return section.fields.every(field => isHeroFieldFilled(draft[field.dbField]))
 }
 
+export function isHeroStoryAwaitingWizard(story: HeroStory): boolean {
+  return isHeroFieldFilled(story.title)
+    && HERO_WIZARD_DETAIL_FIELDS.every(field => !isHeroFieldFilled(story[field]))
+}
+
 export function nextHeroExampleRole(current: HeroExampleRole): HeroExampleRole {
   const index = HERO_EXAMPLE_ROLES.indexOf(current)
   return HERO_EXAMPLE_ROLES[(index + 1) % HERO_EXAMPLE_ROLES.length]!

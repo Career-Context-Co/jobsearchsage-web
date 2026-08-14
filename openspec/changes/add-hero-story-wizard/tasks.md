@@ -63,13 +63,13 @@ Reduce `/profile/hero` to list and edit only, and point every create entry point
 
 **Dependencies:** 1.2, 4.9
 
-- [ ] 5.1 Remove the inline create form from `app/pages/profile/hero.vue` along with `isShowingCreateForm`, `formDataForCreate`, `formErrors`, `resetCreateForm`, `startAddingStory`, `cancelAddingStory`, and `handleSaveNewStory`.
-- [ ] 5.2 Remove the `'create'` story-id sentinel: drop `applyAISuggestionsToCreateForm` and the create branch of `handleAcceptAISuggestions`, so the AI panel only ever targets a persisted story.
-- [ ] 5.3 Update `app/components/profile/hero/HeroStoriesSection.vue` to offer a primary "New HERO Story" action that navigates to the wizard, separate from the existing "Get HERO Help" action that opens the AI launcher. Apply the same split to the empty state.
-- [ ] 5.4 Update `app/components/profile/hero/HeroSessionLauncher.vue` so "Create new HERO story" navigates to the wizard instead of opening the inline form.
-- [ ] 5.5 Add a "continue in wizard" control to `app/components/profile/hero/HeroStoryCard.vue` shown only when a story has a title but none of its twelve HERO detail fields filled, linking to `/profile/hero-wizard?storyId=...`.
-- [ ] 5.6 Update the moment-development handlers so they navigate to the wizard with title and source experience prefilled, rather than opening the inline create form. These paths sit behind the currently hidden moments UI but must not reference removed state.
-- [ ] 5.7 Confirm no AI control renders on any wizard step and that the wizard invokes no AI endpoint.
+- [x] 5.1 Remove the inline create form from `app/pages/profile/hero.vue` along with `isShowingCreateForm`, `formDataForCreate`, `formErrors`, `resetCreateForm`, `startAddingStory`, `cancelAddingStory`, and `handleSaveNewStory`.
+- [x] 5.2 Remove the `'create'` story-id sentinel: drop `applyAISuggestionsToCreateForm` and the create branch of `handleAcceptAISuggestions`, so the AI panel only ever targets a persisted story.
+- [x] 5.3 Update `app/components/profile/hero/HeroStoriesSection.vue` to offer a primary "New HERO Story" action that navigates to the wizard, separate from the existing "Get HERO Help" action that opens the AI launcher. Apply the same split to the empty state.
+- [x] 5.4 Update `app/components/profile/hero/HeroSessionLauncher.vue` so "Create new HERO story" navigates to the wizard instead of opening the inline form.
+- [x] 5.5 Add a "continue in wizard" control to `app/components/profile/hero/HeroStoryCard.vue` shown only when a story has a title but none of its twelve HERO detail fields filled, linking to `/profile/hero-wizard?storyId=...`.
+- [x] 5.6 Update the moment-development handlers so they navigate to the wizard with title and source experience prefilled, rather than opening the inline create form. These paths sit behind the currently hidden moments UI but must not reference removed state.
+- [x] 5.7 Confirm no AI control renders on any wizard step and that the wizard invokes no AI endpoint.
 
 ## 6. Validation
 
