@@ -5,8 +5,8 @@ import { useCareerIDStore } from '~/stores/careerIDStore'
 const route = useRoute()
 const careerIDStore = useCareerIDStore()
 
-// Check if we're on the onboarding page
-const isOnboarding = computed(() => route.path === '/profile/onboarding')
+const FULLSCREEN_CHILD_ROUTES = ['/profile/onboarding', '/profile/hero-wizard']
+const isFullscreenChild = computed(() => FULLSCREEN_CHILD_ROUTES.includes(route.path))
 
 // Check if user has partial completion (took a break during onboarding)
 const showContinueOnboarding = computed(() => 
@@ -64,8 +64,8 @@ const links = computed(() => {
 </style>
 
 <template>
-  <!-- Render onboarding without wrapper -->
-  <NuxtPage v-if="isOnboarding" />
+  <!-- Render fullscreen child routes without the profile toolbar -->
+  <NuxtPage v-if="isFullscreenChild" />
   
   <!-- Render other profile pages with navigation wrapper -->
   <UDashboardPanel v-else id="profile" :ui="{ body: 'lg:py-12' }">
