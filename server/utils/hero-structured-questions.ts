@@ -7,7 +7,9 @@
 
 export type HurdleField = 'problem' | 'scope' | 'stakes'
 export type ExpectationField = 'role' | 'goals' | 'constraints'
-export type SectionField = HurdleField | ExpectationField
+export type ResponseField = 'actions' | 'tools' | 'challenges'
+export type OutcomeField = 'deliverable' | 'metrics' | 'impact'
+export type SectionField = HurdleField | ExpectationField | ResponseField | OutcomeField
 
 export interface QuestionOption {
   id: string

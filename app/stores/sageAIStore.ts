@@ -969,6 +969,111 @@ export const useSageAIStore = defineStore('sageAI', {
       } finally {
         this.isLoading = false
       }
+    },
+
+    async fetchHeroSectionQuestions(params: {
+      profileId: string
+      storyId: string
+      sectionType: string
+      sourceExperience?: {
+        id: number
+        title: string
+        employer: string
+        summary?: string | null
+        highlights: string[]
+        context_notes?: string | null
+      }
+      momentTitle?: string
+      context?: { notes: never[], answeredQuestions: Array<{ id: string, answer: string }> }
+    }) {
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          data: {
+            questionGroups: Array<{
+              category: string
+              questions: Array<{ id: string, text: string }>
+            }>
+            notes: never[]
+          }
+        }>('/api/ai/hero-section/gather-context', {
+          method: 'POST',
+          body: {
+            profile_id: params.profileId,
+            story_id: params.storyId,
+            section_type: params.sectionType,
+            source_experience: params.sourceExperience,
+            moment_title: params.momentTitle,
+            context: params.context
+          }
+        })
+
+        if (!response.success) {
+          throw new Error('Failed to fetch hero section questions')
+        }
+
+        return response.data
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to fetch hero section questions'
+        this.error = errorMessage
+        console.error('fetchHeroSectionQuestions failed', error)
+        throw error
+      }
+    },
+
+    async synthesizeHeroSection(params: {
+      profileId: string
+      storyId: string
+      sectionType: string
+      answers: Array<{ id: string, answer: string }>
+      sourceExperience?: {
+        id: number
+        title: string
+        employer: string
+        summary?: string | null
+        highlights: string[]
+        context_notes?: string | null
+      }
+      momentTitle?: string
+    }) {
+      this.error = null
+
+      try {
+        const response = await $fetch<{
+          success: boolean
+          data: {
+            results: Array<{
+              fieldId: string
+              fieldLabel: string
+              dbField: string
+              text: string
+            }>
+          }
+        }>('/api/ai/hero-section/synthesize', {
+          method: 'POST',
+          body: {
+            profile_id: params.profileId,
+            story_id: params.storyId,
+            section_type: params.sectionType,
+            answers: params.answers,
+            source_experience: params.sourceExperience,
+            moment_title: params.momentTitle
+          }
+        })
+
+        if (!response.success) {
+          throw new Error('Failed to synthesize hero section')
+        }
+
+        return response.data
+      } catch (error: any) {
+        const errorMessage = error?.data?.message || error?.message || 'Failed to synthesize hero section'
+        this.error = errorMessage
+        console.error('synthesizeHeroSection failed', error)
+        throw error
+      }
     }
   }
 })

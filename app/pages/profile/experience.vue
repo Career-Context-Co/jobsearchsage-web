@@ -8,6 +8,7 @@ const sageAIStore = useSageAIStore()
 const accountStore = useAccountStore()
 const toast = useToast()
 const router = useRouter()
+const route = useRoute()
 
 /**
  * Convert date from YYYY-MM-DD to MM/YYYY format for UI display
@@ -708,7 +709,18 @@ onMounted(async () => {
       showEmptyState.value = true
     }
   }
+
+  await scrollToHashedExperience()
 })
+
+// Deep links such as /profile/experience#experience-12 arrive before the list renders
+async function scrollToHashedExperience() {
+  const hash = route.hash
+  if (!hash.startsWith('#experience-')) return
+
+  await nextTick()
+  document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 </script>
 
 <template>
@@ -958,9 +970,10 @@ onMounted(async () => {
     <div v-if="experiences.length > 0 && !isAddingExperience" class="space-y-4">
       <div
         v-for="experience in experiences"
+        :id="`experience-${experience.id}`"
         :key="experience.id"
         :class="[
-          'border rounded-lg transition-colors',
+          'border rounded-lg transition-colors scroll-mt-24',
           sageSessionOpen && sageSessionExperienceId === experience.id
             ? 'border-teal-500 ring-2 ring-teal-500'
             : 'border-default'

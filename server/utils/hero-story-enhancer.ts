@@ -8,12 +8,11 @@
 import { createGateway, generateText } from 'ai'
 import {
   getFirstQuestion,
-  getNextQuestion,
-  type HurdleField,
   type SectionField,
   type QuestionAnswer,
   type StructuredQuestion
 } from './hero-structured-questions'
+import type { QuestionGroup, HeroFieldResult } from '#shared/types/enhancement'
 
 const apiKey = useRuntimeConfig().aiGatewayApiKey
 if (!apiKey) {
@@ -591,9 +590,18 @@ export interface StructuredEnhancementInput {
     context_notes?: string | null
   }
   previous_field_results?: {
+    // Hurdle
     problem?: string
     scope?: string
     stakes?: string
+    // Response
+    actions?: string
+    tools?: string
+    challenges?: string
+    // Outcome
+    deliverable?: string
+    metrics?: string
+    impact?: string
   }
 }
 
@@ -822,6 +830,59 @@ DO NOT CHANGE THE WORDS. Just combine them.`
 - Organizational or policy constraints
 
 Example: "I had to deliver within 6 weeks with no additional headcount, while maintaining backward compatibility with the existing OAuth implementation and meeting SOC 2 compliance requirements."`
+
+    // Response fields
+    case 'actions':
+      return `For the ACTIONS field, synthesize answers to convey:
+- The specific steps or methodology used
+- The sequence of what was done
+- Whether the work was solo or collaborative
+- How the approach was validated
+
+Example: "I began by profiling the slow endpoints to identify the root cause, then designed a Redis caching layer, implemented it incrementally behind a feature flag, and validated each step with load tests before full rollout."`
+
+    case 'tools':
+      return `For the TOOLS field, synthesize answers to convey:
+- Specific technologies, languages, or frameworks used
+- Infrastructure components (databases, caching, cloud services)
+- Development and delivery tools
+- Third-party services or APIs
+
+Example: "I used Python and FastAPI for the backend service, Redis for caching, PostgreSQL for persistence, AWS Lambda and SQS for async processing, and Datadog for monitoring and alerting."`
+
+    case 'challenges':
+      return `For the CHALLENGES field, synthesize answers to convey:
+- What did not go as planned or was harder than expected
+- Technical, process, or knowledge obstacles
+- How each obstacle was overcome
+
+Example: "The main challenge was cache invalidation causing stale data for high-frequency writes, which I solved by implementing event-driven invalidation instead of TTL-only expiry. I also had to ramp up quickly on Redis Cluster configuration, which required two extra days of research."`
+
+    // Outcome fields
+    case 'deliverable':
+      return `For the DELIVERABLE field, synthesize answers to convey:
+- The tangible thing created, shipped, or delivered (feature, system, process, tool, fix)
+- Whether it reached production and when
+- The deployment approach (smooth, incremental, big launch)
+
+Example: "I shipped a distributed rate-limiting service to production in a phased rollout over two weeks, replacing the previous per-instance in-memory approach with a Redis-backed cluster that handles all traffic globally."`
+
+    case 'metrics':
+      return `For the METRICS field, synthesize answers to convey:
+- Quantifiable before-and-after improvements
+- Performance, scale, cost, or quality numbers
+- Use exact figures with ~ for estimates if needed
+
+Example: "API response times dropped from ~8 seconds to under 200ms (97% improvement), error rates fell from 12% to under 0.5%, and the service now handles 3x the previous peak traffic without degradation."`
+
+    case 'impact':
+      return `For the IMPACT field, synthesize answers to convey:
+- Business impact: revenue unlocked, launches enabled, customers unblocked
+- Team impact: velocity, morale, or productivity improvements
+- Recognition received (awards, shout-outs, promotions)
+- Downstream effects or strategic significance
+
+Example: "The improvement unblocked the Q3 mobile launch, which the product team had been waiting on for six weeks, and reduced support tickets by 40%. Engineering leadership cited the project in the all-hands performance review and I received a spot bonus."`
   }
 }
 
@@ -931,7 +992,101 @@ Reference the story title in your question. Provide 4-6 specific answer options.
 Example questions:
 - "What timeline were you working with for this project?"
 - "Were there any budget or resource limitations?"
-- "Were there technical constraints you had to work within?"`
+- "Were there technical constraints you had to work within?"`,
+
+      // Response field prompts
+      actions: `Generate ONE conversational question to help identify the ACTIONS taken in this story.
+
+ACTIONS has up to 5 aspects - ask one at a time:
+- First step / starting approach (research, prototype, incremental, etc.)
+- Sequence of steps taken
+- Collaboration: solo work vs. coordinating with others
+- Validation: how they tested or verified their approach
+- Implementation method
+
+Reference the specific work from the story title. Provide 4-6 concrete answer options.
+
+Example questions:
+- "Where did you start when tackling this project?"
+- "What was your implementation approach?"
+- "Did you work solo or coordinate with others on this?"`,
+
+      tools: `Generate ONE conversational question to help identify the TOOLS and technologies used in this story.
+
+TOOLS has up to 4 aspects:
+- Programming languages, frameworks, or libraries
+- Infrastructure: databases, caching, queues, cloud services
+- Development / delivery tools: CI/CD, testing frameworks, observability
+- Third-party services or APIs
+
+Reference the specific work from the story title. Provide 4-6 concrete, specific answer options (not generic categories).
+
+Example questions:
+- "What programming languages or frameworks did you use for this?"
+- "What infrastructure or cloud services were involved?"
+- "What tools did you use to test or monitor this work?"`,
+
+      challenges: `Generate ONE conversational question to help identify the CHALLENGES encountered in this story.
+
+CHALLENGES has up to 4 aspects:
+- Technical obstacles: bugs, performance, compatibility issues
+- Process obstacles: approvals, coordination delays, review cycles
+- Knowledge gaps: had to learn something new
+- How each obstacle was overcome
+
+Reference the specific work from the story title. Provide 4-6 concrete answer options.
+
+Example questions:
+- "What was the hardest technical obstacle you ran into?"
+- "Were there any unexpected complications or blockers?"
+- "Was there anything you had to learn on the fly to complete this?"`,
+
+      // Outcome field prompts
+      deliverable: `Generate ONE conversational question to help identify the DELIVERABLE from this story.
+
+DELIVERABLE has up to 4 aspects:
+- What tangible thing was shipped (feature, system, process, tool, fix)
+- Whether it shipped to production and when
+- What the deployment was like (smooth, incremental, big launch)
+- Whether it is still in use
+
+Reference the specific work from the story title. Provide 4-6 concrete answer options.
+
+Example questions:
+- "What specific thing did you ship or deliver with this project?"
+- "Did this make it to production? How was it rolled out?"
+- "Is what you built still in use today?"`,
+
+      metrics: `Generate ONE conversational question to help identify the METRICS from this story.
+
+METRICS has up to 4 aspects:
+- Performance improvements: speed, latency, error rates (before vs. after)
+- Scale improvements: users, requests, transactions
+- Cost or time savings
+- Quality improvements: uptime, reliability, adoption rates
+
+Reference the specific work from the story title. Provide 4-6 concrete answer options.
+
+Example questions:
+- "Were there measurable performance improvements? How much faster or more reliable?"
+- "Do you have before-and-after numbers for this work?"
+- "What cost or time savings resulted from this?"`,
+
+      impact: `Generate ONE conversational question to help identify the IMPACT of this story.
+
+IMPACT has up to 4 aspects:
+- Business impact: unlocked revenue, enabled a launch, unblocked customers
+- Team impact: improved velocity, morale, or productivity
+- User impact: positive feedback, adoption growth
+- Recognition: awards, shout-outs, promotions, downstream effects
+
+Reference the specific work from the story title. Provide 4-6 concrete answer options.
+
+Example questions:
+- "What happened to the business or team as a result of this work?"
+- "Did users or customers notice the change? What was their reaction?"
+- "Did this work lead to any recognition or open up future opportunities?"`
+
     }
 
     // Build context string
@@ -944,7 +1099,7 @@ Example questions:
       ? `\nPrevious Question: ${previousQuestion.text}\nUser Selected: ${lastSelectedOption}${lastCustomText ? ` (${lastCustomText})` : ''}`
       : ''
 
-    // Role and Goals fields have exactly 3 aspects, so cap at 3 questions
+    // Role and Goals fields have exactly 3 aspects, cap at 3 questions; others cap at 5
     const maxQuestionsForField = (field === 'role' || field === 'goals') ? 3 : 5
     const shouldContinue = answers.length < maxQuestionsForField
     
@@ -1019,7 +1174,21 @@ ${field === 'role'
   ? 'ROLE needs 3 aspects: (1) job title, (2) authority, (3) team structure. Stop after 3 questions.'
   : field === 'goals'
   ? 'GOALS needs 3 aspects: (1) objective, (2) metrics, (3) who set goals. Stop after 3 questions.'
-  : 'CONSTRAINTS: Ask up to 5 questions about limitations they faced.'}
+  : field === 'constraints'
+  ? 'CONSTRAINTS: Ask up to 5 questions about limitations they faced.'
+  : field === 'actions'
+  ? 'ACTIONS: Ask up to 5 questions covering their step-by-step approach.'
+  : field === 'tools'
+  ? 'TOOLS: Ask up to 4 questions covering languages, infra, delivery, and third-party services.'
+  : field === 'challenges'
+  ? 'CHALLENGES: Ask up to 4 questions covering obstacles encountered and how they were solved.'
+  : field === 'deliverable'
+  ? 'DELIVERABLE: Ask up to 4 questions covering what was shipped, when, and how.'
+  : field === 'metrics'
+  ? 'METRICS: Ask up to 4 questions covering before/after numbers and measurable improvements.'
+  : field === 'impact'
+  ? 'IMPACT: Ask up to 4 questions covering business, team, user, and recognition effects.'
+  : 'Ask up to 5 targeted questions.'}
 
 ${!shouldContinue ? 'STOP: Maximum questions reached. Return {"continue": false}' : 'Generate the next question or indicate completion if you have sufficient information:'}
 `
@@ -1073,14 +1242,23 @@ ${!shouldContinue ? 'STOP: Maximum questions reached. Return {"continue": false}
     if (field === 'problem' || field === 'scope' || field === 'stakes') {
       return getFirstQuestion(field)
     }
-    // For role/goals/constraints, return a generic fallback question
+    const fallbackText: Record<SectionField, string> = {
+      problem: 'What specific problem or challenge did you face?',
+      scope: 'Who was affected by this problem?',
+      stakes: 'What was at risk if this was not solved?',
+      role: 'What was your job title during this achievement?',
+      goals: 'What were you trying to accomplish with this project?',
+      constraints: 'What constraints or limitations did you face?',
+      actions: 'What was your first step in addressing this challenge?',
+      tools: 'What technologies or tools did you use?',
+      challenges: 'What unexpected obstacles did you encounter?',
+      deliverable: 'What tangible thing did you ship or deliver?',
+      metrics: 'What measurable improvements resulted from your work?',
+      impact: 'What was the broader impact of this work on the business or team?'
+    }
     return {
       id: `${field}_fallback`,
-      text: field === 'role' 
-        ? 'What was your job title during this achievement?'
-        : field === 'goals'
-        ? 'What were you trying to accomplish with this project?'
-        : 'What constraints or limitations did you face?',
+      text: fallbackText[field],
       field,
       options: [
         { id: 'option1', label: 'Please specify', allowCustom: true }
@@ -1119,17 +1297,40 @@ Employer: ${context.experience.employer}`
     }
   }
 
-  // Include Hurdle context if it exists AND is filled in
+  // Include previous section context if filled in
   if (context.previous_field_results) {
-    const hasProblem = context.previous_field_results.problem && context.previous_field_results.problem.trim().length > 20
-    const hasScope = context.previous_field_results.scope && context.previous_field_results.scope.trim().length > 20
-    const hasStakes = context.previous_field_results.stakes && context.previous_field_results.stakes.trim().length > 20
-    
+    const pfr = context.previous_field_results
+    const hasProblem = pfr.problem && pfr.problem.trim().length > 20
+    const hasScope = pfr.scope && pfr.scope.trim().length > 20
+    const hasStakes = pfr.stakes && pfr.stakes.trim().length > 20
+
     if (hasProblem || hasScope || hasStakes) {
       contextStr += '\n\n=== HURDLE SECTION (already filled) ==='
-      if (hasProblem) contextStr += `\nProblem: ${context.previous_field_results.problem}`
-      if (hasScope) contextStr += `\nScope: ${context.previous_field_results.scope}`
-      if (hasStakes) contextStr += `\nStakes: ${context.previous_field_results.stakes}`
+      if (hasProblem) contextStr += `\nProblem: ${pfr.problem}`
+      if (hasScope) contextStr += `\nScope: ${pfr.scope}`
+      if (hasStakes) contextStr += `\nStakes: ${pfr.stakes}`
+    }
+
+    const hasActions = pfr.actions && pfr.actions.trim().length > 10
+    const hasTools = pfr.tools && pfr.tools.trim().length > 10
+    const hasChallenges = pfr.challenges && pfr.challenges.trim().length > 10
+
+    if (hasActions || hasTools || hasChallenges) {
+      contextStr += '\n\n=== RESPONSE SECTION (already filled) ==='
+      if (hasActions) contextStr += `\nActions: ${pfr.actions}`
+      if (hasTools) contextStr += `\nTools: ${pfr.tools}`
+      if (hasChallenges) contextStr += `\nChallenges: ${pfr.challenges}`
+    }
+
+    const hasDeliverable = pfr.deliverable && pfr.deliverable.trim().length > 10
+    const hasMetrics = pfr.metrics && pfr.metrics.trim().length > 10
+    const hasImpact = pfr.impact && pfr.impact.trim().length > 10
+
+    if (hasDeliverable || hasMetrics || hasImpact) {
+      contextStr += '\n\n=== OUTCOME SECTION (already filled) ==='
+      if (hasDeliverable) contextStr += `\nDeliverable: ${pfr.deliverable}`
+      if (hasMetrics) contextStr += `\nMetrics: ${pfr.metrics}`
+      if (hasImpact) contextStr += `\nImpact: ${pfr.impact}`
     }
   }
 
@@ -1140,7 +1341,7 @@ Employer: ${context.experience.employer}`
  * Generate contextual transition message for structured questions
  */
 export async function generateTransitionMessage(
-  field: HurdleField,
+  field: SectionField,
   _previousAnswer: { questionId: string, selectedOption: string, customText?: string },
   nextQuestion: StructuredQuestion | null,
   _context: StructuredEnhancementInput,
@@ -1184,4 +1385,247 @@ export async function generateTransitionMessage(
     'Excellent work! Just wrapping up with a final question or two.'
   ]
   return lateMessages[Math.floor(Math.random() * lateMessages.length)]
+}
+
+// ---------------------------------------------------------------------------
+// HERO Section Rounds — Question Generation & Synthesis
+// ---------------------------------------------------------------------------
+
+const SECTION_FIELD_LABELS: Record<SectionType, [string, string, string]> = {
+  hurdle: ['Problem', 'Scope', 'Stakes'],
+  expectation: ['Role', 'Goals', 'Constraints'],
+  response: ['Actions', 'Tools', 'Challenges'],
+  outcome: ['Deliverable', 'Metrics', 'Impact']
+}
+
+const HERO_QUESTION_GENERATION_PROMPT = `You are an AI coach that generates targeted questions to help users articulate their HERO story.
+
+You will receive:
+- A section type (hurdle, expectation, response, or outcome)
+- Context about the user's experience and moment
+- Any previously answered questions
+
+YOUR TASK:
+Generate questions organized into groups (one group per field in the section). Each group should have 3-5 questions that help the user recall specific details.
+
+RULES:
+1. Questions should be specific and conversational
+2. Never invent details — only ask to extract information
+3. If previous answers exist, generate follow-up questions that dig deeper
+4. If previous answers are comprehensive enough (specific metrics, clear details, concrete examples), return empty questionGroups to signal completion
+5. Each question needs a unique id (e.g., "q1", "q2", ...)
+6. Group questions by field, using the field name as the category
+
+Return ONLY valid JSON in this format:
+{
+  "questionGroups": [
+    {
+      "category": "Field Name",
+      "questions": [
+        { "id": "q1", "text": "Your question here?" }
+      ]
+    }
+  ]
+}
+
+If the context is comprehensive enough and no more questions are needed, return:
+{ "questionGroups": [] }`
+
+/**
+ * Generate question groups for a HERO section (round-based flow).
+ * When previousAnswers is empty → Round 1 (initial questions).
+ * When previousAnswers are provided → follow-ups, or empty if done.
+ */
+export async function generateHeroSectionQuestions(
+  sectionType: SectionType,
+  context: StructuredEnhancementInput,
+  previousAnswers?: Array<{ id: string, answer: string }>
+): Promise<QuestionGroup[]> {
+  const fields = SECTION_FIELD_NAMES[sectionType]
+  const labels = SECTION_FIELD_LABELS[sectionType]
+
+  const contextParts: string[] = []
+
+  if (context.moment_title) {
+    contextParts.push(`Moment Title: ${context.moment_title}`)
+  }
+  if (context.moment_description) {
+    contextParts.push(`Moment Description: ${context.moment_description}`)
+  }
+  if (context.experience) {
+    contextParts.push(`Experience: ${context.experience.title} at ${context.experience.employer}`)
+    if (context.experience.summary) {
+      contextParts.push(`Summary: ${context.experience.summary}`)
+    }
+    if (context.experience.highlights?.length) {
+      contextParts.push(`Highlights:\n${context.experience.highlights.map(h => `- ${h}`).join('\n')}`)
+    }
+  }
+  if (context.previous_field_results) {
+    const existing = Object.entries(context.previous_field_results)
+      .filter(([, v]) => v)
+      .map(([k, v]) => `${k}: ${v}`)
+    if (existing.length) {
+      contextParts.push(`Existing field values:\n${existing.join('\n')}`)
+    }
+  }
+
+  let userPrompt: string
+
+  if (!previousAnswers || previousAnswers.length === 0) {
+    userPrompt = `Section: ${sectionType.toUpperCase()}
+Fields: ${labels.join(', ')} (${fields.join(', ')})
+
+Context:
+${contextParts.join('\n')}
+
+This is the initial round. Generate 3-5 questions per field (${labels.length} groups total).
+Start question IDs at "q1".`
+  } else {
+    userPrompt = `Section: ${sectionType.toUpperCase()}
+Fields: ${labels.join(', ')} (${fields.join(', ')})
+
+Context:
+${contextParts.join('\n')}
+
+Previously answered questions:
+${JSON.stringify(previousAnswers, null, 2)}
+
+Review the answers. If they contain enough detail (specific numbers, concrete examples, clear descriptions) for all 3 fields, return empty questionGroups.
+Otherwise, generate follow-up questions to fill gaps. Continue question IDs from "q${previousAnswers.length + 1}".`
+  }
+
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new HeroEnhancementError('Question generation timed out', 'TIMEOUT'))
+      }, 30000)
+    })
+
+    const aiPromise = generateText({
+      model: gateway('openai/gpt-4o'),
+      system: HERO_QUESTION_GENERATION_PROMPT,
+      prompt: userPrompt,
+      temperature: 0.7,
+      maxRetries: 2
+    })
+
+    const result = await Promise.race([aiPromise, timeoutPromise])
+    const text = result.text.trim()
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      throw new HeroEnhancementError('Invalid AI response format', 'INVALID_RESPONSE')
+    }
+
+    const parsed = JSON.parse(jsonMatch[0])
+    if (!Array.isArray(parsed.questionGroups)) {
+      throw new HeroEnhancementError('Missing questionGroups in response', 'INVALID_RESPONSE')
+    }
+
+    return parsed.questionGroups as QuestionGroup[]
+  } catch (error: any) {
+    if (error instanceof HeroEnhancementError) throw error
+    throw new HeroEnhancementError(
+      'Failed to generate section questions',
+      'API_ERROR',
+      { originalError: error.message }
+    )
+  }
+}
+
+const HERO_SYNTHESIS_PROMPT = `You are an AI writing assistant that synthesizes user answers into polished field text for a HERO story section.
+
+You will receive:
+- A section type and its fields
+- All accumulated answers from the user
+- Context about their experience
+
+YOUR TASK:
+For each field in the section, produce a concise, well-written paragraph (2-4 sentences) that captures the key information from the user's answers.
+
+RULES:
+1. Use the user's own words, facts, and numbers — never invent details
+2. Write in third-person professional tone (as if for a resume/portfolio)
+3. Be specific and concrete — include metrics, tools, and names when provided
+4. Each field should be independently readable
+5. If no relevant answers exist for a field, return an empty string for that field
+
+Return ONLY valid JSON mapping field names to text:
+{
+  "field1": "Synthesized text for field 1...",
+  "field2": "Synthesized text for field 2...",
+  "field3": "Synthesized text for field 3..."
+}`
+
+/**
+ * Synthesize final field texts from accumulated answers for a HERO section.
+ */
+export async function synthesizeHeroSectionFields(
+  sectionType: SectionType,
+  answers: Array<{ id: string, answer: string }>,
+  context: StructuredEnhancementInput
+): Promise<HeroFieldResult[]> {
+  const fields = SECTION_FIELD_NAMES[sectionType]
+  const labels = SECTION_FIELD_LABELS[sectionType]
+  const dbFields = SECTION_DB_FIELD_NAMES[sectionType]
+
+  const contextParts: string[] = []
+  if (context.moment_title) {
+    contextParts.push(`Moment Title: ${context.moment_title}`)
+  }
+  if (context.experience) {
+    contextParts.push(`Experience: ${context.experience.title} at ${context.experience.employer}`)
+  }
+
+  const userPrompt = `Section: ${sectionType.toUpperCase()}
+Fields to synthesize: ${fields.map((f, i) => `${f} (${labels[i]})`).join(', ')}
+
+Context:
+${contextParts.join('\n')}
+
+User's answers:
+${JSON.stringify(answers, null, 2)}
+
+Synthesize polished text for each field. Return JSON with keys: ${fields.join(', ')}`
+
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new HeroEnhancementError('Synthesis timed out', 'TIMEOUT'))
+      }, 30000)
+    })
+
+    const aiPromise = generateText({
+      model: gateway('openai/gpt-4o'),
+      system: HERO_SYNTHESIS_PROMPT,
+      prompt: userPrompt,
+      temperature: 0.3,
+      maxRetries: 2
+    })
+
+    const result = await Promise.race([aiPromise, timeoutPromise])
+    const text = result.text.trim()
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      throw new HeroEnhancementError('Invalid synthesis response', 'INVALID_RESPONSE')
+    }
+
+    const parsed = JSON.parse(jsonMatch[0])
+
+    return fields.map((field, i) => ({
+      fieldId: field,
+      fieldLabel: labels[i],
+      dbField: dbFields[i],
+      text: parsed[field] || ''
+    }))
+  } catch (error: any) {
+    if (error instanceof HeroEnhancementError) throw error
+    throw new HeroEnhancementError(
+      'Failed to synthesize section fields',
+      'API_ERROR',
+      { originalError: error.message }
+    )
+  }
 }

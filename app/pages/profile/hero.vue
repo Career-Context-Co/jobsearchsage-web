@@ -14,7 +14,6 @@ const {
   // heroMoments,
   heroStories,
   isLoading,
-  isSaving,
   error
 } = storeToRefs(careerIDStore)
 const { discoverySession, isLoading: isDiscoveryLoading, error: discoveryError } = storeToRefs(sageAIStore)
@@ -23,10 +22,20 @@ const profileId = computed(() => careerIDStore.profile?.id || careerIDStore.prof
 const savedDiscoverySessions = new Set<number>()
 type HeroAssistantMode = 'launcher' | 'story' | 'discovery'
 
-// Show create form inline
-const isShowingCreateForm = ref(false)
+function navigateToWizard(prefill?: { title?: string, sourceExperienceId?: number | null }) {
+  const query: Record<string, string> = {}
+  if (prefill?.title) {
+    query.title = prefill.title
+  }
+  if (prefill?.sourceExperienceId != null) {
+    query.sourceExperienceId = String(prefill.sourceExperienceId)
+  }
+  return navigateTo({
+    path: '/profile/hero-wizard',
+    query
+  })
+}
 
-// HERO assistant panel state
 const isHeroAssistantOpen = ref(false)
 const heroAssistantMode = ref<HeroAssistantMode>('launcher')
 const currentStoryIdForAI = ref<string | null>(null)
@@ -38,123 +47,8 @@ const pendingStoryAISuggestions = ref<{
   suggestions: Record<string, Record<string, string>>
 } | null>(null)
 
-// Inline form state for creating new story only
-const formDataForCreate = ref({
-  title: '',
-  hurdleProblem: '',
-  hurdleScope: '',
-  hurdleStakes: '',
-  expectationRole: '',
-  expectationGoals: '',
-  expectationConstraints: '',
-  responseActions: '',
-  responseTools: '',
-  responseChallenges: '',
-  outcomeDeliverable: '',
-  outcomeMetrics: '',
-  outcomeImpact: '',
-  sourceExperienceId: null as number | null
-})
-
-const formErrors = ref<Record<string, string>>({})
-
-function resetCreateForm() {
-  formDataForCreate.value = {
-    title: '',
-    hurdleProblem: '',
-    hurdleScope: '',
-    hurdleStakes: '',
-    expectationRole: '',
-    expectationGoals: '',
-    expectationConstraints: '',
-    responseActions: '',
-    responseTools: '',
-    responseChallenges: '',
-    outcomeDeliverable: '',
-    outcomeMetrics: '',
-    outcomeImpact: '',
-    sourceExperienceId: null
-  }
-  formErrors.value = {}
-}
-
-function startAddingStory(prefill?: { title?: string, sourceExperienceId?: number | null }) {
-  resetCreateForm()
-  if (prefill?.title) {
-    formDataForCreate.value.title = prefill.title
-  }
-  if (prefill?.sourceExperienceId !== undefined) {
-    formDataForCreate.value.sourceExperienceId = prefill.sourceExperienceId
-  }
-  isShowingCreateForm.value = true
-}
-
-function cancelAddingStory() {
-  isShowingCreateForm.value = false
-  resetCreateForm()
-}
-
-async function handleSaveNewStory() {
-  const errors: Record<string, string> = {}
-
-  if (!formDataForCreate.value.title.trim()) {
-    errors.title = 'Story title is required'
-  }
-
-  formErrors.value = errors
-  if (Object.keys(errors).length > 0) return
-
-  try {
-    if (!profileId.value) {
-      throw new Error('Profile is required to create a story')
-    }
-
-    // Clear any existing errors before attempting create
-    careerIDStore.error = null
-
-    const created = await careerIDStore.createStory(profileId.value, {
-      title: formDataForCreate.value.title.trim(),
-      hurdleProblem: formDataForCreate.value.hurdleProblem.trim() || null,
-      hurdleScope: formDataForCreate.value.hurdleScope.trim() || null,
-      hurdleStakes: formDataForCreate.value.hurdleStakes.trim() || null,
-      expectationRole: formDataForCreate.value.expectationRole.trim() || null,
-      expectationGoals: formDataForCreate.value.expectationGoals.trim() || null,
-      expectationConstraints: formDataForCreate.value.expectationConstraints.trim() || null,
-      responseActions: formDataForCreate.value.responseActions.trim() || null,
-      responseTools: formDataForCreate.value.responseTools.trim() || null,
-      responseChallenges: formDataForCreate.value.responseChallenges.trim() || null,
-      outcomeDeliverable: formDataForCreate.value.outcomeDeliverable.trim() || null,
-      outcomeMetrics: formDataForCreate.value.outcomeMetrics.trim() || null,
-      outcomeImpact: formDataForCreate.value.outcomeImpact.trim() || null,
-      sourceExperienceId: formDataForCreate.value.sourceExperienceId ?? undefined,
-      displayOrder: heroStories.value.length + 1
-    })
-    toast.add({
-      title: 'Success',
-      description: `Your HERO story "${created.title}" has been created.`,
-      icon: 'i-lucide-check',
-      color: 'success'
-    })
-
-    cancelAddingStory()
-  } catch (err: any) {
-    // Error is already set in the store, just show a toast
-    toast.add({
-      title: 'Error',
-      description: 'Failed to save HERO story. Please try again.',
-      icon: 'i-lucide-alert-circle',
-      color: 'error'
-    })
-  }
-}
-
 const isDiscoveryDrawerOpen = computed(() => route.query.discoverySession === 'true')
 const routeSourceExperienceId = computed(() => normalizeSourceExperienceId(route.query.sourceExperienceId))
-const routeHighlightStoryId = computed(() => {
-  return typeof route.query.highlightStoryId === 'string' && route.query.highlightStoryId.trim()
-    ? route.query.highlightStoryId.trim()
-    : null
-})
 const routeHeroStoryId = computed(() => {
   return typeof route.query.heroStoryId === 'string' && route.query.heroStoryId.trim()
     ? route.query.heroStoryId.trim()
@@ -168,16 +62,14 @@ const heroAssistantTitle = computed(() => {
 })
 
 const currentStoryForAI = computed(() => {
-  return currentStoryIdForAI.value && currentStoryIdForAI.value !== 'create'
+  return currentStoryIdForAI.value
     ? heroStories.value.find(story => story.id === currentStoryIdForAI.value) ?? null
     : null
 })
 
 const heroAssistantSubtitle = computed(() => {
   if (heroAssistantMode.value === 'story') {
-    return currentStoryIdForAI.value === 'create'
-      ? 'Working on: New HERO story'
-      : `Working on: ${currentStoryForAI.value?.title ?? 'Selected HERO story'}`
+    return `Working on: ${currentStoryForAI.value?.title ?? 'Selected HERO story'}`
   }
   if (heroAssistantMode.value === 'discovery') return 'Talk through your work to find strong story ideas.'
   return 'Choose how you want to work with HERO.'
@@ -304,12 +196,6 @@ function openDiscoverySession() {
   ensureDiscoverySession()
 }
 
-function openHeroLauncher() {
-  heroAssistantMode.value = 'launcher'
-  currentStoryIdForAI.value = null
-  isHeroAssistantOpen.value = true
-}
-
 function backToHeroLauncher() {
   heroAssistantMode.value = 'launcher'
   currentStoryIdForAI.value = null
@@ -322,7 +208,7 @@ function handleLauncherStorySelect(storyId: string) {
 
 function handleLauncherCreateStory() {
   closeHeroAssistant()
-  startAddingStory()
+  return navigateToWizard()
 }
 
 function handleStoryEditCancel() {
@@ -462,34 +348,19 @@ function normalizeSourceExperienceId(value: unknown): number | null {
 
 function handleMomentDevelop(moment?: { title?: string, source_experience_id?: string | number | null }) {
   const sourceExperienceId = normalizeSourceExperienceId(moment?.source_experience_id)
-  startAddingStory({
+  return navigateToWizard({
     title: moment?.title?.trim() || undefined,
     sourceExperienceId
   })
 }
 
 function handleMomentDevelopWithAI(moment?: { title?: string, source_experience_id?: string | number | null }) {
-  // Pre-fill create form with moment data
-  const sourceExperienceId = normalizeSourceExperienceId(moment?.source_experience_id)
-
-  if (moment?.title) {
-    formDataForCreate.value.title = moment.title.trim()
-  }
-  if (sourceExperienceId !== null) {
-    formDataForCreate.value.sourceExperienceId = sourceExperienceId
-  }
-
-  currentStoryIdForAI.value = 'create'
-  heroAssistantMode.value = 'story'
-  isHeroAssistantOpen.value = true
+  return handleMomentDevelop(moment)
 }
 
 function openAIPanelForStory(storyId: string) {
   currentStoryIdForAI.value = storyId
-  if (storyId !== 'create') {
-    isShowingCreateForm.value = false
-    editingStoryId.value = storyId
-  }
+  editingStoryId.value = storyId
   heroAssistantMode.value = 'story'
   isHeroAssistantOpen.value = true
 }
@@ -504,35 +375,8 @@ function openRoutedHeroStorySession() {
   openAIPanelForStory(routeHeroStoryId.value)
 }
 
-function applyAISuggestionsToCreateForm(suggestions: Record<string, Record<string, string>>) {
-  if (suggestions.hurdle) {
-    formDataForCreate.value.hurdleProblem = suggestions.hurdle.problem || formDataForCreate.value.hurdleProblem
-    formDataForCreate.value.hurdleScope = suggestions.hurdle.scope || formDataForCreate.value.hurdleScope
-    formDataForCreate.value.hurdleStakes = suggestions.hurdle.stakes || formDataForCreate.value.hurdleStakes
-  }
-  if (suggestions.expectation) {
-    formDataForCreate.value.expectationRole = suggestions.expectation.role || formDataForCreate.value.expectationRole
-    formDataForCreate.value.expectationGoals = suggestions.expectation.goals || formDataForCreate.value.expectationGoals
-    formDataForCreate.value.expectationConstraints = suggestions.expectation.constraints || formDataForCreate.value.expectationConstraints
-  }
-  if (suggestions.response) {
-    formDataForCreate.value.responseActions = suggestions.response.actions || formDataForCreate.value.responseActions
-    formDataForCreate.value.responseTools = suggestions.response.tools || formDataForCreate.value.responseTools
-    formDataForCreate.value.responseChallenges = suggestions.response.challenges || formDataForCreate.value.responseChallenges
-  }
-  if (suggestions.outcome) {
-    formDataForCreate.value.outcomeDeliverable = suggestions.outcome.deliverable || formDataForCreate.value.outcomeDeliverable
-    formDataForCreate.value.outcomeMetrics = suggestions.outcome.metrics || formDataForCreate.value.outcomeMetrics
-    formDataForCreate.value.outcomeImpact = suggestions.outcome.impact || formDataForCreate.value.outcomeImpact
-  }
-}
-
 function handleAcceptAISuggestions(suggestions: Record<string, Record<string, string>>) {
-  if (currentStoryIdForAI.value === 'create') {
-    // CREATE mode: Apply suggestions directly to create form
-    applyAISuggestionsToCreateForm(suggestions)
-  } else if (currentStoryIdForAI.value) {
-    // EDIT mode: Store pending suggestions for the HeroStoryCard to consume
+  if (currentStoryIdForAI.value) {
     pendingStoryAISuggestions.value = {
       storyId: currentStoryIdForAI.value,
       suggestions
@@ -619,244 +463,24 @@ watch(routeHeroStoryId, () => {
       </div>
     </div>
 
-    <!-- Create/Edit Story Form -->
-    <div v-if="isShowingCreateForm" class="mb-6">
-      <UPageCard variant="subtle">
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold">
-              Create New HERO Story
-            </h3>
-            <UButton
-              label="Get HERO Help"
-              icon="i-lucide-sparkles"
-              color="primary"
-              variant="ghost"
-              size="sm"
-              class="cursor-pointer"
-              @click="openHeroLauncher"
-            />
-          </div>
-        </template>
-
-        <div class="space-y-4">
-          <!-- Title Section -->
-          <div>
-            <label class="block text-sm font-medium mb-1">Story Title <span class="text-error">*</span></label>
-            <UInput
-              v-model="formDataForCreate.title"
-              placeholder="e.g. Led platform migration that reduced infrastructure costs by 40%"
-              class="w-full"
-              :error="!!formErrors.title"
-            />
-            <p v-if="formErrors.title" class="text-sm text-error mt-1">
-              {{ formErrors.title }}
-            </p>
-          </div>
-
-          <!-- HERO Sections - Grouped -->
-          <div class="space-y-3">
-            <!-- HURDLE Section -->
-            <div class="pb-3 border-b border-default">
-              <h4 class="text-xs font-semibold text-foreground mb-2">
-                🎯 The Hurdle
-              </h4>
-              <div class="space-y-2">
-                <div>
-                  <label class="block text-xs font-medium text-muted mb-1">[PROBLEM] The Specific Challenge</label>
-                  <UTextarea
-                    v-model="formDataForCreate.hurdleProblem"
-                    placeholder="What was the specific problem or opportunity you identified?"
-                    :rows="2"
-                    autoresize
-                    class="w-full"
-                  />
-                </div>
-                <div>
-                  <label class="block text-xs font-medium text-muted mb-1">[SCOPE] Size & Scale</label>
-                  <UTextarea
-                    v-model="formDataForCreate.hurdleScope"
-                    placeholder="How big was the problem? Who or what was affected?"
-                    :rows="2"
-                    autoresize
-                    class="w-full"
-                  />
-                </div>
-                <div>
-                  <label class="block text-xs font-medium text-muted mb-1">[STAKES] Why It Mattered</label>
-                  <UTextarea
-                    v-model="formDataForCreate.hurdleStakes"
-                    placeholder="What was at risk? Why did this matter to the business or team?"
-                    :rows="2"
-                    autoresize
-                    class="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- EXPECTATION Section -->
-            <div class="pb-3 border-b border-default">
-              <h4 class="text-xs font-semibold text-foreground mb-2">
-                📋 The Expectation
-              </h4>
-              <div class="space-y-2">
-                <div>
-                  <label class="block text-xs font-medium text-muted mb-1">[ROLE] Your Responsibility</label>
-                  <UTextarea
-                    v-model="formDataForCreate.expectationRole"
-                    placeholder="What was your role or authority in addressing this challenge?"
-                    :rows="2"
-                    autoresize
-                    class="w-full"
-                  />
-                </div>
-                <div>
-                  <label class="block text-xs font-medium text-muted mb-1">[GOALS] Targets to Achieve</label>
-                  <UTextarea
-                    v-model="formDataForCreate.expectationGoals"
-                    placeholder="What were you trying to accomplish? What were the goals or targets?"
-                    :rows="2"
-                    autoresize
-                    class="w-full"
-                  />
-                </div>
-                <div>
-                  <label class="block text-xs font-medium text-muted mb-1">[CONSTRAINTS] Limits & Boundaries</label>
-                  <UTextarea
-                    v-model="formDataForCreate.expectationConstraints"
-                    placeholder="What constraints did you operate under? (budget, timeline, resources, etc.)"
-                    :rows="2"
-                    autoresize
-                    class="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- RESPONSE Section -->
-            <div class="pb-3 border-b border-default">
-              <h4 class="text-xs font-semibold text-foreground mb-2">
-                ⚡ The Response
-              </h4>
-              <div class="space-y-2">
-                <div>
-                  <label class="block text-xs font-medium text-muted mb-1">[ACTIONS] Steps You Took</label>
-                  <UTextarea
-                    v-model="formDataForCreate.responseActions"
-                    placeholder="What specific actions did you take? Walk through your approach step-by-step."
-                    :rows="2"
-                    autoresize
-                    class="w-full"
-                  />
-                </div>
-                <div>
-                  <label class="block text-xs font-medium text-muted mb-1">[TOOLS] Technologies & Resources</label>
-                  <UTextarea
-                    v-model="formDataForCreate.responseTools"
-                    placeholder="What tools, technologies, or systems did you use?"
-                    :rows="2"
-                    autoresize
-                    class="w-full"
-                  />
-                </div>
-                <div>
-                  <label class="block text-xs font-medium text-muted mb-1">[CHALLENGES] Obstacles Overcome</label>
-                  <UTextarea
-                    v-model="formDataForCreate.responseChallenges"
-                    placeholder="What obstacles did you encounter and how did you overcome them?"
-                    :rows="2"
-                    autoresize
-                    class="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- OUTCOME Section -->
-            <div>
-              <h4 class="text-xs font-semibold text-foreground mb-2">
-                🏆 The Outcome
-              </h4>
-              <div class="space-y-2">
-                <div>
-                  <label class="block text-xs font-medium text-muted mb-1">[DELIVERABLE] What Was Delivered</label>
-                  <UTextarea
-                    v-model="formDataForCreate.outcomeDeliverable"
-                    placeholder="What did you deliver? What was the tangible output?"
-                    :rows="2"
-                    autoresize
-                    class="w-full"
-                  />
-                </div>
-                <div>
-                  <label class="block text-xs font-medium text-muted mb-1">[METRICS] Measurable Results</label>
-                  <UTextarea
-                    v-model="formDataForCreate.outcomeMetrics"
-                    placeholder="Use numbers and percentages. E.g., '40% cost reduction', '3x faster', 'served 1M users'"
-                    :rows="2"
-                    autoresize
-                    class="w-full"
-                  />
-                </div>
-                <div>
-                  <label class="block text-xs font-medium text-muted mb-1">[IMPACT] Qualitative Impact</label>
-                  <UTextarea
-                    v-model="formDataForCreate.outcomeImpact"
-                    placeholder="How did this impact the business, team, or users? What recognition did you receive?"
-                    :rows="2"
-                    autoresize
-                    class="w-full"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Action Buttons -->
-          <div class="flex items-center justify-end gap-2 pt-2">
-            <UButton
-              label="Cancel"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              @click="cancelAddingStory"
-            />
-            <UButton
-              label="Save"
-              color="primary"
-              size="sm"
-              icon="i-lucide-check"
-              :loading="isSaving"
-              :disabled="!formDataForCreate.title.trim() || isSaving"
-              @click="handleSaveNewStory"
-            />
-          </div>
-        </div>
-      </UPageCard>
-    </div>
-
     <!-- Your HERO Stories Section -->
-    <div v-if="!isShowingCreateForm" class="mb-6">
+    <div class="mb-6">
       <ProfileHeroStoriesSection
         :stories="heroStories"
         :is-loading="isLoading"
         :pending-suggestions="pendingStoryAISuggestions"
-        :highlight-story-id="routeHighlightStoryId"
         :editing-story-id="editingStoryId"
-        @create="openHeroLauncher"
+        @create="navigateToWizard"
         @delete="handleDeleteStory"
         @save="handleSaveStory"
         @cancel="handleStoryEditCancel"
-        @open-a-i-help="openAIPanelForStory"
-        @open-a-i-options="openHeroLauncher"
         @clear-pending-suggestions="clearPendingAISuggestions"
       />
     </div>
 
     <!--
       HERO Moment UI is temporarily hidden while the feature is paused.
-      <div v-if="!isShowingCreateForm" class="mt-8">
+      <div class="mt-8">
         <ProfileHeroDiscoveredMomentsSection
           :moments="heroMoments"
           :is-loading="isLoading"
@@ -864,7 +488,7 @@ watch(routeHeroStoryId, () => {
           @develop-with-a-i="handleMomentDevelopWithAI"
           @remove="handleMomentRemove"
           @save="handleMomentSave"
-          @start-session="openHeroLauncher"
+          @start-session="openDiscoverySession"
         />
       </div>
     -->
