@@ -1,46 +1,16 @@
 <script setup lang="ts">
 import type { Certification } from '#shared/types/careerId'
+import {
+  monthYearSortKey,
+  toApiDate,
+  toMonthYearInput,
+  toMonthYearLabel
+} from '#shared/utils/monthYearDate'
 import { vMaska } from 'maska/vue'
 import { validateRequired, validateUrl, validateMonthYear } from '~/utils/validation'
 
 const careerIDStore = useCareerIDStore()
 const toast = useToast()
-
-/**
- * Convert date from YYYY-MM-DD to MM/YYYY format for UI display
- */
-function formatDateForUI(dateString: string | null | undefined): string {
-  if (!dateString) return ''
-  
-  // If already in MM/YYYY format, return as-is
-  if (/^\d{2}\/\d{4}$/.test(dateString)) return dateString
-  
-  // Parse YYYY-MM-DD and convert to MM/YYYY
-  const date = new Date(dateString)
-  if (isNaN(date.getTime())) return dateString
-  
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const year = date.getFullYear()
-  
-  return `${month}/${year}`
-}
-
-/**
- * Convert date from MM/YYYY to YYYY-MM-DD format for API
- */
-function formatDateForAPI(dateString: string | undefined): string | undefined {
-  if (!dateString || !dateString.trim()) return undefined
-  
-  // If already in YYYY-MM-DD format, return as-is
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString
-  
-  // Parse MM/YYYY and convert to YYYY-MM-DD
-  const match = dateString.match(/^(\d{2})\/(\d{4})$/)
-  if (!match) return dateString
-  
-  const [, month, year] = match
-  return `${year}-${month}-01`
-}
 
 // Props - receive Certification array from parent (store via onboarding)
 const props = defineProps<{
@@ -50,7 +20,7 @@ const props = defineProps<{
 // Certifications data sorted by issue date (most recent first)
 const certificationsList = computed(() => {
   return [...props.certifications].sort((a, b) => {
-    return new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime()
+    return monthYearSortKey(b.issueDate) - monthYearSortKey(a.issueDate)
   })
 })
 
@@ -97,8 +67,8 @@ function startEditingCertification(certIndex: number) {
   formData.value = {
     name: certification.name,
     issuer: certification.issuer,
-    issueDate: formatDateForUI(certification.issueDate),
-    expirationDate: formatDateForUI(certification.expirationDate),
+    issueDate: toMonthYearInput(certification.issueDate),
+    expirationDate: toMonthYearInput(certification.expirationDate),
     url: certification.url || ''
   }
   formErrors.value = {}
@@ -164,8 +134,8 @@ async function saveCertification(silent = false): Promise<boolean> {
     const certificationData = {
       name: formData.value.name!,
       issuer: formData.value.issuer!,
-      issueDate: formatDateForAPI(formData.value.issueDate)!,
-      expirationDate: formatDateForAPI(formData.value.expirationDate),
+      issueDate: toApiDate(formData.value.issueDate)!,
+      expirationDate: toApiDate(formData.value.expirationDate) ?? undefined,
       url: formData.value.url || undefined
     }
     
@@ -256,11 +226,8 @@ async function deleteCertification(certificationToDelete: Certification) {
   }
 }
 
-// Format date for display
 function formatDate(dateString: string | null | undefined): string {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  return toMonthYearLabel(dateString, '')
 }
 
 // Exposed methods for compatibility with onboarding.vue

@@ -1,5 +1,11 @@
 <script setup lang="ts">
 import type { Certification } from '#shared/types/careerId'
+import {
+  monthYearSortKey,
+  toApiDate,
+  toMonthYearInput,
+  toMonthYearLabel
+} from '#shared/utils/monthYearDate'
 import { vMaska } from 'maska/vue'
 import { validateRequired, validateUrl, validateMonthYear } from '~/utils/validation'
 
@@ -7,42 +13,7 @@ const careerIDStore = useCareerIDStore()
 const accountStore = useAccountStore()
 const toast = useToast()
 
-/**
- * Convert date from YYYY-MM-DD to MM/YYYY format for UI display
- */
-function formatDateForUI(dateString: string | null | undefined): string {
-  if (!dateString) return ''
-  
-  // If already in MM/YYYY format, return as-is
-  if (/^\d{2}\/\d{4}$/.test(dateString)) return dateString
-  
-  // Parse YYYY-MM-DD and convert to MM/YYYY
-  const date = new Date(dateString)
-  if (isNaN(date.getTime())) return dateString
-  
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const year = date.getFullYear()
-  
-  return `${month}/${year}`
-}
-
-/**
- * Convert date from MM/YYYY to YYYY-MM-DD format for API
- */
-function formatDateForAPI(dateString: string | undefined): string | undefined {
-  if (!dateString || !dateString.trim()) return undefined
-  
-  // If already in YYYY-MM-DD format, return as-is
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString
-  
-  // Parse MM/YYYY and convert to YYYY-MM-DD
-  const match = dateString.match(/^(\d{2})\/(\d{4})$/)
-  if (!match) return dateString
-  
-  const [, month, year] = match
-  return `${year}-${month}-01`
-}
- // TODO: Replace with real Supabase user
+// TODO: Replace with real Supabase user
 
 // Loading and saving states
 const isLoading = computed(() => careerIDStore.isLoading)
@@ -52,7 +23,7 @@ const isSaving = computed(() => careerIDStore.isSaving)
 const certificationsList = computed(() => {
   // Sort by issue date, most recent first
   return [...careerIDStore.certifications].sort((a, b) => {
-    return new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime()
+    return monthYearSortKey(b.issueDate) - monthYearSortKey(a.issueDate)
   })
 })
 
@@ -89,7 +60,7 @@ function startEditingCertification(certification: Certification) {
   formData.value = {
     name: certification.name,
     issuer: certification.issuer,
-    issueDate: formatDateForUI(certification.issueDate),
+    issueDate: toMonthYearInput(certification.issueDate),
     url: certification.url || ''
   }
   formErrors.value = {}
@@ -144,7 +115,7 @@ async function addCertification() {
     await careerIDStore.addCertification({
       name: formData.value.name!,
       issuer: formData.value.issuer!,
-      issueDate: formatDateForAPI(formData.value.issueDate)!,
+      issueDate: toApiDate(formData.value.issueDate)!,
       url: formData.value.url || undefined,
       displayOrder: certificationsList.value.length + 1
     })
@@ -183,7 +154,7 @@ async function updateCertification() {
     await careerIDStore.updateCertification(editingCertificationId.value!, {
       name: formData.value.name!,
       issuer: formData.value.issuer!,
-      issueDate: formatDateForAPI(formData.value.issueDate)!,
+      issueDate: toApiDate(formData.value.issueDate)!,
       url: formData.value.url || undefined
     })
     
@@ -230,11 +201,8 @@ async function deleteCertification(id: number) {
   }
 }
 
-// Format date for display
 function formatDate(dateString: string | null | undefined): string {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  return toMonthYearLabel(dateString, '')
 }
 
 // Fetch profile data on mount

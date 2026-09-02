@@ -5,6 +5,11 @@
  * suitable for inline display in forms.
  */
 
+import {
+  monthYearSortKey,
+  parseMonthYear
+} from '#shared/utils/monthYearDate'
+
 /**
  * Email validation regex (RFC 5322 simplified)
  */
@@ -21,35 +26,6 @@ const PHONE_REGEX = /^\+[1-9]\d{0,2}\d{4,14}$/
  * URL validation regex (http or https)
  */
 const URL_REGEX = /^https?:\/\/.+\..+/
-
-/**
- * Convert MM/YYYY format to Date for comparison
- */
-function parseMonthYear(dateString: string | undefined | null): Date | null {
-  if (!dateString) return null
-  
-  // Check if it's already in YYYY-MM-DD format
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-    return new Date(dateString)
-  }
-  
-  // Parse MM/YYYY format
-  const match = dateString.match(/^(\d{2})\/(\d{4})$/)
-  if (!match) return null
-  
-  const [, month, year] = match
-  const monthNum = parseInt(month, 10)
-  const yearNum = parseInt(year, 10)
-  
-  // Validate month (1-12)
-  if (monthNum < 1 || monthNum > 12) return null
-  
-  // Validate year (reasonable range)
-  if (yearNum < 1900 || yearNum > 2100) return null
-  
-  // Return Date object (first day of the month)
-  return new Date(yearNum, monthNum - 1, 1)
-}
 
 /**
  * Validate email format
@@ -184,14 +160,13 @@ export function validateDateRange(
     return null // Only validate range if both dates provided
   }
   
-  const start = parseMonthYear(startDate)
-  const end = parseMonthYear(endDate)
-  
-  if (!start || !end) {
+  if (!parseMonthYear(startDate) || !parseMonthYear(endDate)) {
     return null // Invalid dates will be caught by other validators
   }
   
-  return end >= start ? null : `${endFieldName} must be after start date`
+  return monthYearSortKey(endDate) >= monthYearSortKey(startDate)
+    ? null
+    : `${endFieldName} must be after start date`
 }
 
 /**

@@ -6,6 +6,11 @@
  */
 
 import { ErrorCodes, type ValidationDetail } from './error-handler'
+import {
+  monthYearSortKey,
+  parseMonthYear,
+  toApiDate
+} from '#shared/utils/monthYearDate'
 
 /**
  * Email validation regex (RFC 5322 simplified)
@@ -65,63 +70,36 @@ export function isValidUrl(url: string): boolean {
 }
 
 /**
- * Convert MM/YYYY format to YYYY-MM-DD format (first day of month)
+ * Convert MM/YYYY (or YYYY-MM / YYYY-MM-DD) to YYYY-MM-DD (first day of month)
  * 
- * @param dateString - Date in MM/YYYY format (e.g., "05/2025")
+ * @param dateString - Date in MM/YYYY, YYYY-MM, or YYYY-MM-DD format
  * @returns Date in YYYY-MM-DD format (e.g., "2025-05-01"), or null if invalid
  */
 export function convertMonthYearToDate(dateString: string | undefined | null): string | null {
-  if (!dateString) return null
-  
-  // Check if it's already in YYYY-MM-DD format
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-    return dateString
-  }
-  
-  // Parse MM/YYYY format
-  const match = dateString.match(/^(\d{2})\/(\d{4})$/)
-  if (!match) return null
-  
-  const [, month, year] = match
-  const monthNum = parseInt(month, 10)
-  const yearNum = parseInt(year, 10)
-  
-  // Validate month (1-12)
-  if (monthNum < 1 || monthNum > 12) return null
-  
-  // Validate year (reasonable range)
-  if (yearNum < 1900 || yearNum > 2100) return null
-  
-  // Return YYYY-MM-01 format (first day of the month)
-  return `${year}-${month}-01`
+  return toApiDate(dateString)
 }
 
 /**
  * Validate that end date is after start date
- * Handles both MM/YYYY and YYYY-MM-DD formats
+ * Handles MM/YYYY, YYYY-MM, and YYYY-MM-DD formats without timezone shifting
  * 
- * @param startDate - Start date (MM/YYYY or YYYY-MM-DD string)
- * @param endDate - End date (MM/YYYY or YYYY-MM-DD string)
+ * @param startDate - Start date (month-precision string or Date)
+ * @param endDate - End date (month-precision string or Date)
  * @returns true if valid range, false otherwise
  */
 export function isValidDateRange(startDate: string | Date, endDate: string | Date): boolean {
-  // Convert dates if they're in MM/YYYY format
-  let startStr = typeof startDate === 'string' ? startDate : startDate.toISOString()
-  let endStr = typeof endDate === 'string' ? endDate : endDate.toISOString()
-  
-  // Convert MM/YYYY to YYYY-MM-DD for comparison
-  const convertedStart = convertMonthYearToDate(startStr)
-  const convertedEnd = convertMonthYearToDate(endStr)
-  
-  const start = new Date(convertedStart || startStr)
-  const end = new Date(convertedEnd || endStr)
-  
-  // Check for invalid dates
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+  const startStr = typeof startDate === 'string'
+    ? startDate
+    : `${startDate.getUTCFullYear()}-${String(startDate.getUTCMonth() + 1).padStart(2, '0')}`
+  const endStr = typeof endDate === 'string'
+    ? endDate
+    : `${endDate.getUTCFullYear()}-${String(endDate.getUTCMonth() + 1).padStart(2, '0')}`
+
+  if (!parseMonthYear(startStr) || !parseMonthYear(endStr)) {
     return false
   }
-  
-  return end >= start
+
+  return monthYearSortKey(endStr) >= monthYearSortKey(startStr)
 }
 
 /**
