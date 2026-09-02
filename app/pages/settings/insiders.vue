@@ -18,7 +18,7 @@
 
     <UPageCard variant="subtle" :ui="{ container: 'divide-y divide-default' }">
       <p class="text-sm text-muted">
-        No insider-only features are available right now. HERO and AI bullet enhancement are now available to everyone.
+        No insider-only features are available right now. Check back later for early access to new capabilities.
       </p>
     </UPageCard>
   </div>

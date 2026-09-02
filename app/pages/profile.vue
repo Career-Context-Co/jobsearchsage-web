@@ -4,12 +4,13 @@ import { useCareerIDStore } from '~/stores/careerIDStore'
 
 const route = useRoute()
 const careerIDStore = useCareerIDStore()
+const globalStore = useGlobalStore()
 
 const FULLSCREEN_CHILD_ROUTES = ['/profile/onboarding', '/profile/hero-wizard']
 const isFullscreenChild = computed(() => FULLSCREEN_CHILD_ROUTES.includes(route.path))
 
 // Check if user has partial completion (took a break during onboarding)
-const showContinueOnboarding = computed(() => 
+const showContinueOnboarding = computed(() =>
   careerIDStore.profile?.completionStatus === 'incomplete'
 )
 
@@ -35,11 +36,15 @@ const links = computed(() => {
     label: 'Skills',
     icon: 'i-lucide-wrench',
     to: '/profile/skills'
-  }, {
-    label: 'HERO',
-    icon: 'i-lucide-zap',
-    to: '/profile/hero'
   }]
+
+  if (globalStore.features.hero) {
+    baseLinks.push({
+      label: 'HERO',
+      icon: 'i-lucide-zap',
+      to: '/profile/hero'
+    })
+  }
 
   return [
     baseLinks,

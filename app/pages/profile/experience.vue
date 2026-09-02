@@ -6,6 +6,7 @@ import { validateRequired, validateUrl, validateMonthYear, validateDateRange } f
 const careerIDStore = useCareerIDStore()
 const sageAIStore = useSageAIStore()
 const accountStore = useAccountStore()
+const globalStore = useGlobalStore()
 const toast = useToast()
 const router = useRouter()
 const route = useRoute()
@@ -118,6 +119,7 @@ const sageSessionExperience = computed(() =>
 )
 
 function openSageSession(experienceId: number) {
+  if (!globalStore.features.sageAssist) return
   sageSessionExperienceId.value = experienceId
   sageSessionOpen.value = true
 }
@@ -181,6 +183,8 @@ function setHeroNudgeState(nudge: Omit<HeroNudgeActiveState, 'loading'>, expande
 }
 
 async function loadPersistedHeroNudges(profileId: string) {
+  if (!globalStore.features.hero) return
+
   const nudges = await sageAIStore.loadHeroNudgesForProfile(profileId)
   for (const nudge of nudges) {
     setHeroNudgeState(nudge, false)
@@ -188,6 +192,8 @@ async function loadPersistedHeroNudges(profileId: string) {
 }
 
 async function checkHeroNudgeForExperience(experience: Experience) {
+  if (!globalStore.features.hero) return
+
   const hasSignalContent = Boolean(
     experience.summary?.trim()
     || experience.contextNotes?.trim()
@@ -1030,7 +1036,7 @@ async function scrollToHashedExperience() {
                 </p>
               </div>
 
-              <div v-if="activeHeroNudgeFor(experience.id)" class="mt-3">
+              <div v-if="globalStore.features.hero && activeHeroNudgeFor(experience.id)" class="mt-3">
                 <ProfileSageHeroNudge
                   v-if="isHeroNudgeExpanded(experience.id)"
                   :signal="activeHeroNudgeFor(experience.id)!.signal"
@@ -1084,6 +1090,7 @@ async function scrollToHashedExperience() {
                   Enhanced
                 </UBadge>
                 <UButton
+                  v-if="globalStore.features.sageAssist"
                   label="Get AI Help"
                   icon="i-lucide-sparkles"
                   color="primary"
@@ -1307,6 +1314,7 @@ async function scrollToHashedExperience() {
 
   <!-- Sage AI Session Slideover -->
   <USlideover
+    v-if="globalStore.features.sageAssist"
     v-model:open="sageSessionOpen"
     side="right"
     :overlay="false"

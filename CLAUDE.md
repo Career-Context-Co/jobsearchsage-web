@@ -37,11 +37,14 @@ Pinia stores in `app/stores/`:
 
 ### Feature Flags
 
-Beta features gated in `accountStore.features`:
-- `hero` — HERO framework (stories, moments, discovery). Route-guarded by `app/middleware/hero-feature.ts`.
-- `bulletEnhancement` — AI-powered achievement bullet enhancement.
+Global product flags live in `globalStore.features`, seeded from `runtimeConfig.public` in `account.client.ts`:
+- `signupEmailConfirmation` — `NUXT_PUBLIC_SIGNUP_EMAIL_CONFIRMATION` (defaults on unless set to `false`)
+- `hero` — `NUXT_PUBLIC_HERO_ENABLED` (defaults **off**; must be the string `true` to show HERO tab, wizard, and experience nudge). Route-guarded by `app/middleware/hero-feature.ts`.
+- `sageAssist` — `NUXT_PUBLIC_SAGE_ASSIST_ENABLED` (defaults **off**; must be the string `true` to show experience "Get AI Help").
 
-Toggled in Settings > Insiders (`/settings/insiders`).
+`accountStore.features` still supports per-user localStorage preferences for future Insiders toggles. Do not gate HERO or Sage Assist through `accountStore` — persisted flags from older Insiders builds would leak features.
+
+Settings > Insiders (`/settings/insiders`) currently has no active toggles.
 
 ### Backend / Supabase
 

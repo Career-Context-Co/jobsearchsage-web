@@ -8,6 +8,21 @@ interface GlobalFeatures {
    * Future: will be overridable via PostHog feature flags.
    */
   signupEmailConfirmation: boolean
+  /**
+   * When true, HERO product surfaces are visible (Profile/sidebar tab,
+   * /profile/hero, /profile/hero-wizard, experience HERO nudge).
+   * Controlled via NUXT_PUBLIC_HERO_ENABLED env var (must be the string "true").
+   * Defaults to false — delayed launch kill switch.
+   * Future: will be overridable via PostHog feature flags.
+   */
+  hero: boolean
+  /**
+   * When true, experience "Get AI Help" (Sage assist slideover) is available.
+   * Controlled via NUXT_PUBLIC_SAGE_ASSIST_ENABLED env var (must be the string "true").
+   * Defaults to false — delayed launch kill switch.
+   * Future: will be overridable via PostHog feature flags.
+   */
+  sageAssist: boolean
 }
 
 interface GlobalState {
@@ -17,7 +32,9 @@ interface GlobalState {
 export const useGlobalStore = defineStore('global', {
   state: (): GlobalState => ({
     features: {
-      signupEmailConfirmation: true
+      signupEmailConfirmation: true,
+      hero: false,
+      sageAssist: false
     }
   }),
 
@@ -31,11 +48,17 @@ export const useGlobalStore = defineStore('global', {
       const config = useRuntimeConfig()
       this.features.signupEmailConfirmation =
         config.public.signupEmailConfirmation ?? true
+      this.features.hero = config.public.hero === true
+      this.features.sageAssist = config.public.sageAssist === true
 
       // Future PostHog override (uncomment when wiring up):
       // const posthog = usePostHog()
       // this.features.signupEmailConfirmation =
       //   posthog.isFeatureEnabled('signup-email-confirmation') ?? this.features.signupEmailConfirmation
+      // this.features.hero =
+      //   posthog.isFeatureEnabled('hero') ?? this.features.hero
+      // this.features.sageAssist =
+      //   posthog.isFeatureEnabled('sage-assist') ?? this.features.sageAssist
     }
   }
 })
