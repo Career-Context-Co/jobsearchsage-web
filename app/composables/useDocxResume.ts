@@ -16,6 +16,7 @@ import {
   sortEducationForResumePreview,
   sortWorkExperienceForResumePreview
 } from '#shared/utils/resumeDisplayOrder'
+import { toMonthYearInput } from '#shared/utils/monthYearDate'
 
 interface ContactInfo {
   firstName?: string | null
@@ -130,14 +131,7 @@ function hexToDocxColor(hex: string): string {
  * Format date from YYYY-MM-DD to display format (e.g., "01/2023")
  */
 function formatDateForDisplay(dateString: string | null | undefined): string {
-  if (!dateString) return ''
-  
-  const date = new Date(dateString)
-  if (isNaN(date.getTime())) return dateString
-  
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const year = date.getFullYear()
-  return `${month}/${year}`
+  return toMonthYearInput(dateString)
 }
 
 function formatDateRange(startDate: string | null | undefined, endDate: string | null | undefined, currentPosition?: boolean): string {

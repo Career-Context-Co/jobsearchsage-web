@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import {
+  monthYearSortKey,
+  toApiDate,
+  toMonthYearInput,
+  toMonthYearLabel
+} from '#shared/utils/monthYearDate'
+
 interface Highlight {
   id: string
   text: string
@@ -359,24 +366,16 @@ function updateSkillTags(groupName: string, newTags: string[]) {
 // ---- Date helpers ----
 
 function formatDate(dateString: string | null | undefined): string {
-  if (!dateString) return 'Present'
-  const date = new Date(dateString)
-  if (isNaN(date.getTime())) return dateString
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  return toMonthYearLabel(dateString, 'Present')
 }
 
 function formatDateForInput(dateString: string | null | undefined): string {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  if (isNaN(date.getTime())) return dateString
-  return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`
+  return toMonthYearInput(dateString)
 }
 
 function parseDateFromInput(value: string): string {
   if (!value) return ''
-  const match = value.match(/^(\d{1,2})\/(\d{4})$/)
-  if (match) return `${match[2]}-${match[1].padStart(2, '0')}-01`
-  return value
+  return toApiDate(value) ?? value
 }
 
 // ---- Derived views ----
@@ -460,7 +459,7 @@ const hasAnyContent = computed(() =>
 // ---- Sorted item lists (selected first, then unselected; both groups sorted recent-first) ----
 
 function dateVal(d: string | null | undefined): number {
-  return d ? new Date(d).getTime() : 0
+  return monthYearSortKey(d)
 }
 
 const sortedWorkExperience = computed(() => {

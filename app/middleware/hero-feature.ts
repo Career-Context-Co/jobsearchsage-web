@@ -1,9 +1,6 @@
-export default defineNuxtRouteMiddleware((to) => {
-  const feature = to.meta.featureFlag
-  if (typeof feature !== 'string') return
-
-  const account = useAccountStore()
-  if (!account.isFeatureEnabled(feature)) {
+export default defineNuxtRouteMiddleware(() => {
+  const globalStore = useGlobalStore()
+  if (!globalStore.features.hero) {
     return navigateTo('/profile')
   }
 })

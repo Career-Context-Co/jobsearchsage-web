@@ -27,6 +27,10 @@ export default defineNuxtConfig({
       appRedirectUrl: process.env.NUXT_PUBLIC_APP_REDIRECT_URL,
       // Feature flags — seeded here, overridable via PostHog at runtime
       signupEmailConfirmation: process.env.NUXT_PUBLIC_SIGNUP_EMAIL_CONFIRMATION !== 'false',
+      // HERO surfaces (tab, wizard, experience nudge). Off unless explicitly enabled.
+      hero: process.env.NUXT_PUBLIC_HERO_ENABLED === 'true',
+      // Experience "Get AI Help" (Sage assist). Off unless explicitly enabled.
+      sageAssist: process.env.NUXT_PUBLIC_SAGE_ASSIST_ENABLED === 'true',
       posthog: {
         publicKey: process.env.NUXT_PUBLIC_POSTHOG_KEY || '',
         host: process.env.NUXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com'

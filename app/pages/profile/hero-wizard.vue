@@ -4,7 +4,8 @@ import type { ExperienceLinkChoice, HeroExampleRole, HeroWizardDetailField, Hero
 import { storeToRefs } from 'pinia'
 
 definePageMeta({
-  layout: 'fullscreen'
+  layout: 'fullscreen',
+  middleware: 'hero-feature'
 })
 
 interface WizardStepperItem extends StepperItem {

@@ -1,50 +1,21 @@
 <script setup lang="ts">
 import type { Experience } from '#shared/types/careerId'
+import {
+  monthYearSortKey,
+  toApiDate,
+  toMonthYearInput,
+  toMonthYearLabel
+} from '#shared/utils/monthYearDate'
 import { vMaska } from 'maska/vue'
 import { validateRequired, validateUrl, validateMonthYear, validateDateRange } from '~/utils/validation'
 
 const careerIDStore = useCareerIDStore()
 const sageAIStore = useSageAIStore()
 const accountStore = useAccountStore()
+const globalStore = useGlobalStore()
 const toast = useToast()
 const router = useRouter()
 const route = useRoute()
-
-/**
- * Convert date from YYYY-MM-DD to MM/YYYY format for UI display
- */
-function formatDateForUI(dateString: string | null | undefined): string {
-  if (!dateString) return ''
-  
-  // If already in MM/YYYY format, return as-is
-  if (/^\d{2}\/\d{4}$/.test(dateString)) return dateString
-  
-  // Parse YYYY-MM-DD and convert to MM/YYYY
-  const date = new Date(dateString)
-  if (isNaN(date.getTime())) return dateString
-  
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const year = date.getFullYear()
-  
-  return `${month}/${year}`
-}
-
-/**
- * Convert date from MM/YYYY to YYYY-MM-DD format for API
- */
-function formatDateForAPI(dateString: string | undefined): string | undefined {
-  if (!dateString || !dateString.trim()) return undefined
-  
-  // If already in YYYY-MM-DD format, return as-is
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString
-  
-  // Parse MM/YYYY and convert to YYYY-MM-DD
-  const match = dateString.match(/^(\d{2})\/(\d{4})$/)
-  if (!match) return dateString
-  
-  const [, month, year] = match
-  return `${year}-${month}-01`
-}
 
 // Loading and saving states
 const isLoading = computed(() => careerIDStore.isLoading)
@@ -54,7 +25,7 @@ const isSaving = computed(() => careerIDStore.isSaving)
 const experiences = computed(() => {
   // Sort by start date, most recent first
   return [...careerIDStore.experience].sort((a, b) => {
-    return new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+    return monthYearSortKey(b.startDate) - monthYearSortKey(a.startDate)
   })
 })
 
@@ -118,6 +89,7 @@ const sageSessionExperience = computed(() =>
 )
 
 function openSageSession(experienceId: number) {
+  if (!globalStore.features.sageAssist) return
   sageSessionExperienceId.value = experienceId
   sageSessionOpen.value = true
 }
@@ -181,6 +153,8 @@ function setHeroNudgeState(nudge: Omit<HeroNudgeActiveState, 'loading'>, expande
 }
 
 async function loadPersistedHeroNudges(profileId: string) {
+  if (!globalStore.features.hero) return
+
   const nudges = await sageAIStore.loadHeroNudgesForProfile(profileId)
   for (const nudge of nudges) {
     setHeroNudgeState(nudge, false)
@@ -188,6 +162,8 @@ async function loadPersistedHeroNudges(profileId: string) {
 }
 
 async function checkHeroNudgeForExperience(experience: Experience) {
+  if (!globalStore.features.hero) return
+
   const hasSignalContent = Boolean(
     experience.summary?.trim()
     || experience.contextNotes?.trim()
@@ -451,8 +427,8 @@ function startEditingExperience(experience: Experience) {
     location: experience.location || '',
     locationType: experience.locationType,
     url: experience.url || '',
-    startDate: formatDateForUI(experience.startDate),
-    endDate: formatDateForUI(experience.endDate),
+    startDate: toMonthYearInput(experience.startDate),
+    endDate: toMonthYearInput(experience.endDate),
     currentPosition: experience.currentPosition,
     summary: experience.summary || '',
     contextNotes: experience.contextNotes || '',
@@ -556,8 +532,8 @@ async function addExperience() {
       location: formData.value.location || undefined,
       locationType: formData.value.locationType!,
       url: formData.value.url || undefined,
-      startDate: formatDateForAPI(formData.value.startDate)!,
-      endDate: formData.value.currentPosition ? undefined : formatDateForAPI(formData.value.endDate),
+      startDate: toApiDate(formData.value.startDate)!,
+      endDate: formData.value.currentPosition ? undefined : (toApiDate(formData.value.endDate) ?? undefined),
       currentPosition: formData.value.currentPosition || false,
       summary: formData.value.summary || undefined,
       contextNotes: formData.value.contextNotes ?? null,
@@ -607,8 +583,8 @@ async function updateExperience() {
       location: formData.value.location || undefined,
       locationType: formData.value.locationType!,
       url: formData.value.url || undefined,
-      startDate: formatDateForAPI(formData.value.startDate)!,
-      endDate: formData.value.currentPosition ? undefined : formatDateForAPI(formData.value.endDate),
+      startDate: toApiDate(formData.value.startDate)!,
+      endDate: formData.value.currentPosition ? undefined : (toApiDate(formData.value.endDate) ?? undefined),
       currentPosition: formData.value.currentPosition || false,
       summary: formData.value.summary || undefined,
       contextNotes: formData.value.contextNotes ?? null,
@@ -659,11 +635,8 @@ async function deleteExperience(id: number) {
   }
 }
 
-// Format date for display
 function formatDate(dateString: string | null | undefined): string {
-  if (!dateString) return 'Present'
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  return toMonthYearLabel(dateString, 'Present')
 }
 
 // Fetch profile data on mount
@@ -1030,7 +1003,7 @@ async function scrollToHashedExperience() {
                 </p>
               </div>
 
-              <div v-if="activeHeroNudgeFor(experience.id)" class="mt-3">
+              <div v-if="globalStore.features.hero && activeHeroNudgeFor(experience.id)" class="mt-3">
                 <ProfileSageHeroNudge
                   v-if="isHeroNudgeExpanded(experience.id)"
                   :signal="activeHeroNudgeFor(experience.id)!.signal"
@@ -1084,6 +1057,7 @@ async function scrollToHashedExperience() {
                   Enhanced
                 </UBadge>
                 <UButton
+                  v-if="globalStore.features.sageAssist"
                   label="Get AI Help"
                   icon="i-lucide-sparkles"
                   color="primary"
@@ -1307,6 +1281,7 @@ async function scrollToHashedExperience() {
 
   <!-- Sage AI Session Slideover -->
   <USlideover
+    v-if="globalStore.features.sageAssist"
     v-model:open="sageSessionOpen"
     side="right"
     :overlay="false"

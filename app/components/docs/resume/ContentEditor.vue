@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { toMonthYearLabel } from '#shared/utils/monthYearDate'
+
 // --- Config types (will eventually be a real DB-backed model) ---
 
 interface HighlightConfig {
@@ -132,7 +134,7 @@ function getHighlight(expId: string, hlId: string) {
 }
 
 function formatDateRange(startDate: string, endDate: string | null) {
-  const fmt = (d: string) => new Date(d + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  const fmt = (d: string) => toMonthYearLabel(d)
   return endDate ? `${fmt(startDate)} – ${fmt(endDate)}` : `${fmt(startDate)} – Present`
 }
 
@@ -509,7 +511,7 @@ const accordionItems = [
                   {{ certById[certConfig.sourceId].issuer }}
                 </p>
                 <p class="text-xs text-muted mt-0.5">
-                  Issued {{ new Date(certById[certConfig.sourceId].issueDate + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) }}
+                  Issued {{ toMonthYearLabel(certById[certConfig.sourceId].issueDate) }}
                 </p>
               </div>
               <div class="flex gap-0.5 shrink-0">
